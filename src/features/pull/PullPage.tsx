@@ -119,6 +119,7 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
               number={number}
               kind="pull"
               subject={pull}
+              commentCount={pull.totalCommentsCount}
               beforeComposer={<MergeBox pull={pull} owner={owner} repo={repo} fetchedFresh={q.isFetchedAfterMount && !q.isFetching} refetch={q.refetch} />}
             />
           </div>
