@@ -142,7 +142,7 @@ export function SubjectList(props: SubjectListProps) {
     <div className="box lr-box">
       <div className="box-header lr-header row">
         <div className="row grow">{header}</div>
-        {isFetching && !isPending && <Spinner label="Checking for updates" />}
+        <Spinner label="Checking for updates" show={isFetching && !isPending} />
       </div>
       {!!error && !!data && (
         <div className="lr-state">

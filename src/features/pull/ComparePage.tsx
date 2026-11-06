@@ -167,8 +167,8 @@ export function ComparePage({ head: headProp }: { head?: string } = {}) {
           <BranchPicker label="base" value={base} branches={branches.data?.names} onPick={(b) => go(b, head)} />
           <ArrowLeftIcon className="muted" />
           <BranchPicker label="compare" value={head} branches={branches.data?.names} onPick={(h) => go(base, h)} />
-          {cmp.isFetching && <Spinner label="Comparing branches" />}
           {data?.compare && <MergeHint compare={data.compare} />}
+          {cmp.isFetching && <Spinner label="Comparing branches" />}
         </div>
         {branches.error != null && <ErrorBanner error={branches.error} />}
         {cmp.error != null && <ErrorBanner error={cmp.error} />}

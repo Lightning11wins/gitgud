@@ -82,7 +82,8 @@ export function MetadataSidebar({ subject, owner, repo, children }: MetadataSide
     );
 
   const assignees = subject.assignees.nodes;
-  const showTypes = kind === "issue" && (issueTypes.data?.length ?? 0) > 0;
+  // A typed issue shows its type before the repo's types load, so the sections below don't move.
+  const showTypes = kind === "issue" && (issueTypes.data ? issueTypes.data.length > 0 : !!subject.issueType);
 
   return (
     <aside className="sidebar">

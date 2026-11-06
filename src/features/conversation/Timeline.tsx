@@ -36,14 +36,19 @@ export interface TimelineProps {
   subject: SubjectMeta;
   /** Rendered between the timeline and the comment box, e.g. the PR merge box. */
   beforeComposer?: ReactNode;
+  /** Comment count, if known; reserves room while the timeline loads so the comment box doesn't jump. */
+  commentCount?: number;
 }
 
 /** Rows rendered in the first frame; the rest stream in over the next frames. */
 const FIRST_ROWS = 60;
 const ROWS_PER_FRAME = 120;
+/** Typical height of a comment card, and how many to reserve room for before the timeline loads. */
+const COMMENT_HEIGHT = 120;
+const RESERVED_COMMENTS = 5;
 
 /** The conversation: body, every timeline item, and the comment box. */
-export function Timeline({ owner, repo, number, kind, subject, beforeComposer }: TimelineProps) {
+export function Timeline({ owner, repo, number, kind, subject, beforeComposer, commentCount }: TimelineProps) {
   const timeline = useTimeline(kind, owner, repo, number);
   const threadsQuery = useQuery({
     queryKey: keys.reviewThreads(owner, repo, number),
@@ -117,8 +122,10 @@ export function Timeline({ owner, repo, number, kind, subject, beforeComposer }:
         <TimelineRow key={row.key} row={row} actions={actions} threads={row.type === "item" ? threadsByReview.get(row.item.id) : undefined} />
       ))}
       {(timeline.isPending || loadingMore || rows.length > limit) && (
-        <div className="tl-loading muted row">
-          <Spinner label="Loading timeline" delay={0} /> Loading {items ? `(${items.length} items so far)` : "timeline"}
+        <div style={timeline.isPending && commentCount ? { minHeight: Math.min(commentCount, RESERVED_COMMENTS) * COMMENT_HEIGHT } : undefined}>
+          <div className="tl-loading muted row">
+            <Spinner label="Loading timeline" delay={0} /> Loading {items ? `(${items.length} items so far)` : "timeline"}
+          </div>
         </div>
       )}
       {timeline.error && <ErrorBanner error={timeline.error} action={<button className="btn sm" onClick={() => timeline.refetch()}>Retry</button>} />}

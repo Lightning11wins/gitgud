@@ -49,7 +49,15 @@ export function OwnerPage() {
             {info?.name && <strong>{info.name}</strong>}
             <span className={info?.name ? "muted" : undefined}>{info?.login ?? login}</span>
           </h1>
-          {about && <p className="muted owner-desc">{about}</p>}
+          {about ? (
+            <p className="muted owner-desc">{about}</p>
+          ) : (
+            query.isPending && (
+              <p className="muted owner-desc">
+                <span className="skeleton" aria-hidden="true">A short description of this account</span>
+              </p>
+            )
+          )}
         </div>
       </div>
 
