@@ -608,9 +608,11 @@ textarea.input {
   overflow-y: auto;
   padding: 4px 0;
 }
+/* A whole-pixel line height keeps every row on whole pixels, so stacked rows' text sits evenly apart. */
 .select-menu-header {
   padding: 6px 12px;
   font-size: 13px;
+  line-height: 20px;
 }
 .select-menu-item {
   display: flex;
@@ -622,6 +624,7 @@ textarea.input {
   background: none;
   text-align: left;
   font-size: 13px;
+  line-height: 20px;
 }
 .select-menu-item:is(button, a[href], [role="option"]) {
   cursor: pointer;
