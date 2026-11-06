@@ -87,3 +87,17 @@
 .template-list .box-row p {
   margin: 2px 0 0;
 }
+
+@media (max-width: 767px) {
+  .issue-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .issue-layout > .sidebar {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+  .issue-sticky-inner {
+    padding: 8px 16px;
+  }
+}

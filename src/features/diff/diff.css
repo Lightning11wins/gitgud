@@ -446,3 +446,12 @@
   background: var(--bg-muted);
   padding: 0;
 }
+
+/* Collapsed (resolved) threads span both split columns; the empty half is dropped. */
+.dk:not(.one) .dt:has(.rt.resolved) {
+  grid-column: 1 / -1;
+}
+.dk:not(.one) .dt:empty:has(+ .dt .rt.resolved),
+.dk:not(.one) .dt:has(.rt.resolved) + .dt:empty {
+  display: none;
+}

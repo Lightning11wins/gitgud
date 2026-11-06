@@ -3,6 +3,7 @@ import { SortDescIcon, TriangleDownIcon } from "@primer/octicons-react";
 import { Avatar } from "@/components/Avatar";
 import { SelectMenu } from "@/components/SelectMenu";
 import { useAssignableUsers, useIssueTypes, useMilestones, useRepoLabels } from "@/features/sidebar/data";
+import type { Label } from "@/api/types";
 import { getQualifier, setQualifier, setSort, type ListItem } from "./searchList";
 
 export const DEFAULT_SORT = "created-desc";
@@ -11,7 +12,12 @@ const SORTS = [
   { value: "created-asc", label: "Oldest" },
   { value: "updated-desc", label: "Recently updated" },
   { value: "comments-desc", label: "Most commented" },
+  { value: "relevance-desc", label: "Best match" },
 ];
+const SORT_ALIASES: Record<string, string> = { relevance: "relevance-desc" };
+
+/** The Labels menu's "No labels" row, which stands for `no:label`. */
+const NO_LABEL: Label = { id: "no:label", name: "no:label", color: "", description: null };
 
 const REVIEWS = [
   { value: "none", label: "No reviews" },
@@ -60,10 +66,12 @@ export function ListFilters({ owner, repo, kind, q, setQ, sort, items }: ListFil
   const toggle = (which: Menu) => (e: React.MouseEvent<HTMLElement>) =>
     setMenu(menu?.which === which ? null : { which, anchor: e.currentTarget });
 
+  const noLabel = getQualifier(q, "no").some((v) => v.toLowerCase() === "label");
+
   const button = (which: Qualifier, label: string) => (
     <button
       className="btn invisible sm rf-btn"
-      data-active={getQualifier(q, which).length > 0}
+      data-active={getQualifier(q, which).length > 0 || (which === "label" && noLabel)}
       aria-expanded={menu?.which === which}
       onClick={toggle(which)}
     >
@@ -79,7 +87,14 @@ export function ListFilters({ owner, repo, kind, q, setQ, sort, items }: ListFil
     onClose: () => setMenu(null),
   });
 
-  const sortLabel = SORTS.find((s) => s.value === sort)?.label ?? sort;
+  const sortValue = SORT_ALIASES[sort] ?? sort;
+  const sortLabel = SORTS.find((s) => s.value === sortValue)?.label ?? sort;
+
+  const applyLabels = (values: string[]) => {
+    const others = getQualifier(q, "no").filter((v) => v.toLowerCase() !== "label");
+    const no = values.includes(NO_LABEL.name) ? [...others, "label"] : others;
+    setQ(setQualifier(setQualifier(q, "label", values.filter((v) => v !== NO_LABEL.name)), "no", no));
+  };
 
   return (
     <div className="rf">
@@ -115,19 +130,28 @@ export function ListFilters({ owner, repo, kind, q, setQ, sort, items }: ListFil
       {menu?.which === "label" && (
         <SelectMenu
           {...menuProps("label", menu.anchor)}
+          initial={noLabel ? [NO_LABEL.name, ...getQualifier(q, "label")] : getQualifier(q, "label")}
+          onApply={applyLabels}
           title="Filter by label"
-          items={labels.data}
+          items={labels.data && [NO_LABEL, ...labels.data]}
           getKey={(l) => l.name}
-          getText={(l) => `${l.name} ${l.description ?? ""}`}
-          renderItem={(l) => (
-            <span className="rf-item">
+          getText={(l) => (l === NO_LABEL ? "No labels" : `${l.name} ${l.description ?? ""}`)}
+          renderItem={(l) =>
+            l === NO_LABEL ? (
               <span className="row rf-name">
-                <span className="rf-dot" style={{ background: `#${l.color}` }} />
-                <strong className="truncate">{l.name}</strong>
+                <span className="rf-dot" />
+                No labels
               </span>
-              {l.description && <span className="muted truncate">{l.description}</span>}
-            </span>
-          )}
+            ) : (
+              <span className="rf-item">
+                <span className="row rf-name">
+                  <span className="rf-dot" style={{ background: `#${l.color}` }} />
+                  <span className="truncate">{l.name}</span>
+                </span>
+                {l.description && <span className="muted truncate">{l.description}</span>}
+              </span>
+            )
+          }
           multiple
           emptyText={labels.error ? "Failed to load labels" : "No labels"}
         />
@@ -200,7 +224,7 @@ export function ListFilters({ owner, repo, kind, q, setQ, sort, items }: ListFil
           getKey={(s) => s.value}
           getText={(s) => s.label}
           renderItem={(s) => s.label}
-          initial={[sort]}
+          initial={[sortValue]}
           onApply={([value]) => setQ(setSort(q, !value || value === DEFAULT_SORT ? null : value))}
           onClose={() => setMenu(null)}
           filterable={false}

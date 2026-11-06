@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { fetchAtLeast, getQualifier, kindSubset, setQualifier, summarizeChecks, type ListData, type ListItem } from "./searchList";
+import {
+  baseQuery,
+  buildSearch,
+  fetchAtLeast,
+  getQualifier,
+  getState,
+  kindSubset,
+  setQualifier,
+  setState,
+  summarizeChecks,
+  type ListData,
+  type ListItem,
+} from "./searchList";
 
 const item = (id: string) => ({ id }) as ListItem;
 
@@ -89,5 +101,36 @@ describe("summarizeChecks", () => {
       null,
     ];
     expect(summarizeChecks({ state: "PENDING", contexts: { nodes } })).toEqual({ state: "PENDING", passed: 3, total: 4 });
+  });
+});
+
+describe("state", () => {
+  it("reads is: and GitHub's state: syntax", () => {
+    expect(getState("is:issue is:open label:bug")).toBe("open");
+    expect(getState("is:issue state:open label:enhancement")).toBe("open");
+    expect(getState("STATE:Closed")).toBe("closed");
+    expect(getState("is:pr is:merged")).toBeNull();
+    expect(getState("-state:open label:bug")).toBeNull();
+    expect(getState("label:bug")).toBeNull();
+  });
+
+  it("toggles by replacing every state token", () => {
+    expect(setState("is:issue state:open label:enhancement", "closed")).toBe("is:closed is:issue label:enhancement");
+    expect(setState("state:closed is:open", "open")).toBe("is:open");
+    expect(setState("is:pr is:merged", "open")).toBe("is:open is:pr");
+  });
+
+  it("counts across states for state: queries", () => {
+    expect(baseQuery("is:issue state:open label:enhancement sort:updated-desc")).toBe("label:enhancement");
+    expect(baseQuery("state:closed is:merged author:me")).toBe("author:me");
+  });
+
+  it("keeps state: queries consistent between the mixed list and a kind's list", () => {
+    const q = "state:open label:enhancement";
+    expect(buildSearch(q, { repo: "cli/cli", defaultSort: "created-desc" })).toBe("repo:cli/cli state:open label:enhancement (is:issue OR is:pr) sort:created-desc");
+    expect(buildSearch(q, { repo: "cli/cli", kind: "issue", defaultSort: "created-desc" })).toBe("repo:cli/cli state:open label:enhancement is:issue sort:created-desc");
+    const item = (id: string, __typename: "Issue" | "PullRequest", state: string) => ({ id, __typename, state }) as ListItem;
+    const all: ListData = { items: [item("a", "Issue", "OPEN"), item("b", "PullRequest", "OPEN")], total: 2, hasNextPage: false, endCursor: null };
+    expect(kindSubset(all, "issue")?.items.map((i) => i.id)).toEqual(["a"]);
   });
 });

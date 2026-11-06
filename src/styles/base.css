@@ -729,3 +729,28 @@ kbd {
 .jump-box input:focus + kbd {
   display: none;
 }
+
+@media (max-width: 767px) {
+  .app-main {
+    padding: 16px 16px 48px;
+  }
+  .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .tabs > * {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+@media (max-width: 600px) {
+  .app-header .jump-box {
+    display: none;
+  }
+  .app-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}

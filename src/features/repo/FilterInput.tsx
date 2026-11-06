@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
-import { SearchIcon } from "@primer/octicons-react";
+import { useEffect, useRef, useState } from "react";
+import { SearchIcon, XCircleFillIcon } from "@primer/octicons-react";
 
-/** Search-syntax input. Applies on Enter; Escape reverts and blurs. */
+/** Search-syntax input. Applies on Enter; Escape reverts and blurs; the clear button applies an empty search. */
 export function FilterInput({ value, onApply, placeholder }: { value: string; onApply: (q: string) => void; placeholder?: string }) {
   const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => setDraft(value), [value]);
   return (
     <div className="lr-filter">
       <SearchIcon size={14} />
       <input
+        ref={inputRef}
         className="input"
         value={draft}
         placeholder={placeholder}
@@ -23,6 +25,20 @@ export function FilterInput({ value, onApply, placeholder }: { value: string; on
           }
         }}
       />
+      {draft && (
+        <button
+          className="btn invisible sm icon lr-filter-clear"
+          aria-label="Clear search"
+          title="Clear search"
+          onClick={() => {
+            setDraft("");
+            onApply("");
+            inputRef.current?.focus();
+          }}
+        >
+          <XCircleFillIcon size={16} />
+        </button>
+      )}
     </div>
   );
 }

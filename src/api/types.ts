@@ -1,6 +1,8 @@
 /** Shared GraphQL shapes used across features. Feature-specific shapes live with each feature. */
 
 export interface Actor {
+  /** "User", "Bot", "Mannequin", or "Organization". */
+  __typename?: string;
   login: string;
   avatarUrl: string;
   url: string;
@@ -86,7 +88,9 @@ export interface SubjectMeta {
 
 export type RepoPermission = "ADMIN" | "MAINTAIN" | "WRITE" | "TRIAGE" | "READ";
 
-export const ACTOR_FIELDS = `login avatarUrl(size: 80) url`;
+export const ACTOR_FIELDS = `__typename login avatarUrl(size: 80) url`;
+
+export const isBot = (a: { __typename?: string } | null | undefined) => a?.__typename === "Bot";
 
 /** Selection set valid on both Issue and PullRequest, producing {@link SubjectMeta}. */
 export const SUBJECT_META_FIELDS = `

@@ -1,6 +1,6 @@
-import { memo, useEffect, useRef, type CSSProperties } from "react";
+import { memo, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { Link } from "react-router";
-import { CheckIcon, CommentIcon, DotFillIcon, XIcon } from "@primer/octicons-react";
+import { CheckIcon, CommentIcon, DotFillIcon, GitPullRequestIcon, XIcon } from "@primer/octicons-react";
 import { prefetchSubject } from "@/api/prefetch";
 import { Avatar } from "@/components/Avatar";
 import { IssueLabel } from "@/components/IssueLabel";
@@ -12,6 +12,7 @@ import type { CheckSummary, ListItem } from "./searchList";
 export const ROW_HEIGHT = 56;
 const MAX_LABELS = 4;
 const PREFETCH_DELAY_MS = 150;
+const byName = new Intl.Collator(undefined, { sensitivity: "base" });
 
 export function itemPath(item: ListItem): string {
   return `/${item.repository.nameWithOwner}/${item.__typename === "PullRequest" ? "pull" : "issues"}/${item.number}`;
@@ -54,6 +55,14 @@ function PullStatus({ item, checks }: { item: ListItem; checks?: CheckSummary | 
   );
 }
 
+/** The color of an issue's linked pull requests: merged, then open, then draft, then closed wins. */
+function linkedPrColor(prs: NonNullable<ListItem["linkedPrs"]>["nodes"]): string {
+  if (prs.some((p) => p.state === "MERGED")) return "var(--done)";
+  if (prs.some((p) => p.state === "OPEN" && !p.isDraft)) return "var(--success)";
+  if (prs.some((p) => p.state === "OPEN")) return "var(--fg-muted)";
+  return prs.length ? "var(--danger)" : "var(--fg-muted)";
+}
+
 export interface ListRowProps {
   item: ListItem;
   /** Undefined until loaded; null when the PR has no checks. */
@@ -70,7 +79,7 @@ export const ListRow = memo(function ListRow({ item, checks, showRepo, active, s
   useEffect(() => () => window.clearTimeout(timer.current), []);
   const isPr = item.__typename === "PullRequest";
   const [owner, repo] = item.repository.nameWithOwner.split("/");
-  const labels = item.labels.nodes;
+  const labels = useMemo(() => [...item.labels.nodes].sort((a, b) => byName.compare(a.name, b.name)), [item.labels.nodes]);
   const comments = item.totalCommentsCount ?? item.comments.totalCount;
 
   return (
@@ -89,7 +98,7 @@ export const ListRow = memo(function ListRow({ item, checks, showRepo, active, s
       <div className="lr-main">
         <div className="lr-title">
           {showRepo && <span className="muted lr-repo">{item.repository.nameWithOwner}</span>}
-          <Link className="lr-link truncate" to={itemPath(item)} data-row-link>
+          <Link className="lr-link truncate" to={itemPath(item)} title={item.title} data-row-link>
             <TitleText text={item.title} />
           </Link>
           {labels.length > 0 && (
@@ -115,6 +124,11 @@ export const ListRow = memo(function ListRow({ item, checks, showRepo, active, s
         </div>
       </div>
       <div className="lr-side">
+        {!!item.linkedPrs?.totalCount && (
+          <span className="lr-prs muted" title={`${item.linkedPrs.totalCount} linked pull request${item.linkedPrs.totalCount === 1 ? "" : "s"}`}>
+            <GitPullRequestIcon size={14} fill={linkedPrColor(item.linkedPrs.nodes)} /> {item.linkedPrs.totalCount}
+          </span>
+        )}
         <span className="lr-assignees">
           {item.assignees.nodes.slice(0, 3).map((a) => (
             <Avatar key={a.login} src={a.avatarUrl} login={a.login} size={20} />

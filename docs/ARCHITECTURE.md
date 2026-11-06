@@ -68,6 +68,7 @@ server/serve.mjs  static server with CSP and compression
 - References from other issues and commits don't change a subject's `updatedAt`, so cached timelines resume from their end cursor every 10 minutes anyway.
 - Repo lists use `search(type: ISSUE_ADVANCED)`. With the same filters and sort, the issues in the All list are a prefix of the Issues list (same for PRs), so `kindSubset` in `features/repo/searchList.ts` shows them as placeholder data while a tab loads.
 - Selecting check runs in the list query slows it by about 1.5s, so list rows get their check counts from `CHECKS_QUERY`, the same search run alongside each page with the same cursor. Rows whose check runs the token can't read show no count.
+- Issue rows select `closedByPullRequestsReferences` in the list query itself; it adds about 8% to first rows, cheaper than a second search on issue-only pages.
 - GraphQL connections page serially at about 1.8s per 100 nodes regardless of fields selected. Owner pages refresh by fetching the first page and merging with the cache.
 - The first request from headless Chromium can fail CORS preflight behind some proxies; it's an environment problem, not an app bug.
 

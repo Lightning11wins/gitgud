@@ -1,6 +1,7 @@
 import { ChecklistIcon, CommentDiscussionIcon, FileDiffIcon, GitCommitIcon } from "@primer/octicons-react";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
+import { isNotFound } from "@/api/client";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { NotFound } from "@/components/NotFound";
 import { Spinner } from "@/components/Spinner";
@@ -63,6 +64,7 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
   }, [view]);
 
   if (!q.data) {
+    if (q.error && isNotFound(q.error)) return <NotFound title={`Pull request #${number} doesn't exist in ${owner}/${repo}, or your token can't see it`} />;
     if (q.error) return <ErrorBanner error={q.error} action={<button className="btn sm" onClick={() => q.refetch()}>Retry</button>} />;
     return (
       <div className="blankslate">

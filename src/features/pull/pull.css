@@ -539,3 +539,15 @@ span.pull-branch {
   font-size: 16px;
   font-weight: 600;
 }
+
+@media (max-width: 767px) {
+  .pull-conversation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pull-sticky-inner {
+    padding: 6px 16px;
+  }
+  .pull-tabs {
+    overflow-x: auto;
+  }
+}

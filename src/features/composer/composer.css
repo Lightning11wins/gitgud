@@ -49,6 +49,7 @@
   width: 100%;
   min-height: 72px;
   max-height: 60vh;
+  field-sizing: content;
   background: var(--bg);
 }
 .composer-preview {

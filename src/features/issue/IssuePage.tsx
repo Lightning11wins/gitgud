@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { gql } from "@/api/client";
+import { gql, isNotFound } from "@/api/client";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { NotFound } from "@/components/NotFound";
 import { RelativeTime } from "@/components/RelativeTime";
 import { Spinner } from "@/components/Spinner";
 import { TitleText } from "@/components/TitleText";
@@ -37,6 +38,7 @@ export function IssuePage() {
         <Spinner size={20} label="Loading issue" />
       </div>
     );
+  if (meta.error && !meta.data && isNotFound(meta.error)) return <NotFound title={`Issue #${number} doesn't exist in ${owner}/${repo}, or your token can't see it`} />;
   if (meta.error && !meta.data) return <ErrorBanner error={meta.error} action={<button className="btn sm" onClick={() => meta.refetch()}>Retry</button>} />;
   if (isPull || !meta.data) return null;
   const issue = meta.data as IssueMeta;

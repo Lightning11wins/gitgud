@@ -23,6 +23,8 @@ export interface ListItem {
   comments: { totalCount: number };
   /** Pull requests only: comments including review comments. */
   totalCommentsCount?: number;
+  /** Issues only: pull requests that close the issue, open or not. */
+  linkedPrs?: { totalCount: number; nodes: { state: string; isDraft: boolean }[] };
 }
 
 /** Head commit checks: the rollup state and how many of `total` passed. */
@@ -84,7 +86,10 @@ query SearchList($q: String!, $first: Int!, $after: String) {
     pageInfo { hasNextPage endCursor }
     nodes {
       __typename
-      ... on Issue { ${COMMON} stateReason }
+      ... on Issue {
+        ${COMMON} stateReason
+        linkedPrs: closedByPullRequestsReferences(first: 5, includeClosedPrs: true) { totalCount nodes { state isDraft } }
+      }
       ... on PullRequest {
         ${COMMON} isDraft reviewDecision totalCommentsCount
       }
@@ -283,11 +288,12 @@ export function stripToken(q: string, pattern: string): string {
 }
 
 export type StateFilter = "open" | "closed";
-const STATE_TOKEN = "is:(?:open|closed)";
+/** `is:open` or GitHub's `state:open`, and the same for closed; `is:merged` narrows closed. */
+const STATE_TOKEN = "(?:is|state):(?:open|closed)|is:merged";
 const SORT_TOKEN = "sort:\\S+";
 
 export function getState(q: string): StateFilter | null {
-  const m = /(?:^|\s)is:(open|closed)(?=\s|$)/i.exec(q);
+  const m = /(?:^|\s)(?:is|state):(open|closed)(?=\s|$)/i.exec(q);
   return m ? (m[1].toLowerCase() as StateFilter) : null;
 }
 

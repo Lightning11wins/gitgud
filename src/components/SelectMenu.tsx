@@ -2,6 +2,7 @@ import { CheckIcon } from "@primer/octicons-react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Popover } from "./Popover";
 import { Spinner } from "./Spinner";
+import "./select-menu.css";
 
 export interface SelectMenuProps<T> {
   anchor: HTMLElement;
@@ -146,7 +147,13 @@ export function SelectMenu<T>(props: SelectMenuProps<T>) {
               onMouseEnter={() => setActive(i)}
               onClick={() => toggle(item)}
             >
-              <span className="check">{selected.has(key) && <CheckIcon />}</span>
+              {multiple ? (
+                <span className="select-menu-checkbox" data-checked={selected.has(key)}>
+                  {selected.has(key) && <CheckIcon size={12} />}
+                </span>
+              ) : (
+                <span className="check">{selected.has(key) && <CheckIcon />}</span>
+              )}
               {renderItem(item)}
             </button>
           );

@@ -4,6 +4,7 @@ import type { ReviewThread } from "@/api/types";
 import { Avatar } from "@/components/Avatar";
 import { RelativeTime } from "@/components/RelativeTime";
 import { ReviewThreadView } from "@/features/review/ReviewThread";
+import { BotBadge } from "./BotBadge";
 import { CommentCard } from "./CommentCard";
 import type { TimelineActions } from "./TimelineRow";
 import type { ReviewItem as Review } from "./types";
@@ -33,7 +34,8 @@ export const ReviewItemView = memo(function ReviewItemView({ review, threads, ac
             <Avatar src={review.author?.avatarUrl} size={16} login={login} />{" "}
             <a className="event-actor" href={review.author?.url} target="_blank" rel="noopener noreferrer">
               {login}
-            </a>{" "}
+            </a>
+            <BotBadge actor={review.author} />{" "}
             {s.verb}{" "}
             <a className="muted" href={review.url} target="_blank" rel="noopener noreferrer">
               <RelativeTime date={review.submittedAt ?? review.createdAt} />

@@ -2,10 +2,11 @@ import { memo } from "react";
 import type { SubjectKind } from "@/api/prefetch";
 import type { ReactionContent, ReviewThread } from "@/api/types";
 import { CommentCard } from "./CommentCard";
-import { CommitGroup, EventRow, ReferenceGroup } from "./Events";
+import { CommitGroup, EventGroupRow, EventRow, ReferenceGroup } from "./Events";
 import type { MinimizeReason } from "./mutations";
 import { ReviewItemView } from "./ReviewItem";
-import type { CommitItem, EventItem, IssueCommentItem, ReviewItem, TimelineItem } from "./types";
+import type { Row } from "./rows";
+import type { EventItem, IssueCommentItem, ReviewItem } from "./types";
 
 /** Stable callbacks and context shared by every row, so rows can be memoized. */
 export interface TimelineActions {
@@ -23,50 +24,6 @@ export interface TimelineActions {
   saveReview: (id: string, body: string) => Promise<void>;
 }
 
-export type Row =
-  | { key: string; type: "item"; item: TimelineItem }
-  | { key: string; type: "commits"; commits: CommitItem[] }
-  | { key: string; type: "refs"; refs: EventItem[] };
-
-const isCrossRepoRef = (it: TimelineItem) => it.__typename === "ReferencedEvent" && !!(it as EventItem).isCrossRepository;
-
-/** Groups consecutive commits and cross-repository commit references, and drops items that render nothing. */
-export function buildRows(items: TimelineItem[], prev: Row[] = []): Row[] {
-  const prevRows = new Map(prev.map((r) => [r.key, r]));
-  const rows: Row[] = [];
-  let merged = false;
-  for (const item of items) {
-    const last = rows[rows.length - 1];
-    if (item.__typename === "PullRequestCommit") {
-      if (last?.type === "commits") last.commits.push(item as CommitItem);
-      else rows.push({ key: item.id, type: "commits", commits: [item as CommitItem] });
-      continue;
-    }
-    if (isCrossRepoRef(item)) {
-      if (last?.type === "refs") last.refs.push(item as EventItem);
-      else if (last?.type === "item" && isCrossRepoRef(last.item)) rows[rows.length - 1] = { key: last.key, type: "refs", refs: [last.item as EventItem, item as EventItem] };
-      else rows.push({ key: item.id, type: "item", item });
-      continue;
-    }
-    if (item.__typename === "PullRequestReview" && (item as ReviewItem).state === "PENDING") continue;
-    // GitHub hides the ClosedEvent that comes with a merge.
-    if (item.__typename === "MergedEvent") merged = true;
-    else if (merged && item.__typename === "ClosedEvent") continue;
-    rows.push({ key: item.id, type: "item", item });
-  }
-  // Keep unchanged rows identical so their memoized components skip rendering.
-  return rows.map((r) => {
-    const old = prevRows.get(r.key);
-    if (r.type === "item") return old?.type === "item" && old.item === r.item ? old : r;
-    if (r.type === "refs") return old?.type === "refs" && sameItems(old.refs, r.refs) ? old : r;
-    return old?.type === "commits" && sameItems(old.commits, r.commits) ? old : r;
-  });
-}
-
-function sameItems(a: TimelineItem[], b: TimelineItem[]) {
-  return a.length === b.length && a.every((it, i) => it === b[i]);
-}
-
 export const TimelineRow = memo(function TimelineRow({ row, actions, threads }: { row: Row; actions: TimelineActions; threads?: ReviewThread[] }) {
   if (row.type === "commits") {
     return (
@@ -79,6 +36,13 @@ export const TimelineRow = memo(function TimelineRow({ row, actions, threads }: 
     return (
       <div className="tl-item event">
         <ReferenceGroup events={row.refs} />
+      </div>
+    );
+  }
+  if (row.type === "events") {
+    return (
+      <div className="tl-item event">
+        <EventGroupRow events={row.events} />
       </div>
     );
   }

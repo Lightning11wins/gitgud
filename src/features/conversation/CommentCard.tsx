@@ -8,6 +8,7 @@ import { Popover } from "@/components/Popover";
 import { RelativeTime } from "@/components/RelativeTime";
 import { Composer } from "@/features/composer/Composer";
 import { quote } from "@/features/composer/format";
+import { BotBadge } from "./BotBadge";
 import type { MinimizeReason } from "./mutations";
 import { ReactionBar } from "@/components/Reactions";
 import type { CommentLike } from "./types";
@@ -93,7 +94,8 @@ export function CommentCard(props: CommentCardProps) {
         <span className="grow truncate">
           <a className="comment-author" href={c.author?.url} target="_blank" rel="noopener noreferrer">
             {login}
-          </a>{" "}
+          </a>
+          <BotBadge actor={c.author} />{" "}
           <span className="muted">
             {verb}{" "}
             <a className="muted" href={c.url} target="_blank" rel="noopener noreferrer">

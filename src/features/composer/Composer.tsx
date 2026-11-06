@@ -16,7 +16,7 @@ import {
   XIcon,
 } from "@primer/octicons-react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useImperativeHandle, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode, type Ref } from "react";
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { rest } from "@/api/client";
 import { Avatar } from "@/components/Avatar";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -129,6 +129,13 @@ export function Composer(props: ComposerProps) {
   useEffect(() => {
     if (autoFocus) ref.current?.focus();
   }, [autoFocus]);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || FIELD_SIZING) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+  }, [value, tab]);
 
   useImperativeHandle(handle, () => ({
     focus: () => {
@@ -318,6 +325,7 @@ export function Composer(props: ComposerProps) {
               ref={ref}
               className="input composer-input"
               rows={minRows}
+              style={{ minHeight: `calc(${minRows}lh + 18px)` }}
               placeholder={placeholder}
               value={value}
               onChange={(e) => {
@@ -371,6 +379,9 @@ export function Composer(props: ComposerProps) {
     </div>
   );
 }
+
+/** Browsers that grow the textarea to fit its text in CSS; others resize it on input. */
+const FIELD_SIZING = typeof CSS !== "undefined" && CSS.supports("field-sizing", "content");
 
 const fmtBold = (v: string, s: number, e: number) => wrap(v, s, e, "**");
 const fmtItalic = (v: string, s: number, e: number) => wrap(v, s, e, "_");

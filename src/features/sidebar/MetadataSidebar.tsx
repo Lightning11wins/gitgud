@@ -129,7 +129,7 @@ export function MetadataSidebar({ subject, owner, repo, children }: MetadataSide
           <div className="muted sidebar-empty">None yet</div>
         ) : (
           <div className="sidebar-labels">
-            {subject.labels.nodes.map((l) => (
+            {[...subject.labels.nodes].sort(byName).map((l) => (
               <Link key={l.id} to={`/${owner}/${repo}/issues?q=${encodeURIComponent(`label:"${l.name}"`)}`}>
                 <IssueLabel label={l} />
               </Link>
@@ -445,6 +445,9 @@ function SubIssues({ subject, owner, repo, editable, onError }: { subject: Subje
     </>
   );
 }
+
+/** GitHub's label order: A-Z, ignoring case. */
+const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
 
 function PullRefRow({ pull, owner, repo }: { pull: PullRef; owner: string; repo: string }) {
   const [o, r] = pull.repository.nameWithOwner.split("/");

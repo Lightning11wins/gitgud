@@ -10,6 +10,7 @@ import { Popover } from "@/components/Popover";
 import { ReactionBar } from "@/components/Reactions";
 import { RelativeTime } from "@/components/RelativeTime";
 import { Composer } from "@/features/composer/Composer";
+import { BotBadge } from "@/features/conversation/BotBadge";
 import { patchComment, patchThread } from "./cache";
 import { DiffHunk } from "./DiffHunk";
 import { ensurePendingReview, invalidateReview, usePendingReview } from "./pending";
@@ -283,6 +284,7 @@ const ThreadComment = memo(function ThreadComment({ comment, threadId, owner, re
         <a className="rt-author" href={comment.author?.url ?? undefined} target="_blank" rel="noopener noreferrer">
           {login}
         </a>
+        <BotBadge actor={comment.author} />
         <a className="rt-time" href={comment.url} target="_blank" rel="noopener noreferrer">
           <RelativeTime date={comment.createdAt} />
         </a>

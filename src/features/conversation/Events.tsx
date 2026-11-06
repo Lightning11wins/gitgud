@@ -31,13 +31,15 @@ import {
   XCircleIcon,
   type Icon,
 } from "@primer/octicons-react";
-import { memo, useState, type ReactNode } from "react";
+import { Fragment, memo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Avatar } from "@/components/Avatar";
 import { IssueLabel } from "@/components/IssueLabel";
 import { RelativeTime } from "@/components/RelativeTime";
 import { StateBadge, StateIcon } from "@/components/StateBadge";
 import { TitleText } from "@/components/TitleText";
+import { BotBadge } from "./BotBadge";
+import { eventGroup } from "./rows";
 import type { CommitItem, EventItem, SubjectRef } from "./types";
 
 function SubjectLink({ s, repo, icon = true }: { s: SubjectRef | null | undefined; repo: string; icon?: boolean }) {
@@ -55,26 +57,39 @@ function SubjectLink({ s, repo, icon = true }: { s: SubjectRef | null | undefine
   );
 }
 
-function ActorName({ a }: { a: { login: string; avatarUrl?: string; url?: string } | null | undefined }) {
+function ActorName({ a, avatar = true }: { a: { __typename?: string; login: string; avatarUrl?: string; url?: string } | null | undefined; avatar?: boolean }) {
   if (!a) return <strong>ghost</strong>;
   return (
     <>
-      {a.avatarUrl && <Avatar src={a.avatarUrl} size={16} login={a.login} />}{" "}
+      {avatar && a.avatarUrl && <><Avatar src={a.avatarUrl} size={16} login={a.login} />{" "}</>}
       <a className="event-actor" href={a.url} target="_blank" rel="noopener noreferrer">
         {a.login}
       </a>
+      <BotBadge actor={a} />
     </>
   );
+}
+
+/** "a", "a and b", or "a, b, and c". */
+function joinList(nodes: ReactNode[]) {
+  return nodes.map((n, i) => (
+    <Fragment key={i}>
+      {i === 0 ? null : i < nodes.length - 1 ? ", " : nodes.length > 2 ? ", and " : " and "}
+      {n}
+    </Fragment>
+  ));
 }
 
 /** DOM id of an event row; its timestamp links here. */
 export const eventAnchor = (id: string) => `event-${id}`;
 
-/** `single` keeps the line to one row; its `.shrink` children take the ellipsis. */
-function Row({ icon: I, tone, children, item, block, single }: { icon: Icon; tone?: string; children: ReactNode; item: EventItem; block?: ReactNode; single?: boolean }) {
+/** `single` keeps the line to one row; its `.shrink` children take the ellipsis. `merged` are later events folded into this row, whose anchors land here too. */
+function Row(props: { icon: Icon; tone?: string; children: ReactNode; item: EventItem; block?: ReactNode; single?: boolean; merged?: EventItem[] }) {
+  const { icon: I, tone, children, item, block, single, merged } = props;
   const anchor = eventAnchor(item.id);
   return (
     <div className="tl-event" id={anchor}>
+      {merged?.map((e) => <span key={e.id} id={eventAnchor(e.id)} className="tl-event-anchor" />)}
       <span className={`tl-badge ${tone ?? ""}`}>
         <I size={14} />
       </span>
@@ -96,10 +111,11 @@ function Row({ icon: I, tone, children, item, block, single }: { icon: Icon; ton
   );
 }
 
-function reviewerName(r: EventItem["requestedReviewer"]) {
-  if (!r) return <strong>someone</strong>;
+/** A requested reviewer. Teams the token can't see come back as null. */
+function reviewerName(r: EventItem["requestedReviewer"], avatar = true) {
+  if (!r) return <strong>a team</strong>;
   if (r.__typename === "Team") return <strong>{r.name}</strong>;
-  return <ActorName a={{ login: r.login ?? "ghost", avatarUrl: r.avatarUrl, url: r.url }} />;
+  return <ActorName a={{ __typename: r.__typename, login: r.login ?? "ghost", avatarUrl: r.avatarUrl, url: r.url }} avatar={avatar} />;
 }
 
 function humanize(typename: string) {
@@ -425,6 +441,48 @@ export const EventRow = memo(function EventRow({ item, repo, pull }: { item: Eve
           {humanize(e.__typename)}
         </Row>
       );
+  }
+});
+
+const ADDING = new Set(["LabeledEvent", "AssignedEvent", "ReviewRequestedEvent"]);
+
+/** A burst of label, assignee, or reviewer changes by one actor, in one row. */
+export const EventGroupRow = memo(function EventGroupRow({ events }: { events: EventItem[] }) {
+  const [first, ...rest] = events;
+  const added = events.filter((e) => ADDING.has(e.__typename));
+  const removed = events.filter((e) => !ADDING.has(e.__typename));
+  const both = added.length > 0 && removed.length > 0 ? " and " : null;
+  switch (eventGroup(first.__typename)) {
+    case "labels": {
+      const labels = (list: EventItem[]) => list.map((e) => <Fragment key={e.id}>{" "}{e.label && <IssueLabel label={e.label} />}</Fragment>);
+      return (
+        <Row icon={TagIcon} item={first} merged={rest}>
+          {added.length > 0 && <>added{labels(added)}</>}
+          {both}
+          {removed.length > 0 && <>removed{labels(removed)}</>} labels
+        </Row>
+      );
+    }
+    case "assignees": {
+      const names = (list: EventItem[]) => joinList(list.map((e) => <ActorName a={e.assignee} avatar={false} />));
+      return (
+        <Row icon={PersonIcon} item={first} merged={rest}>
+          {added.length > 0 && <>assigned {names(added)}</>}
+          {both}
+          {removed.length > 0 && <>unassigned {names(removed)}</>}
+        </Row>
+      );
+    }
+    default: {
+      const names = (list: EventItem[]) => joinList(list.map((e) => reviewerName(e.requestedReviewer, false)));
+      return (
+        <Row icon={EyeIcon} item={first} merged={rest}>
+          {added.length > 0 && <>requested review from {names(added)}</>}
+          {both}
+          {removed.length > 0 && <>removed {removed.length > 1 ? "review requests" : "the review request"} for {names(removed)}</>}
+        </Row>
+      );
+    }
   }
 });
 

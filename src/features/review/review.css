@@ -111,6 +111,9 @@
   margin-bottom: 4px;
   font-size: 13px;
 }
+.rt-comment-head .bot-badge {
+  margin-left: 0;
+}
 .rt-author {
   font-weight: 600;
   color: var(--fg);

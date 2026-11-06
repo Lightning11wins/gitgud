@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { SearchIcon } from "@primer/octicons-react";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { Spinner } from "@/components/Spinner";
 import { useHotkey } from "@/lib/hotkeys";
@@ -101,7 +102,12 @@ export function SubjectList(props: SubjectListProps) {
       </div>
     );
   } else if (items.length === 0) {
-    body = <div className="blankslate">{empty}</div>;
+    body = (
+      <div className="blankslate lr-empty">
+        <SearchIcon size={24} />
+        {empty}
+      </div>
+    );
   } else {
     body = (
       <div className="lr-body" style={{ height: virtualizer.getTotalSize() }}>

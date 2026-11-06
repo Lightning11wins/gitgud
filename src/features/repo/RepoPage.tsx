@@ -149,9 +149,8 @@ export function RepoPage({ kind }: { kind?: Kind }) {
         showUpdated={sort.startsWith("updated")}
         empty={
           <>
-            <strong>No results</strong>
-            <br />
-            Try a different search or filter.
+            <h3 className="lr-empty-title">No results matched your search</h3>
+            Try a different search query.
           </>
         }
         header={

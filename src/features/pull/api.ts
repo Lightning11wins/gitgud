@@ -72,6 +72,8 @@ export interface PullMeta extends SubjectMeta {
   isCrossRepository: boolean;
   headRepository: { id: string; name: string; owner: { login: string } } | null;
   headRef: { id: string } | null;
+  /** Branch protection on the base branch that applies to the viewer; absent in caches from older builds. */
+  baseRef?: { refUpdateRule: { requiredStatusCheckContexts: (string | null)[] } | null } | null;
   commits: { totalCount: number };
   closingIssuesReferences: { nodes: IssueRef[] };
   totalCommentsCount: number;
@@ -126,6 +128,7 @@ export const pullQuery = (withChecks: boolean) => `query PullMeta($owner: String
       baseRefName headRefName headRefOid baseRefOid isCrossRepository
       headRepository { id name owner { login } }
       headRef { id }
+      baseRef { refUpdateRule { requiredStatusCheckContexts } }
       commits { totalCount }
       closingIssuesReferences(first: 10) { nodes { id number title url state stateReason repository { nameWithOwner } } }
       totalCommentsCount changedFiles additions deletions mergeable mergeStateStatus reviewDecision viewerCanMergeAsAdmin

@@ -24,7 +24,7 @@ import { Popover } from "@/components/Popover";
 import { Spinner } from "@/components/Spinner";
 import { useStore } from "@/lib/store";
 import { deleteBranch, fetchMergeMessages, markMerged, mergePull, patchPull, refreshPull, restoreBranch, setDraft, type MergeMethod, type PullMeta } from "./api";
-import { CheckRow, sortChecks, summarize } from "./checks";
+import { CheckRow, OutcomeIcon, sortChecks, summarize } from "./checks";
 import { BranchName, plural } from "./util";
 
 interface Props {
@@ -186,8 +186,36 @@ function ChecksSection({ pull, owner, repo }: { pull: PullMeta; owner: string; r
       .
     </>
   );
-  if (!rollup || rollup.contexts.length === 0)
-    return hidden ? <Section tone="muted" icon={<AlertIcon />} title="Checks hidden" detail={hidden} /> : null;
+  if (!rollup || rollup.contexts.length === 0) {
+    if (hidden) return <Section tone="muted" icon={<AlertIcon />} title="Checks hidden" detail={hidden} />;
+    const expected = (pull.baseRef?.refUpdateRule?.requiredStatusCheckContexts ?? []).filter((c): c is string => !!c);
+    if (!expected.length) return null;
+    const open = toggled ?? true;
+    return (
+      <Section
+        tone="attention"
+        icon={<DotFillIcon />}
+        title={pull.mergeable === "CONFLICTING" ? "Checks awaiting conflict resolution" : "Some checks haven't completed yet"}
+        detail={plural(expected.length, "expected check")}
+        aside={<Toggle open={open} onClick={() => setToggled(!open)} labels={["Show all checks", "Hide all checks"]} />}
+      >
+        {open && (
+          <div className="merge-section-list merge-checks">
+            {expected.map((name) => (
+              <div key={name} className="check-row">
+                <OutcomeIcon outcome="pending" />
+                <span className="check-logo" />
+                <span className="grow truncate">
+                  <strong>{name}</strong> <span className="muted">Expected · Waiting for status to be reported</span>
+                </span>
+                <span className="label check-required">Required</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+    );
+  }
   const s = summarize(rollup.contexts, !!hidden);
   const open = toggled ?? s.outcome === "failure";
   return (
@@ -273,9 +301,15 @@ function MergeabilitySection({ pull, owner, repo }: { pull: PullMeta; owner: str
         title="This branch has conflicts that must be resolved"
         detail="Resolve conflicts on GitHub or with the command line."
         aside={
-          <a className="btn sm" href={`${pull.url}/conflicts`} target="_blank" rel="noopener noreferrer">
-            Resolve conflicts
-          </a>
+          pull.viewerCanUpdate ? (
+            <a className="btn sm" href={`${pull.url}/conflicts`} target="_blank" rel="noopener noreferrer">
+              Resolve conflicts
+            </a>
+          ) : (
+            <button className="btn sm" disabled title="Only the author and people with write access can resolve conflicts">
+              Resolve conflicts
+            </button>
+          )
         }
       />
     );

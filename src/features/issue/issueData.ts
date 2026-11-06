@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { gql } from "@/api/client";
+import { GitHubError, gql } from "@/api/client";
 import { keys } from "@/api/keys";
 import { registerPrefetcher } from "@/api/prefetch";
 import { queryClient } from "@/api/queryClient";
@@ -25,8 +25,8 @@ const ISSUE_META_QUERY = `
 
 export async function fetchIssueMeta(owner: string, repo: string, number: number): Promise<IssueResult> {
   const d = await gql<{ repository: { issueOrPullRequest: IssueResult | null } | null }>(ISSUE_META_QUERY, { owner, repo, number });
-  if (!d.repository) throw new Error(`Failed to find repository ${owner}/${repo}`);
-  if (!d.repository.issueOrPullRequest) throw new Error(`Failed to find issue ${owner}/${repo}#${number}`);
+  if (!d.repository) throw new GitHubError(`Failed to find repository ${owner}/${repo}`, 404);
+  if (!d.repository.issueOrPullRequest) throw new GitHubError(`Failed to find issue ${owner}/${repo}#${number}`, 404);
   return d.repository.issueOrPullRequest;
 }
 

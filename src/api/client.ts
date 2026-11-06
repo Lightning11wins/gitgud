@@ -16,6 +16,13 @@ export class GitHubError extends Error {
 
 export class AuthError extends GitHubError {}
 
+/** True for a REST 404 or a GraphQL failure whose errors are all NOT_FOUND. */
+export function isNotFound(e: unknown): boolean {
+  if (!(e instanceof GitHubError)) return false;
+  if (e.status === 404) return true;
+  return !!e.errors?.length && e.errors.every((err) => (err as GqlError).type === "NOT_FOUND");
+}
+
 function authHeaders(session: AuthState): Record<string, string> {
   if (!session.token) throw new AuthError("Failed to call the GitHub API: no token is set", 401);
   return { Authorization: `Bearer ${session.token}`, "X-GitHub-Api-Version": "2022-11-28" };

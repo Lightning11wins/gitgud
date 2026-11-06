@@ -84,6 +84,14 @@
   height: 18px;
   font-size: 11px;
 }
+.bot-badge {
+  height: 18px;
+  margin-left: 4px;
+  border-color: var(--border);
+  color: var(--fg-muted);
+  font-size: 11px;
+  vertical-align: middle;
+}
 .comment-body {
   padding: 12px 16px;
 }
@@ -110,9 +118,14 @@
   color: var(--fg-muted);
   scroll-margin-top: calc(var(--header-h) + 60px);
 }
-.tl-event.targeted {
+.tl-event.targeted,
+.tl-event:has(> .tl-event-anchor.targeted) {
   border-radius: var(--radius);
   background: var(--accent-subtle);
+}
+.tl-event-anchor {
+  position: absolute;
+  scroll-margin-top: calc(var(--header-h) + 60px);
 }
 .tl-event-time {
   color: inherit;

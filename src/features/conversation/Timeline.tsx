@@ -22,7 +22,8 @@ import {
   updateSubjectBody,
 } from "./mutations";
 import { patchTimelineItem, updateTimeline, useTimeline } from "./timeline";
-import { buildRows, TimelineRow, type Row, type TimelineActions } from "./TimelineRow";
+import { buildRows, rowHasAnchor, type Row } from "./rows";
+import { TimelineRow, type TimelineActions } from "./TimelineRow";
 import type { CommentLike, IssueCommentItem, TimelineItem } from "./types";
 import "./conversation.css";
 
@@ -198,14 +199,8 @@ function useScrollToHash(rows: Row[], setLimit: (fn: (l: number) => number) => v
   useEffect(() => {
     if (!hash || done.current === hash) return;
     const id = decodeURIComponent(hash.slice(1));
-    const comment = /^issuecomment-(\d+)$/.exec(id);
-    const event = /^event-(.+)$/.exec(id);
-    if (comment || event) {
-      const index = rows.findIndex(
-        (r) => r.type === "item" && (comment ? (r.item as IssueCommentItem).databaseId === Number(comment[1]) : r.item.id === event![1]),
-      );
-      if (index >= 0) setLimit((l) => Math.max(l, index + 1));
-    }
+    const index = rows.findIndex((r) => rowHasAnchor(r, id));
+    if (index >= 0) setLimit((l) => Math.max(l, index + 1));
     const el = document.getElementById(id);
     if (!el) return;
     done.current = hash;
