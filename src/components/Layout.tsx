@@ -5,6 +5,7 @@ import { rateLimits } from "@/api/rateLimit";
 import { auth, signOut } from "@/auth/token";
 import { toAppPath, toGitHubUrl } from "@/lib/githubUrl";
 import { useHotkey } from "@/lib/hotkeys";
+import { settings } from "@/lib/settings";
 import { useStore } from "@/lib/store";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
@@ -203,9 +204,10 @@ const METER_LIMITS = [
   ["core", "REST"],
 ] as const;
 
-/** One bar per GitHub API rate limit, filled by the share used. Links to Settings for the numbers, except on Settings. */
+/** One bar per GitHub API rate limit, filled by the share used. Links to Settings for the numbers, except on Settings. Hidden by a setting unless a limit runs low. */
 function ApiMeter() {
   const limits = useStore(rateLimits);
+  const { showApiMeter } = useStore(settings);
   const onSettings = useLocation().pathname === "/settings";
   const bars = METER_LIMITS.map(([key, name]) => {
     const r = limits[key];
@@ -215,6 +217,7 @@ function ApiMeter() {
   });
   const low = Math.min(...bars.map((b) => b.left ?? 1));
   const tone = low <= 0 ? "danger" : low < 0.1 ? "attention" : undefined;
+  if (!showApiMeter && !tone) return null;
   const props = {
     className: `${onSettings ? "api-meter-static" : "btn invisible sm icon"} api-meter${tone ? ` ${tone}` : ""}`,
     title: `GitHub API requests left\n${bars.map((b) => b.text).join("\n")}`,

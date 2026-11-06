@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { apiStats, rateLimits } from "@/api/rateLimit";
 import { clearCache, storageUsage } from "@/api/queryClient";
 import { auth, signOut } from "@/auth/token";
+import { settings, updateSettings } from "@/lib/settings";
 import { useStore } from "@/lib/store";
 import { setTheme, themePref, type ThemePref } from "@/lib/theme";
 import { useTitle } from "@/lib/useTitle";
@@ -12,6 +13,7 @@ export function Settings() {
   const theme = useStore(themePref);
   const { viewer } = useStore(auth);
   const limits = useStore(rateLimits);
+  const prefs = useStore(settings);
   const qc = useQueryClient();
   const [usage, setUsage] = useState<number>();
   const [persisted, setPersisted] = useState<boolean>();
@@ -73,6 +75,14 @@ export function Settings() {
             </li>
           ))}
         </ul>
+        <label className="row" style={{ gap: 6, marginBottom: 8 }}>
+          <input type="checkbox" checked={prefs.showApiMeter} onChange={(e) => updateSettings({ showApiMeter: e.target.checked })} />
+          Show the usage meter in the header. It always shows when a limit runs low.
+        </label>
+        <label className="row" style={{ gap: 6 }}>
+          <input type="checkbox" checked={prefs.warmUpRateLimits} onChange={(e) => updateSettings({ warmUpRateLimits: e.target.checked })} />
+          Start each hourly limit as soon as it resets, using one request.
+        </label>
       </section>
       <section className="box" style={{ padding: 16 }}>
         <h3 style={{ marginTop: 0 }}>Account</h3>
