@@ -1,4 +1,4 @@
-import { CommentIcon, LinkExternalIcon, MoonIcon, SunIcon, DeviceDesktopIcon } from "@primer/octicons-react";
+import { CommentIcon, LinkExternalIcon } from "@primer/octicons-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { rateLimits } from "@/api/rateLimit";
@@ -6,7 +6,6 @@ import { auth, signOut } from "@/auth/token";
 import { toAppPath, toGitHubUrl } from "@/lib/githubUrl";
 import { useHotkey } from "@/lib/hotkeys";
 import { useStore } from "@/lib/store";
-import { setTheme, themePref, type ThemePref } from "@/lib/theme";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
 import { Popover } from "./Popover";
@@ -113,12 +112,11 @@ export function Layout() {
           <Link
             className="btn invisible sm"
             to={`/${FEEDBACK_REPO}/issues/new?title=${encodeURIComponent("Feedback: ")}`}
-            title={`Send feedback about GitGud (opens a new issue in ${FEEDBACK_REPO})`}
+            title="Opens an issue on the GitGud repo."
             aria-label="Send feedback"
           >
             <CommentIcon /> <span className="app-header-label">Feedback</span>
           </Link>
-          <ThemeButton />
           <UserMenu />
         </div>
       </header>
@@ -243,18 +241,6 @@ function ApiMeter() {
     <Link to="/settings" {...props}>
       {svg}
     </Link>
-  );
-}
-
-const THEME_CYCLE: Record<ThemePref, ThemePref> = { system: "light", light: "dark", dark: "system" };
-
-function ThemeButton() {
-  const pref = useStore(themePref);
-  const Icon = pref === "light" ? SunIcon : pref === "dark" ? MoonIcon : DeviceDesktopIcon;
-  return (
-    <button className="btn invisible sm icon" title={`Theme: ${pref} (click to change)`} onClick={() => setTheme(THEME_CYCLE[pref])}>
-      <Icon />
-    </button>
   );
 }
 
