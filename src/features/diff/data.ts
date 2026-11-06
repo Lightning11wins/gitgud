@@ -41,7 +41,7 @@ export function usePullFiles(owner: string, repo: string, number: number) {
 const PREFETCH_MAX_FILES = 300;
 
 /** Warms a PR's files, unless the cached PR is known to be large. */
-export function prefetchPullFiles(owner: string, repo: string, number: number, lane: "intent" | "background" = "intent") {
+export function prefetchPullFiles(owner: string, repo: string, number: number, lane?: "background") {
   const changed = queryClient.getQueryData<{ changedFiles?: number }>(keys.pull(owner, repo, number))?.changedFiles;
   if (changed !== undefined && changed > PREFETCH_MAX_FILES) return;
   speculate(`files:${owner}/${repo}#${number}`.toLowerCase(), () => queryClient.prefetchQuery({ ...pullFilesQueryOptions(owner, repo, number), staleTime: 60_000 }), {

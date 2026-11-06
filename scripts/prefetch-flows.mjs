@@ -70,7 +70,21 @@ async function step(name) {
   console.log(`+${Date.now() - started}ms ${name}:`, JSON.stringify(delta));
   last = now;
 }
-const settle = () => page.waitForLoadState("networkidle", { timeout: 30000 }).catch(() => console.log("networkidle timeout"));
+// Waits until no GitHub request has been in flight for 500ms. (Playwright's networkidle only covers the first load.)
+let inFlight = 0;
+let idleSince = Date.now();
+page.on("request", (r) => r.url().startsWith("https://api.github.com") && inFlight++);
+for (const ev of ["requestfinished", "requestfailed"]) {
+  page.on(ev, (r) => r.url().startsWith("https://api.github.com") && --inFlight === 0 && (idleSince = Date.now()));
+}
+async function settle() {
+  const end = Date.now() + 30000;
+  await page.waitForTimeout(100);
+  while (inFlight > 0 || Date.now() - idleSince < 500) {
+    if (Date.now() > end) return console.log("settle timeout");
+    await page.waitForTimeout(100);
+  }
+}
 const row = (i) => page.locator(".list-row").nth(i);
 
 // 1. The All list, then its top rows warm in the background.
@@ -93,6 +107,7 @@ await step("Issues tab");
 // 3. Hovering a row prefetches its page.
 await page.click(".tabs a:has-text('Pull requests')");
 await row(3).waitFor();
+// The tab shows borrowed rows at once; wait for its own list so the hovered row stays put.
 await settle();
 await step("Pull requests tab");
 await row(3).hover();

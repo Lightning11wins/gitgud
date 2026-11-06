@@ -31,7 +31,8 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       persister: persister.persisterFn,
-      staleTime: 0,
+      // Data this recent, like a prefetch just before a click, needs no refetch on mount.
+      staleTime: 10_000,
       gcTime: 1000 * 60 * 30,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
