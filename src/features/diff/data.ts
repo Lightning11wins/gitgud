@@ -2,7 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { gql, gqlAll, mapLimit, rest, restAll, restRaw, type PageInfo } from "@/api/client";
 import { keys } from "@/api/keys";
 import { registerPathPrefetcher, speculate } from "@/api/prefetch";
-import { probeThenLoad, queryClient } from "@/api/queryClient";
+import { persistQueryData, probeThenLoad, queryClient } from "@/api/queryClient";
 import { trimFile, type DiffFile } from "./model";
 
 /** Where a diff comes from: refs for fetching file contents on demand. */
@@ -207,6 +207,7 @@ export function useSetViewed(owner: string, repo: string, number: number, pullId
       queryClient.setQueryData(key, next);
       return { prev: Object.fromEntries(paths.map((p) => [p, prev?.[p] ?? "UNVIEWED"])) as ViewedMap };
     },
+    onSuccess: () => persistQueryData(key),
     // Restores only this mutation's paths, then refetches since some paths may have been saved.
     onError: (_e, _v, ctx) => {
       if (ctx) queryClient.setQueryData<ViewedMap>(key, (m) => ({ ...m, ...ctx.prev }));
