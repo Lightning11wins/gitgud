@@ -490,12 +490,10 @@ export const CommitGroup = memo(function CommitGroup({ commits, pullPath }: { co
         <ul className="tl-commits">
           {commits.map((c) => (
             <li key={c.id} className="row">
-              <span className="grow truncate">
-                <Link to={`${pullPath}/commits/${c.commit.oid}`} className="tl-commit-msg">
-                  {c.commit.messageHeadline}
-                </Link>
-              </span>
-              <a className="mono muted" href={c.commit.url} target="_blank" rel="noopener noreferrer">
+              <Link to={`${pullPath}/commits/${c.commit.oid}`} className="tl-commit-msg truncate">
+                {c.commit.messageHeadline}
+              </Link>
+              <a className="mono muted tl-commit-sha" href={c.commit.url} target="_blank" rel="noopener noreferrer">
                 {c.commit.abbreviatedOid}
               </a>
             </li>

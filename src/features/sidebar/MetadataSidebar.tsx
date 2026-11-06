@@ -11,6 +11,7 @@ import { IssueLabel } from "@/components/IssueLabel";
 import { SelectMenu } from "@/components/SelectMenu";
 import { StateIcon } from "@/components/StateBadge";
 import { invalidateSubject, patchSubject } from "@/features/conversation/mutations";
+import type { PullMeta } from "@/features/pull/api";
 import { useStore } from "@/lib/store";
 import {
   addSubIssue,
@@ -178,6 +179,26 @@ export function MetadataSidebar({ subject, owner, repo, children }: MetadataSide
                 </li>
               ))}
             </ul>
+          )}
+        </section>
+      )}
+
+      {kind === "pull" && (subject as Partial<PullMeta>).closingIssuesReferences && (
+        <section className="sidebar-section">
+          <h3 className="sidebar-title">Development</h3>
+          {(subject as PullMeta).closingIssuesReferences.nodes.length === 0 ? (
+            <div className="muted sidebar-empty">None yet</div>
+          ) : (
+            <>
+              <div className="muted sidebar-empty">Successfully merging this pull request may close these issues.</div>
+              <ul className="sidebar-list">
+                {(subject as PullMeta).closingIssuesReferences.nodes.map((i) => (
+                  <li key={i.id} className="row">
+                    <IssueRefRow issue={i} owner={owner} repo={repo} />
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </section>
       )}

@@ -124,6 +124,24 @@
 .markdown-body .highlight {
   margin-bottom: 16px;
 }
+.markdown-body .code-copy-host {
+  position: relative;
+}
+.markdown-body .code-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+}
+.markdown-body .code-copy-host:hover .code-copy,
+.markdown-body .code-copy:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .markdown-body .code-copy {
+    opacity: 1;
+  }
+}
 .markdown-body table {
   display: block;
   width: max-content;

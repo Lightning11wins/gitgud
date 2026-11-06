@@ -5,6 +5,7 @@ import { registerPrefetcher } from "@/api/prefetch";
 import { queryClient } from "@/api/queryClient";
 import { ACTOR_FIELDS, PULL_ONLY_FIELDS, SUBJECT_META_FIELDS, type Actor, type SubjectMeta } from "@/api/types";
 import { getToken } from "@/auth/token";
+import type { IssueRef } from "@/features/sidebar/data";
 
 export type MergeMethod = "MERGE" | "SQUASH" | "REBASE";
 export type Mergeable = "MERGEABLE" | "CONFLICTING" | "UNKNOWN";
@@ -72,6 +73,7 @@ export interface PullMeta extends SubjectMeta {
   headRepository: { id: string; name: string; owner: { login: string } } | null;
   headRef: { id: string } | null;
   commits: { totalCount: number };
+  closingIssuesReferences: { nodes: IssueRef[] };
   totalCommentsCount: number;
   changedFiles: number;
   additions: number;
@@ -125,6 +127,7 @@ export const pullQuery = (withChecks: boolean) => `query PullMeta($owner: String
       headRepository { id name owner { login } }
       headRef { id }
       commits { totalCount }
+      closingIssuesReferences(first: 10) { nodes { id number title url state stateReason repository { nameWithOwner } } }
       totalCommentsCount changedFiles additions deletions mergeable mergeStateStatus reviewDecision viewerCanMergeAsAdmin
       mergedAt mergedBy { ${ACTOR_FIELDS} } closedAt
       autoMergeRequest { mergeMethod enabledAt enabledBy { ${ACTOR_FIELDS} } }

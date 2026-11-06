@@ -214,6 +214,9 @@
 .tl-commit-msg {
   color: var(--fg);
 }
+.tl-commit-sha {
+  flex: none;
+}
 
 /* Reviews */
 .tl-review-content {
