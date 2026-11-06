@@ -7,6 +7,13 @@ const SUPPORTED = [
   /^\/[^/]+\/[^/]+\/compare(\/.*)?$/,
 ];
 
+/** github.com top-level paths that look like `/:owner/:repo` but aren't repos. */
+const RESERVED_OWNERS = new Set([
+  "about", "apps", "collections", "customer-stories", "enterprise", "enterprises", "explore", "features", "marketplace",
+  "new", "notifications", "orgs", "organizations", "pricing", "pulls", "issues", "readme", "search", "security",
+  "settings", "site", "sponsors", "team", "topics", "trending", "users",
+]);
+
 /**
  * Converts user input into an in-app path. Accepts github.com URLs, `owner/repo`,
  * `owner/repo#123`, and in-app paths. Returns null when the target isn't handled here.
@@ -24,7 +31,7 @@ export function toAppPath(input: string): string | null {
   const isGitHub = url.hostname === "github.com" || url.hostname === "www.github.com";
   if (!isGitHub && url.origin !== location.origin) return null;
   const path = url.pathname.replace(/\/$/, "") || "/";
-  if (!SUPPORTED.some((re) => re.test(path))) return null;
+  if (!SUPPORTED.some((re) => re.test(path)) || RESERVED_OWNERS.has(path.split("/")[1].toLowerCase())) return null;
   return path + url.search + url.hash;
 }
 

@@ -185,7 +185,7 @@ export function MetadataSidebar({ subject, owner, repo, children }: MetadataSide
           initial={assignees.map((u) => u.id)}
           multiple
           onApply={(ids) => {
-            const users = (assignable.data ?? []).filter((u) => ids.includes(u.id));
+            const users = mergeSelected(assignable.data ?? [], assignees, (u) => u.login).filter((u) => ids.includes(u.id));
             apply({ assigneeIds: ids }, { assignees: { nodes: users } });
           }}
           onClose={() => setMenu(null)}

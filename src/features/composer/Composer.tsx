@@ -95,14 +95,18 @@ export function Composer(props: ComposerProps) {
     onChangeRef.current?.(v);
   };
 
+  const loadedKey = useRef(draftKey);
   useEffect(() => {
     let cancelled = false;
     loaded.current = false;
+    // A new key (e.g. navigating to another issue) must not keep the previous key's text.
+    const reset = loadedKey.current !== draftKey;
+    loadedKey.current = draftKey;
     drafts.get(draftKey).then((d) => {
       if (cancelled) return;
-      if (d) {
-        setValueState(d);
-        onChangeRef.current?.(d);
+      if (d || reset) {
+        setValueState(d ?? initialValue);
+        onChangeRef.current?.(d ?? initialValue);
       }
       loaded.current = true;
     });
@@ -173,6 +177,12 @@ export function Composer(props: ComposerProps) {
     }
   };
 
+  const cancel = () => {
+    if (value.trim() && value !== initialValue && !confirm("Discard your unsaved changes?")) return;
+    drafts.clear(draftKey);
+    onCancel?.();
+  };
+
   const canSubmit = !submitting && (allowEmpty || value.trim().length > 0);
 
   const mentionQuery = trigger?.char === "@" ? trigger.query : null;
@@ -235,7 +245,7 @@ export function Composer(props: ComposerProps) {
     }
     if (e.key === "Escape" && onCancel) {
       e.preventDefault();
-      onCancel();
+      cancel();
     }
   };
 
@@ -342,7 +352,7 @@ export function Composer(props: ComposerProps) {
         <div className="composer-actions row">
           <span className="grow muted composer-hint">Markdown supported · Ctrl+Enter to submit</span>
           {onCancel && (
-            <button className="btn" onClick={onCancel} disabled={submitting}>
+            <button className="btn" onClick={cancel} disabled={submitting}>
               Cancel
             </button>
           )}

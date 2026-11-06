@@ -84,7 +84,9 @@ async function resolveFile(urlPath) {
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", "http://x");
-    const file = (await resolveFile(url.pathname)) ?? (extname(url.pathname) ? null : join(ROOT, "index.html"));
+    // Page navigations fall back to the SPA, including repo paths with dots like /vercel/next.js.
+    const isPage = !extname(url.pathname) || String(req.headers.accept ?? "").includes("text/html");
+    const file = (await resolveFile(url.pathname)) ?? (isPage ? join(ROOT, "index.html") : null);
     if (!file) {
       res.writeHead(404, SECURITY_HEADERS).end("Not found");
       return;

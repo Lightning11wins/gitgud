@@ -6,7 +6,8 @@ export const HotkeysActive = createContext(true);
 function isTyping(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el) return false;
-  return el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT";
+  if (el.tagName === "INPUT") return !["checkbox", "radio", "button", "submit", "reset"].includes((el as HTMLInputElement).type);
+  return el.isContentEditable || el.tagName === "TEXTAREA" || el.tagName === "SELECT";
 }
 
 /**

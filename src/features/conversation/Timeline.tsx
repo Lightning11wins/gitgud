@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { keys } from "@/api/keys";
 import { canWrite, type ReactionContent, type ReviewThread, type SubjectMeta } from "@/api/types";
@@ -141,7 +141,7 @@ function groupThreads(threads: ReviewThread[] | undefined): Map<string, ReviewTh
 }
 
 /** The issue/PR description as the first comment. */
-function SubjectBody({ subject, kind, owner, repo, number }: { subject: SubjectMeta; kind: "issue" | "pull"; owner: string; repo: string; number: number }) {
+const SubjectBody = memo(function SubjectBody({ subject, kind, owner, repo, number }: { subject: SubjectMeta; kind: "issue" | "pull"; owner: string; repo: string; number: number }) {
   const comment = useMemo<CommentLike>(
     () => ({
       id: subject.id,
@@ -186,7 +186,7 @@ function SubjectBody({ subject, kind, owner, repo, number }: { subject: SubjectM
       />
     </div>
   );
-}
+});
 
 /** Scrolls to `#issuecomment-123` style anchors once the target row has rendered. */
 function useScrollToHash(rows: Row[], setLimit: (fn: (l: number) => number) => void) {

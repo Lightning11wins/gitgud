@@ -7,12 +7,13 @@ import { Avatar } from "@/components/Avatar";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { Markdown } from "@/components/Markdown";
 import { Popover } from "@/components/Popover";
+import { ReactionBar } from "@/components/Reactions";
 import { RelativeTime } from "@/components/RelativeTime";
 import { Composer } from "@/features/composer/Composer";
 import { patchComment, patchThread } from "./cache";
 import { DiffHunk } from "./DiffHunk";
 import { ensurePendingReview, invalidateReview, usePendingReview } from "./pending";
-import { ReactionPickerButton, ReactionPills, useReactions } from "./Reactions";
+import { useReactions } from "./useReactions";
 import "./review.css";
 
 export interface ReviewThreadViewProps {
@@ -74,7 +75,7 @@ export const ReviewThreadView = memo(function ReviewThreadView({ thread, owner, 
       const d = await gql<ResolveData>(thread.isResolved ? UNRESOLVE : RESOLVE, { id: thread.id });
       const next = (d.resolveReviewThread ?? d.unresolveReviewThread)!.thread;
       setOpen(null);
-      patchThread(pr, thread.id, (t) => ({ ...t, ...next }));
+      await patchThread(pr, thread.id, (t) => ({ ...t, ...next }));
       invalidateReview(owner, repo, number, ["timeline"]);
     } catch (e) {
       setError(e);
@@ -159,7 +160,7 @@ function ReplyBox({ thread, owner, repo, number, pullId, resolveButton }: ReplyB
     // Without a review id GitHub joins the viewer's pending review if any, else posts at once.
     const d = await gql<{ addPullRequestReviewThreadReply: { comment: ReviewComment } }>(REPLY, { threadId: thread.id, body, reviewId });
     const comment = d.addPullRequestReviewThreadReply.comment;
-    patchThread(pr, thread.id, (t) => ({ ...t, comments: { totalCount: t.comments.totalCount + 1, nodes: [...t.comments.nodes, comment] } }));
+    await patchThread(pr, thread.id, (t) => ({ ...t, comments: { totalCount: t.comments.totalCount + 1, nodes: [...t.comments.nodes, comment] } }));
     setReplying(false);
     invalidateReview(owner, repo, number, comment.state === "PENDING" ? ["pendingReview", "timeline"] : ["timeline"]);
   };
@@ -232,7 +233,7 @@ const ThreadComment = memo(function ThreadComment({ comment, threadId, owner, re
       id: comment.id,
       body,
     });
-    patchComment({ owner, repo, number }, threadId, comment.id, (c) => ({ ...c, ...d.updatePullRequestReviewComment.pullRequestReviewComment }));
+    await patchComment({ owner, repo, number }, threadId, comment.id, (c) => ({ ...c, ...d.updatePullRequestReviewComment.pullRequestReviewComment }));
     setEditing(false);
     invalidateReview(owner, repo, number, ["timeline"]);
   };
@@ -244,7 +245,7 @@ const ThreadComment = memo(function ThreadComment({ comment, threadId, owner, re
     setError(null);
     try {
       await gql(DELETE, { id: comment.id });
-      patchThread({ owner, repo, number }, threadId, (t) => {
+      await patchThread({ owner, repo, number }, threadId, (t) => {
         const nodes = t.comments.nodes.filter((c) => c.id !== comment.id);
         return nodes.length ? { ...t, comments: { totalCount: t.comments.totalCount - 1, nodes } } : null;
       });
@@ -277,7 +278,6 @@ const ThreadComment = memo(function ThreadComment({ comment, threadId, owner, re
         {comment.state === "PENDING" && <span className="label rt-pending">Pending</span>}
         <span className="grow" />
         {association && <span className="label rt-assoc">{association}</span>}
-        {comment.viewerCanReact && !hidden && <ReactionPickerButton groups={reactions.groups} onToggle={reactions.toggle} />}
         {(comment.viewerCanUpdate || comment.viewerCanDelete) && (
           <button className="btn invisible xs icon" aria-label="Comment actions" onClick={(e) => setMenu(menu ? null : e.currentTarget)}>
             <KebabHorizontalIcon size={14} />
@@ -339,7 +339,7 @@ const ThreadComment = memo(function ThreadComment({ comment, threadId, owner, re
       ) : (
         <>
           <Markdown html={comment.bodyHTML} className="rt-body" />
-          <ReactionPills groups={reactions.groups} canReact={comment.viewerCanReact} onToggle={reactions.toggle} error={reactions.error} />
+          <ReactionBar groups={reactions.groups} canReact={comment.viewerCanReact} onToggle={reactions.toggle} error={reactions.error} />
         </>
       )}
     </div>

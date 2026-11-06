@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useSearchParams } from "react-router";
 import type { ReviewThread } from "@/api/types";
 import { Spinner } from "@/components/Spinner";
+import { useHotkey } from "@/lib/hotkeys";
 import type { DiffSource, ViewedMap } from "./data";
 import { FileDiff, fileDomId, type PullContext } from "./FileDiff";
 import { FileTree, buildTree, treeOrder } from "./FileTree";
@@ -37,11 +38,6 @@ function stickyTop(): number {
   const appHeader = document.querySelector(".app-header")?.getBoundingClientRect().bottom ?? 0;
   const pullSticky = document.querySelector(".pull-sticky")?.getBoundingClientRect().bottom ?? 0;
   return Math.max(appHeader, pullSticky, 0);
-}
-
-function isTyping(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  return !!el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT");
 }
 
 /** Split diff of many files with a file tree, viewed state, and inline review threads. */
@@ -162,24 +158,14 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, fe
   }, []);
 
   // n/p next/previous file, v toggles viewed for the current file.
-  const keyState = useRef({ ordered, active, onToggleViewed, scrollToFile });
-  keyState.current = { ordered, active, onToggleViewed, scrollToFile };
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
-      if (rootRef.current?.offsetParent == null) return;
-      const { ordered, active, onToggleViewed, scrollToFile } = keyState.current;
-      const i = ordered.findIndex((f) => f.filename === active);
-      if (e.key === "n" || e.key === "p") {
-        const next = ordered[Math.max(0, Math.min(ordered.length - 1, i + (e.key === "n" ? 1 : -1)))];
-        if (next) scrollToFile(next.filename);
-      } else if (e.key === "v" && pull && active) onToggleViewed(active);
-      else return;
-      e.preventDefault();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [pull]);
+  const stepFile = (d: 1 | -1) => {
+    const i = ordered.findIndex((f) => f.filename === active);
+    const next = ordered[Math.max(0, Math.min(ordered.length - 1, i + d))];
+    if (next) scrollToFile(next.filename);
+  };
+  useHotkey("n", () => stepFile(1));
+  useHotkey("p", () => stepFile(-1));
+  useHotkey("v", () => active && onToggleViewed(active), !!viewed && !!onSetViewed);
 
   const startResize = (e: React.PointerEvent) => {
     const startX = e.clientX;

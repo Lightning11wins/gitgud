@@ -1,6 +1,7 @@
 import { QueryClient, hashKey, type QueryKey } from "@tanstack/react-query";
 import { experimental_createQueryPersister, type PersistedQuery } from "@tanstack/query-persist-client-core";
 import { clear, createStore, del, entries, get, set } from "idb-keyval";
+import { getToken } from "@/auth/token";
 import { AuthError, GitHubError } from "./client";
 
 const cacheDb = createStore("gitgud-cache", "queries");
@@ -11,7 +12,8 @@ const CACHE_VERSION = "1";
 const persister = experimental_createQueryPersister<PersistedQuery>({
   storage: {
     getItem: (key) => get<PersistedQuery>(key, cacheDb),
-    setItem: (key, value) => set(key, value, cacheDb),
+    // Skip writes from requests that finish after sign-out.
+    setItem: (key, value) => (getToken() ? set(key, value, cacheDb) : undefined),
     removeItem: (key) => del(key, cacheDb),
     entries: () => entries<string, PersistedQuery>(cacheDb),
   },
@@ -44,6 +46,11 @@ export async function clearCache() {
 /** Bytes used by this origin (cache, drafts, token), as reported by the browser. */
 export async function storageUsage(): Promise<number | undefined> {
   return (await navigator.storage?.estimate?.())?.usage;
+}
+
+/** Writes a query's current in-memory state to IndexedDB, e.g. after an optimistic `setQueryData`. */
+export function persistQueryData(key: QueryKey) {
+  void persister.persistQueryByKey(key, queryClient).catch(() => {});
 }
 
 export function cachedData<T>(key: QueryKey): T | undefined {

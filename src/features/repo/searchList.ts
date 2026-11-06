@@ -102,13 +102,14 @@ export function useSearchList(queryKey: QueryKey, search: string) {
   useEffect(() => setMoreError(null), [search]);
 
   const loadMore = useCallback(async () => {
-    const data = qc.getQueryData<ListData>(keyRef.current);
+    const key = keyRef.current;
+    const data = qc.getQueryData<ListData>(key);
     if (!data || !data.hasNextPage || inFlight.current) return;
     inFlight.current = true;
     setLoadingMore(true);
     try {
       const page = await fetchPage(search, data.endCursor);
-      qc.setQueryData<ListData>(keyRef.current, (cur) =>
+      qc.setQueryData<ListData>(key, (cur) =>
         cur ? { ...page, items: appendUnique(cur.items, page.items) } : cur,
       );
       setMoreError(null);

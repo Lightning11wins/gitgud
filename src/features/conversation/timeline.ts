@@ -1,7 +1,7 @@
-import { useQuery, type Query } from "@tanstack/react-query";
+import { hashKey, useQuery, type Query } from "@tanstack/react-query";
 import { gql, type PageInfo } from "@/api/client";
 import { keys } from "@/api/keys";
-import { probeThenLoad, queryClient } from "@/api/queryClient";
+import { persistQueryData, probeThenLoad, queryClient } from "@/api/queryClient";
 import type { SubjectKind } from "@/api/prefetch";
 import { ISSUE_ITEM_TYPES, ISSUE_TIMELINE_QUERY, PULL_ITEM_TYPES, PULL_TIMELINE_QUERY, SUBJECT_STAMP_QUERY } from "./queries";
 import type { TimelineData, TimelineItem } from "./types";
@@ -15,6 +15,9 @@ const META_FRESH_MS = 10_000;
 const PAGE_SIZE = 100;
 /** Concurrent page requests once the item count is known. */
 const PARALLEL = 8;
+
+/** Local edits per timeline key, so loads that started before an edit stop writing. */
+const editGen = new Map<string, number>();
 
 interface Page {
   nodes: TimelineItem[];
@@ -127,7 +130,10 @@ async function loadTimeline(kind: SubjectKind, owner: string, repo: string, numb
   const key = keys.timeline(owner, repo, number);
   const cached = queryClient.getQueryData<TimelineData>(key);
   const startedAt = Date.now();
+  const gen = editGen.get(hashKey(key));
   const onProgress = (items: TimelineItem[], endCursor: string | null) => {
+    // A local edit cancelled this load; its pages would overwrite the edit.
+    if (editGen.get(hashKey(key)) !== gen) return;
     const current = queryClient.getQueryData<TimelineData>(key);
     if (current && current.items.length > items.length) return;
     // A refresh of a complete timeline keeps its stamp so no loading line flashes.
@@ -136,7 +142,11 @@ async function loadTimeline(kind: SubjectKind, owner: string, repo: string, numb
   if (cached?.endCursor && startedAt - cached.fullAt < FULL_RELOAD_MS) {
     const r = await fetchItems(kind, owner, repo, number, cached, maxPages, onProgress);
     if (!r.complete) return { stamp: "", items: r.items, endCursor: r.endCursor, fullAt: cached.fullAt };
-    if (r.items.length === r.total) return { stamp, items: r.items, endCursor: r.endCursor, fullAt: cached.fullAt };
+    if (r.items.length === r.total) {
+      // Nothing appended means an edit to an earlier item; keep the old stamp so the next full reload picks it up.
+      const appended = r.endCursor !== cached.endCursor;
+      return { stamp: appended || !cached.stamp ? stamp : cached.stamp, items: r.items, endCursor: r.endCursor, fullAt: cached.fullAt };
+    }
   }
   const r = await fetchItems(kind, owner, repo, number, null, maxPages, onProgress);
   return { stamp: r.complete ? stamp : "", items: r.items, endCursor: r.endCursor, fullAt: startedAt };
@@ -202,9 +212,15 @@ export function prefetchTimeline(kind: SubjectKind, owner: string, repo: string,
   });
 }
 
-/** Applies `fn` to the cached timeline, if any. */
+/** Applies `fn` to the cached timeline, if any, cancelling an in-flight load that would overwrite it. */
 export function updateTimeline(owner: string, repo: string, number: number, fn: (items: TimelineItem[]) => TimelineItem[]) {
-  queryClient.setQueryData<TimelineData>(keys.timeline(owner, repo, number), (old) => old && { ...old, items: fn(old.items) });
+  const key = keys.timeline(owner, repo, number);
+  if (!queryClient.getQueryData(key)) return;
+  editGen.set(hashKey(key), (editGen.get(hashKey(key)) ?? 0) + 1);
+  void queryClient.cancelQueries({ queryKey: key, exact: true });
+  queryClient.setQueryData<TimelineData>(key, (old) => old && { ...old, items: fn(old.items) });
+  // The probe skips reloads while the stamp is unchanged, so the stored copy must include local edits.
+  persistQueryData(key);
 }
 
 export function patchTimelineItem<T extends TimelineItem>(owner: string, repo: string, number: number, id: string, patch: (item: T) => T) {

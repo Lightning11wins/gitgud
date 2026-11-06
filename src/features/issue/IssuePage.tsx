@@ -42,7 +42,7 @@ export function IssuePage() {
   const issue = meta.data as IssueMeta;
 
   return (
-    <div className="issue-page">
+    <div className="issue-page" key={`${owner}/${repo}#${number}`}>
       <IssueHeader issue={issue} owner={owner} repo={repo} />
       <div className="issue-layout">
         <Timeline owner={owner} repo={repo} number={number} kind="issue" subject={issue} />

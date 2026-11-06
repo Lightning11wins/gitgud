@@ -53,8 +53,9 @@ export async function signIn(token: string) {
 }
 
 export async function signOut() {
+  // Drop the token first so in-flight requests can't persist into the wiped cache.
+  auth.set({ status: "signed-out", token: null, viewer: null });
   await Promise.all([del("token", authDb), del("viewer", authDb)]);
   const [{ clearCache }, { drafts }] = await Promise.all([import("@/api/queryClient"), import("@/lib/drafts")]);
   await Promise.all([clearCache(), drafts.clearAll()]);
-  auth.set({ status: "signed-out", token: null, viewer: null });
 }

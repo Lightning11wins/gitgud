@@ -155,52 +155,8 @@
 }
 
 /* Reactions */
-.reactions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin-top: 6px;
-  padding-left: 26px;
-}
-.reaction-add {
-  border-radius: 2em;
-}
-.reaction {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--border);
-  border-radius: 2em;
-  background: transparent;
-  color: var(--fg-muted);
-  font-size: 12px;
-  cursor: pointer;
-}
-.reaction:hover:not(:disabled) {
-  background: var(--bg-hover);
-}
-.reaction.active {
-  background: var(--accent-subtle);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.reaction:disabled {
-  cursor: default;
-}
-.reaction-error {
-  color: var(--danger);
-  font-size: 12px;
-}
-.reaction-picker {
-  display: flex;
-  padding: 4px;
-  gap: 2px;
-}
-.reaction-picker .btn.active {
-  background: var(--accent-subtle);
+.rt-comment .reaction-bar {
+  padding: 6px 0 0 26px;
 }
 
 /* New thread form */

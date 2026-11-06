@@ -121,7 +121,8 @@ interface Gap {
 function gapOf(hunks: Hunk[], g: number, headLen: number | undefined): Gap {
   if (g === hunks.length) {
     const last = hunks[g - 1];
-    const start = last.newStart + last.newLines;
+    // An empty new file's hunk is "+0,0"; the gap after it still starts at line 1.
+    const start = last.newStart + Math.max(1, last.newLines);
     return { start, end: headLen ?? Infinity, offset: last.oldStart + last.oldLines - start };
   }
   const h = hunks[g];

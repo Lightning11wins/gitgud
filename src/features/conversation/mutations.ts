@@ -117,7 +117,11 @@ export function subjectKey(kind: SubjectKind, owner: string, repo: string, numbe
 
 /** Patches the cached issue/PR metadata in place. */
 export function patchSubject(kind: SubjectKind, owner: string, repo: string, number: number, patch: (s: SubjectMeta) => Partial<SubjectMeta>) {
-  queryClient.setQueryData<SubjectMeta>(subjectKey(kind, owner, repo, number), (old) => (old && "id" in old ? { ...old, ...patch(old) } : old));
+  const key = subjectKey(kind, owner, repo, number);
+  if (!queryClient.getQueryData(key)) return;
+  // An in-flight refetch started before this change would overwrite it.
+  void queryClient.cancelQueries({ queryKey: key, exact: true });
+  queryClient.setQueryData<SubjectMeta>(key, (old) => (old && "id" in old ? { ...old, ...patch(old) } : old));
 }
 
 /** Refetches the subject metadata and its timeline after a change. */

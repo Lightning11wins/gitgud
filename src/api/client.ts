@@ -87,6 +87,8 @@ export interface RestResponse<T> {
 export async function restRaw<T>(path: string, opts: RestOptions = {}): Promise<RestResponse<T>> {
   const method = opts.method ?? "GET";
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  // The token goes only to api.github.com.
+  if (!url.startsWith(`${API_BASE}/`)) throw new GitHubError(`Failed to ${method} ${path}: not an api.github.com URL`, 0);
   recordRequest("rest", `${method} ${path.replace(/\?.*/, "")}`);
   const headers: Record<string, string> = { ...authHeaders(), Accept: opts.accept ?? "application/vnd.github+json" };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";

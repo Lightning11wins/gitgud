@@ -27,7 +27,7 @@ export type Row = { key: string; type: "item"; item: TimelineItem } | { key: str
 
 /** Groups consecutive commits and drops items that render nothing. */
 export function buildRows(items: TimelineItem[], prev: Row[] = []): Row[] {
-  const prevGroups = new Map(prev.filter((r) => r.type === "commits").map((r) => [r.key, r]));
+  const prevRows = new Map(prev.map((r) => [r.key, r]));
   const rows: Row[] = [];
   for (const item of items) {
     if (item.__typename === "PullRequestCommit") {
@@ -39,10 +39,10 @@ export function buildRows(items: TimelineItem[], prev: Row[] = []): Row[] {
     if (item.__typename === "PullRequestReview" && (item as ReviewItem).state === "PENDING") continue;
     rows.push({ key: item.id, type: "item", item });
   }
-  // Keep unchanged commit groups identical so their memoized rows skip rendering.
+  // Keep unchanged rows identical so their memoized components skip rendering.
   return rows.map((r) => {
-    if (r.type !== "commits") return r;
-    const old = prevGroups.get(r.key);
+    const old = prevRows.get(r.key);
+    if (r.type === "item") return old?.type === "item" && old.item === r.item ? old : r;
     return old?.type === "commits" && old.commits.length === r.commits.length && old.commits.every((c, i) => c === r.commits[i]) ? old : r;
   });
 }

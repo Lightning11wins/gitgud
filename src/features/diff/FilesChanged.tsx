@@ -31,7 +31,7 @@ export function FilesChanged({ owner, repo, number }: { owner: string; repo: str
       },
     [owner, repo, number, data],
   );
-  const pull = useMemo(() => data && { owner, repo, number, pullId: data.pullId }, [owner, repo, number, data]);
+  const pull = useMemo(() => data && { owner, repo, number, pullId: data.pullId, head: data.head }, [owner, repo, number, data]);
   const mutate = setViewed.mutate;
   const onSetViewed = useMemo(() => (paths: string[], v: boolean) => mutate({ paths, viewed: v }), [mutate]);
   if (!data || !source || !pull) return <Loading error={files.error} retry={() => files.refetch()} />;

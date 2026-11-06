@@ -9,7 +9,7 @@ import { RelativeTime } from "@/components/RelativeTime";
 import { Composer } from "@/features/composer/Composer";
 import { quote } from "@/features/composer/format";
 import type { MinimizeReason } from "./mutations";
-import { ReactionBar } from "./Reactions";
+import { ReactionBar } from "@/components/Reactions";
 import type { CommentLike } from "./types";
 
 const ASSOCIATION: Record<string, string> = {

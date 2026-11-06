@@ -9,7 +9,9 @@ interface PrRef {
 }
 
 /** Replaces one thread in the cached thread list; return null from `fn` to remove it. */
-export function patchThread({ owner, repo, number }: PrRef, threadId: string, fn: (t: ReviewThread) => ReviewThread | null) {
+export async function patchThread({ owner, repo, number }: PrRef, threadId: string, fn: (t: ReviewThread) => ReviewThread | null) {
+  // A fetch already in flight would overwrite this edit with pre-mutation data.
+  await queryClient.cancelQueries({ queryKey: keys.reviewThreads(owner, repo, number) });
   queryClient.setQueryData<ReviewThread[]>(keys.reviewThreads(owner, repo, number), (list) => {
     if (!list) return list;
     const out: ReviewThread[] = [];
@@ -26,7 +28,7 @@ export function patchThread({ owner, repo, number }: PrRef, threadId: string, fn
 
 /** Replaces one comment in the cached thread list. */
 export function patchComment(pr: PrRef, threadId: string, commentId: string, fn: (c: ReviewComment) => ReviewComment) {
-  patchThread(pr, threadId, (t) => ({
+  return patchThread(pr, threadId, (t) => ({
     ...t,
     comments: { ...t.comments, nodes: t.comments.nodes.map((c) => (c.id === commentId ? fn(c) : c)) },
   }));

@@ -1,7 +1,8 @@
 import { SmileyIcon } from "@primer/octicons-react";
 import { memo, useState } from "react";
 import type { ReactionContent, ReactionGroup } from "@/api/types";
-import { Popover } from "@/components/Popover";
+import { Popover } from "./Popover";
+import "./reactions.css";
 
 export const REACTION_EMOJI: [ReactionContent, string][] = [
   ["THUMBS_UP", "👍"],
@@ -19,12 +20,13 @@ export interface ReactionBarProps {
   canReact: boolean;
   /** Called with the reaction to add (`add`) or remove; the caller updates its cache. */
   onToggle: (content: ReactionContent, add: boolean) => void;
+  error?: string | null;
 }
 
 /** Reaction counts plus an emoji picker, like GitHub's comment footer. */
-export const ReactionBar = memo(function ReactionBar({ groups, canReact, onToggle }: ReactionBarProps) {
+export const ReactionBar = memo(function ReactionBar({ groups, canReact, onToggle, error }: ReactionBarProps) {
   const shown = REACTION_EMOJI.filter(([c]) => (groups.find((g) => g.content === c)?.reactors.totalCount ?? 0) > 0);
-  if (!shown.length && !canReact) return null;
+  if (!shown.length && !canReact && !error) return null;
   return (
     <div className="reaction-bar">
       {canReact && <ReactionPicker groups={groups} onToggle={onToggle} />}
@@ -44,11 +46,12 @@ export const ReactionBar = memo(function ReactionBar({ groups, canReact, onToggl
           </button>
         );
       })}
+      {error && <span className="reaction-error">{error}</span>}
     </div>
   );
 });
 
-export function ReactionPicker({ groups, onToggle }: Omit<ReactionBarProps, "canReact">) {
+export function ReactionPicker({ groups, onToggle }: Pick<ReactionBarProps, "groups" | "onToggle">) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   return (
     <>

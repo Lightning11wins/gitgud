@@ -7,6 +7,8 @@ export interface NewThreadFormProps {
   repo: string;
   number: number;
   pullId: string;
+  /** Commit the line numbers refer to; defaults to the PR head. */
+  commitId?: string;
   path: string;
   subjectType: "LINE" | "FILE";
   line?: number;
@@ -24,10 +26,10 @@ export interface NewThreadFormProps {
  * single comments then).
  */
 export function NewThreadForm(props: NewThreadFormProps) {
-  const { owner, repo, number, pullId, path, subjectType, line, side, startLine, startSide, suggestionSource, onClose } = props;
+  const { owner, repo, number, pullId, commitId, path, subjectType, line, side, startLine, startSide, suggestionSource, onClose } = props;
   const pending = usePendingReview(owner, repo, number);
   const hasPending = !!pending.data;
-  const input = (body: string): NewThreadInput => ({ owner, repo, number, pullId, path, body, subjectType, line, side, startLine, startSide });
+  const input = (body: string): NewThreadInput => ({ owner, repo, number, pullId, commitId, path, body, subjectType, line, side, startLine, startSide });
   const draftKey = `${owner}/${repo}#${number}:new:${path}:${side ?? ""}:${startLine ?? ""}-${line ?? "file"}`;
 
   const review = async (body: string) => {

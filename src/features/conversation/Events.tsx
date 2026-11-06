@@ -155,7 +155,7 @@ export const EventRow = memo(function EventRow({ item, repo }: { item: EventItem
           {e.closer?.__typename === "PullRequest" && (
             <>
               {" "}
-              in <a href={e.closer.url}>#{e.closer.number}</a>
+              in <Link to={new URL(e.closer.url!).pathname}>#{e.closer.number}</Link>
             </>
           )}
           {e.closer?.__typename === "Commit" && (

@@ -44,6 +44,8 @@ export interface PullContext {
   repo: string;
   number: number;
   pullId: string;
+  /** Head commit the diff shows; new comments are placed against it. */
+  head: string;
 }
 
 export interface FileDiffProps {
@@ -61,6 +63,7 @@ export interface FileDiffProps {
 
 export const ROW_H = 20;
 const CHUNK_ROWS = 80;
+const NO_GAPS: Record<number, GapExpansion> = {};
 
 export const fileDomId = (path: string) => `diff-${path}`;
 
@@ -204,16 +207,20 @@ function patchIndex(nums: Int32Array) {
 function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileComment: () => void }) {
   const { file, source, pull, threads, ignoreWs, fileComment, closeFileComment } = props;
   const hidden = hiddenReason(file);
-  const [load, setLoad] = useState(!hidden && file.patch !== undefined);
-  const [expansion, setExpansion] = useState<Record<number, GapExpansion>>({});
-  const [head, setHead] = useState<string[] | undefined>();
+  const needsFetch = file.patch === undefined && file.changes > 0;
+  const [load, setLoad] = useState(!hidden && !needsFetch);
+  // Expanded gaps and fetched head lines, tagged with the diff version they belong to.
+  const [expansionState, setExpansion] = useState<{ id: string; gaps: Record<number, GapExpansion> }>({ id: source.id, gaps: {} });
+  const [headState, setHead] = useState<{ id: string; lines: string[] }>();
+  const expansion = expansionState.id === source.id ? expansionState.gaps : NO_GAPS;
+  const head = headState?.id === source.id ? headState.lines : undefined;
   const [expandError, setExpandError] = useState<unknown>(null);
   const [sel, setSel] = useState<Selection | null>(null);
-  const dragging = useRef(false);
+  // Pointer position while dragging a selection, else null.
+  const dragging = useRef<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const near = useNear(ref);
 
-  const needsFetch = file.patch === undefined && file.changes > 0;
   const loaded = useQuery({
     queryKey: ["loaded-diff", source.id, file.filename],
     enabled: load && needsFetch,
@@ -255,6 +262,7 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
   const onExpand = useCallback(
     async (gap: number, dir: "up" | "down" | "all") => {
       setExpandError(null);
+      const id = source.id;
       let lines = headLines;
       if (!lines) {
         try {
@@ -263,10 +271,13 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
           setExpandError(e);
           return;
         }
-        setHead(lines);
+        setHead({ id, lines });
       }
       const len = lines.length;
-      setExpansion((prev) => ({ ...prev, [gap]: expandGap(hunks, gap, len, prev[gap], dir) }));
+      setExpansion((prev) => {
+        const gaps = prev.id === id ? prev.gaps : {};
+        return { id, gaps: { ...gaps, [gap]: expandGap(hunks, gap, len, gaps[gap], dir) } };
+      });
     },
     [headLines, hunks, source, file.filename],
   );
@@ -279,11 +290,14 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
     e.preventDefault();
     const side = el.dataset.s as "L" | "R";
     const n = Number(el.dataset.n);
-    dragging.current = true;
+    dragging.current = `${e.clientX},${e.clientY}`;
     setSel((prev) => (e.shiftKey && prev && prev.side === side ? { side, a: prev.a, b: n, open: false } : { side, a: n, b: n, open: false }));
   };
   const onMouseOver = (e: MouseEvent) => {
-    if (!dragging.current) return;
+    // Layout shifts under a still pointer (e.g. the open form closing) also fire mouseover; only real moves extend the range.
+    const at = `${e.clientX},${e.clientY}`;
+    if (dragging.current === null || dragging.current === at) return;
+    dragging.current = at;
     const el = (e.target as HTMLElement).closest<HTMLElement>(".dn[data-c]");
     if (!el) return;
     const side = el.dataset.s;
@@ -292,8 +306,8 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
   };
   useEffect(() => {
     const up = () => {
-      if (!dragging.current) return;
-      dragging.current = false;
+      if (dragging.current === null) return;
+      dragging.current = null;
       setSel((prev) => prev && { ...prev, open: true });
     };
     window.addEventListener("mouseup", up);
@@ -323,6 +337,7 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
         repo={pull.repo}
         number={pull.number}
         pullId={pull.pullId}
+        commitId={pull.head}
         path={file.filename}
         subjectType="LINE"
         side={range.side === "L" ? "LEFT" : "RIGHT"}
@@ -345,7 +360,7 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
     <>
       {pull && fileComment && (
         <div className="df-filecomment">
-          <NewThreadForm owner={pull.owner} repo={pull.repo} number={pull.number} pullId={pull.pullId} path={file.filename} subjectType="FILE" onClose={closeFileComment} />
+          <NewThreadForm owner={pull.owner} repo={pull.repo} number={pull.number} pullId={pull.pullId} commitId={pull.head} path={file.filename} subjectType="FILE" onClose={closeFileComment} />
         </div>
       )}
       {pull && (fileThreads.length > 0 || unplaced.length > 0) && (

@@ -1,0 +1,50 @@
+.reaction-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 16px 10px;
+}
+.reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 2em;
+  background: var(--bg);
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.reaction-pill:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.reaction-pill.reacted {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.reaction-pill.add {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+.reaction-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 6px;
+  font-size: 16px;
+}
+.reaction-picker .reacted {
+  background: var(--accent-subtle);
+}
+.reaction-pill:disabled {
+  cursor: default;
+}
+.reaction-error {
+  align-self: center;
+  color: var(--danger);
+  font-size: 12px;
+}

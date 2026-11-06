@@ -178,10 +178,12 @@ export function useSetViewed(owner: string, repo: string, number: number, pullId
       const next = { ...prev };
       for (const p of paths) next[p] = viewed ? "VIEWED" : "UNVIEWED";
       queryClient.setQueryData(key, next);
-      return { prev };
+      return { prev: Object.fromEntries(paths.map((p) => [p, prev?.[p] ?? "UNVIEWED"])) as ViewedMap };
     },
+    // Restores only this mutation's paths, then refetches since some paths may have been saved.
     onError: (_e, _v, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(key, ctx.prev);
+      if (ctx) queryClient.setQueryData<ViewedMap>(key, (m) => ({ ...m, ...ctx.prev }));
+      queryClient.invalidateQueries({ queryKey: key });
     },
   });
 }
