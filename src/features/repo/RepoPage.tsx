@@ -121,7 +121,7 @@ export function RepoPage({ kind }: { kind?: Kind }) {
       </nav>
 
       <div className="repo-toolbar">
-        <FilterInput value={q} onApply={(next) => setQ(next || DEFAULT_Q)} placeholder="is:open" />
+        <FilterInput value={q === DEFAULT_Q ? "" : q} onApply={(next) => setQ(next || DEFAULT_Q)} placeholder={DEFAULT_Q} />
         {kind !== "issue" && (
           <Link className={kind === "pr" ? "btn primary" : "btn"} to={`/${slug}/compare`}>
             New pull request
