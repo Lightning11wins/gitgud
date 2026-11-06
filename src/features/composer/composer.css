@@ -1,0 +1,82 @@
+.composer {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.composer-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px 8px 0;
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.composer-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: -1px;
+}
+.composer-tabs button {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.composer-tabs button.active {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--fg);
+}
+.composer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0;
+  margin-left: auto;
+  padding-bottom: 4px;
+}
+.composer-body {
+  position: relative;
+  padding: 8px;
+}
+.composer-input {
+  display: block;
+  width: 100%;
+  min-height: 72px;
+  max-height: 60vh;
+  background: var(--bg);
+}
+.composer-preview {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-muted);
+}
+.composer-notice {
+  margin: 0 8px 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.composer > .flash.error {
+  margin: 0 8px 8px;
+}
+.composer-actions {
+  justify-content: flex-end;
+  padding: 0 8px 8px;
+}
+.composer-hint {
+  font-size: 12px;
+}
+.composer-suggest {
+  width: 300px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px 0;
+  border-radius: var(--radius);
+}
+.composer-suggest .select-menu-item {
+  padding: 4px 10px;
+}

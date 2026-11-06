@@ -1,0 +1,89 @@
+.issue-header {
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.issue-title-row {
+  align-items: flex-start;
+}
+.issue-title {
+  margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.issue-title-edit {
+  margin-bottom: 8px;
+}
+.issue-title-edit .input {
+  font-size: 18px;
+  height: 36px;
+}
+.issue-subtitle {
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+.issue-author {
+  color: var(--fg-muted);
+  font-weight: 600;
+}
+.issue-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 256px;
+  gap: 24px;
+  align-items: start;
+}
+.issue-layout > .sidebar {
+  position: sticky;
+  top: calc(var(--header-h) + 52px);
+  max-height: calc(100vh - var(--header-h) - 64px);
+  overflow-y: auto;
+}
+.issue-sticky {
+  position: fixed;
+  top: var(--header-h);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 3px var(--neutral-muted);
+}
+.issue-sticky-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 8px 24px;
+  font-size: 14px;
+}
+
+/* New issue */
+.new-issue {
+  max-width: 1100px;
+}
+.new-issue h2 {
+  margin: 0 0 16px;
+  font-size: 20px;
+}
+.new-issue-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.new-issue-form label {
+  font-weight: 600;
+  font-size: 13px;
+}
+.new-issue-title {
+  width: 100%;
+  font-size: 16px;
+  height: 36px;
+}
+.template-list .box-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.template-list .box-row p {
+  margin: 2px 0 0;
+}
