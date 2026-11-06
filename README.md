@@ -62,16 +62,17 @@ A classic token with `repo`, `read:org`, and `read:project` scopes covers everyt
 
 Signing out erases the token, cache, and drafts from the browser.
 
+## Configuration
+
+- `--host`, `--port`, `--dir`, `--cert`, `--key`: server options. `HOST`, `PORT`, `TLS_CERT`, and `TLS_KEY` work as environment variables.
+- `VITE_FEEDBACK_REPO=owner/repo` at build time: where the header's Feedback button files issues. Defaults to `Lightning11wins/gitgud`.
+
 ## Limits
 
 - GitHub's API has no attachment upload, so pasting an image into a comment offers a link to attach it on github.com instead.
 - CI logs open on github.com.
 - Files changed shows split view only.
 
-## Development
+## Contributing
 
-- `docs/ARCHITECTURE.md`: layout, data and caching rules, shared contracts.
-- `REQUIREMENTS.md`: product spec.
-- `npm run typecheck`, `npm test`.
-- `scripts/shot.mjs <path> out.png`: screenshots a page in headless Chromium, signed in with your `gh` token, and prints console errors and API request counts. Set `PLAYWRIGHT_BROWSERS_PATH` if Playwright's default browser cache isn't writable.
-- `scripts/*-flows.mjs`: end-to-end flows against a private sandbox repo (`scripts/seed-sandbox.sh` seeds one).
+See `docs/DEVELOPMENT.md` for tests and tooling, and `docs/ARCHITECTURE.md` for how the code fits together.

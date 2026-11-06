@@ -9,7 +9,7 @@ A fast replacement for GitHub's issue and PR web flows, backed by the GitHub API
 - Cache in IndexedDB, with `navigator.storage.persist()` requested.
 - Stack: React + TypeScript + Vite, TanStack Virtual for long lists.
 - Strict CSP, all assets self-hosted, all HTML sanitized.
-- Served over HTTPS via VPN (Tailscale or work VPN). Ship the static build, a tiny static server, and setup notes for `tailscale serve` and Caddy.
+- Reached over a LAN or VPN (Tailscale or work VPN), over plain HTTP or HTTPS. Ship the static build, a tiny static server with optional TLS, and setup notes.
 - One shared server for every user.
 
 ## Performance

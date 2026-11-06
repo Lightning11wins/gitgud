@@ -55,6 +55,18 @@ server/serve.mjs  static server with CSP and compression
 - Keyboard: `useHotkey` from `lib/hotkeys.ts`. Core keys: `j`/`k` move, `/` jump box, `r` reply, `n`/`p` next/prev file, Ctrl+Enter submit, Esc cancel.
 - Routes mirror github.com paths (see `App.tsx`). The header has an "Open on GitHub" link for every page.
 - Error messages start with "Failed to ..." and include the offending value.
+- Tab bars: `.tabs` is the container; each tab needs `.tab` (and `.active`). Other children, like buttons, keep their own styles.
+- Every `<Spinner>` needs a `label` saying what's loading; it shows on hover. Spinners fade in after a delay, so quick loads show nothing.
+- Every page sets its browser tab title with `useTitle` from `lib/useTitle.ts`.
+- Nothing may look clickable unless it is: link color, underline, pointer cursor, and hover effects only go on elements that act. `scripts/audit-affordances.mjs` checks this.
+
+## GitHub API quirks
+
+- Classic tokens without `read:project` fail any query that selects ProjectV2 timeline events. `features/conversation/timeline.ts` retries without them and remembers that for the session.
+- Fine-grained tokens can't be granted the Checks permission, so check runs may be missing; the Checks tab says so.
+- Repo lists use `search(type: ISSUE_ADVANCED)`. With the same filters and sort, the issues in the All list are a prefix of the Issues list (same for PRs), so `kindSubset` in `features/repo/searchList.ts` shows them as placeholder data while a tab loads.
+- GraphQL connections page serially at about 1.8s per 100 nodes regardless of fields selected. Owner pages refresh by fetching the first page and merging with the cache.
+- The first request from headless Chromium can fail CORS preflight behind some proxies; it's an environment problem, not an app bug.
 
 ## Shared contracts
 
