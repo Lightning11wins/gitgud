@@ -93,7 +93,9 @@
   color: var(--accent);
 }
 .lr-repo {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40%;
   font-size: 12px;
 }
 /* Labels shrink to nothing before the title shrinks at all; ones that don't fit wrap onto a hidden second line. */
@@ -144,6 +146,11 @@
   width: 52px;
   gap: 0;
 }
+/* Empty slots give their room to the title. */
+.lr-assignees:empty,
+.lr-comments:empty {
+  display: none;
+}
 .lr-assignees .avatar + .avatar {
   margin-left: -6px;
   box-shadow: 0 0 0 2px var(--bg);
@@ -187,9 +194,6 @@
 @media (max-width: 600px) {
   .list-row {
     padding: 8px 12px;
-  }
-  .lr-assignees:empty {
-    display: none;
   }
 }
 @media print {

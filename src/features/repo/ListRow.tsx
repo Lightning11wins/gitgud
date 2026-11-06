@@ -109,7 +109,7 @@ export const ListRow = memo(function ListRow({ item, checks, showRepo, active, s
       </span>
       <div className="lr-main">
         <div className="lr-title">
-          {showRepo && <span className="muted lr-repo">{item.repository.nameWithOwner}</span>}
+          {showRepo && <span className="muted truncate lr-repo" title={item.repository.nameWithOwner}>{item.repository.nameWithOwner}</span>}
           <Link className="lr-link truncate" to={itemPath(item)} title={item.title} data-row-link>
             <TitleText text={item.title} />
           </Link>
