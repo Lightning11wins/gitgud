@@ -4,6 +4,9 @@ import type { TimelineData, TimelineItem } from "./types";
 /** Cached timelines older than this are refetched from scratch so edits by others show up. */
 export const FULL_RELOAD_MS = 30 * 60_000;
 
+/** References from other issues and commits don't change the subject's `updatedAt`, so a cached timeline resumes this often anyway. */
+export const RECHECK_MS = 10 * 60_000;
+
 /**
  * Item types GitHub can insert before the end of the timeline. Commits sort by commit date, not push
  * time, so a push can add them before the cached end cursor. Counted apart so a deletion can't hide one.
@@ -40,6 +43,15 @@ export function createMerger(base: TimelineItem[]) {
   };
 }
 
+/**
+ * False when GitHub's counts for a timeline loaded from the start disagree. Items hidden from the token
+ * (e.g. mentions from repositories it can't read) make GitHub undercount and end pages early, so
+ * `hasNextPage` can be false with items left.
+ */
+export function countsTrusted(counts: TimelineCounts | undefined, firstPageCount: number): boolean {
+  return !counts || counts.total === firstPageCount;
+}
+
 /** True when `items` has as many items, and as many movable ones, as GitHub reports. */
 export function countsMatch(items: TimelineItem[], counts: TimelineCounts): boolean {
   let movable = 0;
@@ -65,11 +77,16 @@ export function resumed(cached: TimelineData, r: ResumeResult, stamp: string): T
   if (!r.complete) return { stamp: "", items: r.items, endCursor: r.endCursor, fullAt: cached.fullAt, edited: cached.edited };
   if (!countsMatch(r.items, r.counts)) return null;
   // A new stamp with nothing appended means an earlier item was edited.
-  const edited = cached.edited || (r.endCursor === cached.endCursor && !!cached.stamp);
+  const edited = cached.edited || (r.endCursor === cached.endCursor && !!cached.stamp && stamp !== cached.stamp);
   return { stamp, items: r.items, endCursor: r.endCursor, fullAt: cached.fullAt, edited };
 }
 
 /** True when `cached` has edits to earlier items and is old enough to reload, even with an unchanged stamp. */
 export function reloadDue(cached: TimelineData | undefined, now: number): boolean {
   return !!cached?.edited && now - cached.fullAt >= FULL_RELOAD_MS;
+}
+
+/** True when `cached` is complete but hasn't been checked for appended references in `RECHECK_MS`. */
+export function recheckDue(cached: TimelineData | undefined, now: number): boolean {
+  return !!cached?.stamp && !!cached.endCursor && now - (cached.checkedAt ?? cached.fullAt) >= RECHECK_MS;
 }

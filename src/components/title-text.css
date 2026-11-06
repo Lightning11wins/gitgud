@@ -1,0 +1,7 @@
+.title-code {
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius);
+  background: var(--neutral-muted);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}

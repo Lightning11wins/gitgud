@@ -88,7 +88,7 @@ export function CommentCard(props: CommentCardProps) {
     <div className={`comment-box ${className ?? ""}`} id={anchor} data-comment>
       <div className="comment-header row">
         <a href={c.author?.url} target="_blank" rel="noopener noreferrer" className="comment-avatar" tabIndex={-1}>
-          <Avatar src={c.author?.avatarUrl} size={20} login={login} />
+          <Avatar src={c.author?.avatarUrl} size={24} login={login} />
         </a>
         <span className="grow truncate">
           <a className="comment-author" href={c.author?.url} target="_blank" rel="noopener noreferrer">

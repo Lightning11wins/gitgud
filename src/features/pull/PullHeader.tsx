@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { RelativeTime } from "@/components/RelativeTime";
 import { StateBadge } from "@/components/StateBadge";
+import { TitleText } from "@/components/TitleText";
 import { ReviewSubmitButton } from "@/features/review/ReviewSubmit";
 import { patchPull, refreshPull, updateTitle, type PullMeta } from "./api";
 import { BranchName, CopyButton, plural } from "./util";
@@ -36,7 +37,7 @@ export function PullHeader({ pull, owner, repo }: Props) {
         ) : (
           <div className="pull-title-row">
             <h1 className="pull-title">
-              <span className="pull-title-text">{pull.title}</span> <span className="muted pull-number">#{pull.number}</span>
+              <span className="pull-title-text"><TitleText text={pull.title} /></span> <span className="muted pull-number">#{pull.number}</span>
             </h1>
             <div className="pull-title-actions">
               {pull.viewerCanUpdate && (
@@ -60,7 +61,7 @@ export function PullHeader({ pull, owner, repo }: Props) {
             {badge}
             <div className="grow" style={{ minWidth: 0 }}>
               <div className="truncate">
-                <strong>{pull.title}</strong> <span className="muted">#{pull.number}</span>
+                <strong><TitleText text={pull.title} /></strong> <span className="muted">#{pull.number}</span>
               </div>
               <div className="truncate muted pull-sticky-sub">
                 <BranchSummary pull={pull} owner={owner} repo={repo} compact />

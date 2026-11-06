@@ -24,6 +24,7 @@ import {
   useRepoLabels,
   type IssueExtras,
   type IssueRef,
+  type PullRef,
   type SubjectUpdate,
 } from "./data";
 import "./sidebar.css";
@@ -162,6 +163,39 @@ export function MetadataSidebar({ subject, owner, repo, children }: MetadataSide
 
       {kind === "issue" && extras.subIssues && (
         <SubIssues subject={extras as SubjectMeta & IssueExtras} owner={owner} repo={repo} editable={editable} onError={setError} />
+      )}
+
+      {kind === "issue" && extras.closedByPullRequestsReferences && (
+        <section className="sidebar-section">
+          <h3 className="sidebar-title">Development</h3>
+          {extras.closedByPullRequestsReferences.nodes.length === 0 ? (
+            <div className="muted sidebar-empty">No linked pull requests</div>
+          ) : (
+            <ul className="sidebar-list">
+              {extras.closedByPullRequestsReferences.nodes.map((p) => (
+                <li key={p.id} className="row">
+                  <PullRefRow pull={p} owner={owner} repo={repo} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {kind === "issue" && extras.participants && extras.participants.totalCount > 0 && (
+        <section className="sidebar-section">
+          <h3 className="sidebar-title">Participants</h3>
+          <div className="sidebar-participants">
+            {extras.participants.nodes.map((u) => (
+              <a key={u.id} href={u.url} target="_blank" rel="noopener noreferrer" title={u.login}>
+                <Avatar src={u.avatarUrl} size={20} login={u.login} />
+              </a>
+            ))}
+            {extras.participants.totalCount > extras.participants.nodes.length && (
+              <span className="muted">+{extras.participants.totalCount - extras.participants.nodes.length}</span>
+            )}
+          </div>
+        </section>
       )}
 
       <section className="sidebar-section sidebar-footer">
@@ -388,6 +422,18 @@ function SubIssues({ subject, owner, repo, editable, onError }: { subject: Subje
         )}
       </section>
     </>
+  );
+}
+
+function PullRefRow({ pull, owner, repo }: { pull: PullRef; owner: string; repo: string }) {
+  const [o, r] = pull.repository.nameWithOwner.split("/");
+  const local = o === owner && r === repo;
+  return (
+    <Link to={`/${o}/${r}/pull/${pull.number}`} className="row grow sidebar-ref" title={pull.title}>
+      <StateIcon kind="pull" state={pull.state} isDraft={pull.isDraft} size={14} />
+      <span className="truncate grow">{pull.title}</span>
+      <span className="muted">{local ? "" : pull.repository.nameWithOwner}#{pull.number}</span>
+    </Link>
   );
 }
 

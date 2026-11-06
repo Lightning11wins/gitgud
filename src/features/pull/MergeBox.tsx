@@ -66,11 +66,11 @@ export function MergeBox({ pull, owner, repo, fetchedFresh, refetch }: Props) {
   );
 }
 
-function Section(props: { tone: Tone; icon: ReactNode; title: ReactNode; detail?: ReactNode; aside?: ReactNode; children?: ReactNode }) {
+function Section(props: { tone: Tone; icon?: ReactNode; title: ReactNode; detail?: ReactNode; aside?: ReactNode; children?: ReactNode }) {
   return (
     <div className="merge-section">
       <div className="merge-section-head">
-        <span className={`merge-section-icon ${props.tone}`}>{props.icon}</span>
+        {props.icon && <span className={`merge-section-icon ${props.tone}`}>{props.icon}</span>}
         <div className="grow">
           <div className="merge-section-title">{props.title}</div>
           {props.detail && <div className="muted merge-section-detail">{props.detail}</div>}
@@ -569,8 +569,8 @@ function ClosedBox({ pull, owner, repo }: { pull: PullMeta; owner: string; repo:
   return (
     <div className="merge-box">
       <span className={`merge-box-badge ${merged ? "done" : "danger"}`}>{merged ? <GitMergeIcon size={20} /> : <GitPullRequestClosedIcon size={20} />}</span>
-      <div className="box merge-box-body">
-        <Section tone={merged ? "done" : "danger"} icon={merged ? <GitMergeIcon /> : <XIcon />} title={title} detail={detail} aside={action}>
+      <div className={`box merge-box-body ${merged ? "merged" : ""}`}>
+        <Section tone={merged ? "done" : "danger"} title={title} detail={detail} aside={action}>
           {error != null && <ErrorBanner error={error} />}
         </Section>
       </div>

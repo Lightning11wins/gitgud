@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchAtLeast, kindSubset, type ListData, type ListItem } from "./searchList";
+import { fetchAtLeast, getQualifier, kindSubset, setQualifier, type ListData, type ListItem } from "./searchList";
 
 const item = (id: string) => ({ id }) as ListItem;
 
@@ -53,5 +53,26 @@ describe("kindSubset", () => {
     expect(kindSubset({ ...all, items: [item("b", "PullRequest")] }, "issue")).toBeUndefined();
     expect(kindSubset({ ...all, items: [item("b", "PullRequest")], hasNextPage: false }, "issue")?.items).toEqual([]);
     expect(kindSubset(undefined, "pr")).toBeUndefined();
+  });
+});
+
+describe("qualifiers", () => {
+  it("reads plain and quoted values, skipping negated ones", () => {
+    const q = `is:open label:bug label:"good first issue" -label:wontfix author:octocat`;
+    expect(getQualifier(q, "label")).toEqual(["bug", "good first issue"]);
+    expect(getQualifier(q, "author")).toEqual(["octocat"]);
+    expect(getQualifier(q, "milestone")).toEqual([]);
+  });
+
+  it("replaces every value and quotes ones with spaces", () => {
+    expect(setQualifier("is:open label:bug sort:created-asc", "label", ["good first issue", "docs"])).toBe(
+      `is:open sort:created-asc label:"good first issue" label:docs`,
+    );
+    expect(setQualifier("is:open label:bug -label:x", "label", [])).toBe("is:open -label:x");
+  });
+
+  it("leaves kind tokens out of issue types", () => {
+    expect(getQualifier("type:issue type:Bug", "type")).toEqual(["Bug"]);
+    expect(setQualifier("type:issue type:Bug", "type", ["Feature request"])).toBe(`type:issue type:"Feature request"`);
   });
 });

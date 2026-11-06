@@ -647,15 +647,19 @@ kbd {
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .issue-label {
+    --dark-switch: max(0, min(calc(1 / (0.6 - var(--perceived))), 1));
+    --lifted-l: calc((var(--label-l) + (0.6 - var(--perceived)) * 100 * var(--dark-switch)) * 1%);
     background: rgba(var(--label-r), var(--label-g), var(--label-b), 0.18);
-    color: rgb(min(255, calc(var(--label-r) + 90)), min(255, calc(var(--label-g) + 90)), min(255, calc(var(--label-b) + 90)));
-    border-color: rgba(var(--label-r), var(--label-g), var(--label-b), 0.3);
+    color: hsl(var(--label-h), calc(var(--label-s) * 1%), var(--lifted-l));
+    border-color: hsla(var(--label-h), calc(var(--label-s) * 1%), var(--lifted-l), 0.3);
   }
 }
 :root[data-theme="dark"] .issue-label {
+  --dark-switch: max(0, min(calc(1 / (0.6 - var(--perceived))), 1));
+  --lifted-l: calc((var(--label-l) + (0.6 - var(--perceived)) * 100 * var(--dark-switch)) * 1%);
   background: rgba(var(--label-r), var(--label-g), var(--label-b), 0.18);
-  color: rgb(min(255, calc(var(--label-r) + 90)), min(255, calc(var(--label-g) + 90)), min(255, calc(var(--label-b) + 90)));
-  border-color: rgba(var(--label-r), var(--label-g), var(--label-b), 0.3);
+  color: hsl(var(--label-h), calc(var(--label-s) * 1%), var(--lifted-l));
+  border-color: hsla(var(--label-h), calc(var(--label-s) * 1%), var(--lifted-l), 0.3);
 }
 
 /* Login */

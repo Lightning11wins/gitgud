@@ -5,19 +5,13 @@ import { gql } from "@/api/client";
 import { keys } from "@/api/keys";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { FilterInput } from "./FilterInput";
+import { DEFAULT_SORT, ListFilters } from "./ListFilters";
 import { SubjectList } from "./SubjectList";
-import { baseQuery, buildSearch, getSort, getState, kindSubset, setSort, setState, useSearchList, type ListData, type StateFilter } from "./searchList";
+import { baseQuery, buildSearch, getSort, getState, kindSubset, setState, useSearchList, type ListData, type StateFilter } from "./searchList";
 import "./repo.css";
 import { useTitle } from "@/lib/useTitle";
 
 const DEFAULT_Q = "is:open";
-const DEFAULT_SORT = "created-desc";
-const SORTS = [
-  { value: "created-desc", label: "Newest" },
-  { value: "created-asc", label: "Oldest" },
-  { value: "updated-desc", label: "Recently updated" },
-  { value: "comments-desc", label: "Most commented" },
-];
 
 type Kind = "issue" | "pr" | undefined;
 
@@ -152,6 +146,7 @@ export function RepoPage({ kind }: { kind?: Kind }) {
         loadingMore={list.loadingMore}
         onRetry={() => void list.refetch()}
         loadMore={() => void list.loadMore()}
+        showUpdated={sort.startsWith("updated")}
         empty={
           <>
             <strong>No results</strong>
@@ -163,26 +158,13 @@ export function RepoPage({ kind }: { kind?: Kind }) {
           <>
             {(["open", "closed"] as const).map((s) => (
               <button key={s} className="repo-toggle" data-selected={state === s} onClick={() => setQ(setState(q, s))}>
-                {s === "open" ? <IssueOpenedIcon size={16} /> : <CheckIcon size={16} />}
+                {s === "closed" ? <CheckIcon size={16} /> : kind === "pr" ? <GitPullRequestIcon size={16} /> : <IssueOpenedIcon size={16} />}
                 {s === "open" ? "Open" : "Closed"}
                 {stateCount(c, kind, s) !== undefined && <span className="muted">{stateCount(c, kind, s)?.toLocaleString()}</span>}
               </button>
             ))}
             <span className="grow" />
-            <label className="row muted repo-sort">
-              Sort
-              <select
-                className="input sm"
-                value={sort}
-                onChange={(e) => setQ(setSort(q, e.target.value === DEFAULT_SORT ? null : e.target.value))}
-              >
-                {SORTS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <ListFilters owner={owner} repo={repo} kind={kind} q={q} setQ={setQ} sort={sort} items={list.data?.items} />
           </>
         }
       />

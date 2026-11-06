@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countsMatch, createMerger, FULL_RELOAD_MS, reloadDue, resumed, type ResumeResult } from "./timelineMerge";
+import { countsMatch, countsTrusted, createMerger, FULL_RELOAD_MS, RECHECK_MS, recheckDue, reloadDue, resumed, type ResumeResult } from "./timelineMerge";
 import type { TimelineData, TimelineItem } from "./types";
 
 const comment = (id: string, body = id) => ({ __typename: "IssueComment", id, body }) as unknown as TimelineItem;
@@ -41,6 +41,15 @@ describe("countsMatch", () => {
   });
 });
 
+describe("countsTrusted", () => {
+  it("distrusts pages when the total disagrees with the first page's count", () => {
+    // cli/cli#9000 with a fine-grained token: 26 items, a total of 17, and a first page of 25 with no next page.
+    expect(countsTrusted({ total: 17, movable: 3 }, 25)).toBe(false);
+    expect(countsTrusted({ total: 26, movable: 12 }, 26)).toBe(true);
+    expect(countsTrusted(undefined, 26)).toBe(true);
+  });
+});
+
 describe("resumed", () => {
   it("takes the new stamp when items were appended", () => {
     const next = resumed(cached, resume([...cached.items, comment("c")], [comment("c")]), "s2");
@@ -57,6 +66,18 @@ describe("resumed", () => {
     const edited = { ...cached, edited: true };
     const next = resumed(edited, resume([...cached.items, comment("c")], [comment("c")], edited), "s3");
     expect(next?.edited).toBe(true);
+  });
+
+  it("doesn't mark a recheck with an unchanged stamp edited", () => {
+    expect(resumed(cached, resume(cached.items, []), "s1")).toMatchObject({ stamp: "s1", edited: false });
+  });
+
+  it("appends a cross-reference found by a recheck with an unchanged stamp", () => {
+    // Mentions from other issues don't change the subject's updatedAt.
+    const ref = event("x", "CrossReferencedEvent");
+    const next = resumed(cached, resume([...cached.items, ref], [ref]), "s1");
+    expect(next).toMatchObject({ stamp: "s1", endCursor: "cur-x", edited: false });
+    expect(next?.items.map((it) => it.id)).toEqual(["c1", "a", "b", "x"]);
   });
 
   it("doesn't mark an incomplete cache edited", () => {
@@ -99,5 +120,16 @@ describe("reloadDue", () => {
     expect(reloadDue(edited, cached.fullAt + FULL_RELOAD_MS)).toBe(true);
     expect(reloadDue(cached, cached.fullAt + FULL_RELOAD_MS)).toBe(false);
     expect(reloadDue(undefined, 0)).toBe(false);
+  });
+});
+
+describe("recheckDue", () => {
+  it("rechecks a complete timeline once the last check is old", () => {
+    expect(recheckDue(cached, cached.fullAt + RECHECK_MS - 1)).toBe(false);
+    expect(recheckDue(cached, cached.fullAt + RECHECK_MS)).toBe(true);
+    const checked = { ...cached, checkedAt: cached.fullAt + RECHECK_MS };
+    expect(recheckDue(checked, cached.fullAt + RECHECK_MS)).toBe(false);
+    expect(recheckDue({ ...cached, stamp: "" }, cached.fullAt + RECHECK_MS)).toBe(false);
+    expect(recheckDue(undefined, 0)).toBe(false);
   });
 });

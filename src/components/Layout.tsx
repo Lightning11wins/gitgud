@@ -176,13 +176,13 @@ function ApiMeter() {
       title={`GitHub API requests left\n${bars.map((b) => b.text).join("\n")}`}
       aria-label="GitHub API usage"
     >
-      <svg width={16} height={16} viewBox="0 0 16 16" aria-hidden="true">
+      <svg width={20} height={16} viewBox="0 0 20 16" aria-hidden="true">
         {bars.map((b, i) => {
-          const h = Math.max(2, 12 * (1 - (b.left ?? 1)));
+          const w = Math.max(2, 18 * (1 - (b.left ?? 1)));
           return (
             <g key={b.name}>
-              <rect className="api-meter-track" x={4 + i * 5} y={2} width={3} height={12} rx={1} />
-              <rect x={4 + i * 5} y={14 - h} width={3} height={h} rx={1} />
+              <rect className="api-meter-track" x={1} y={4.5 + i * 4} width={18} height={3} rx={1.5} />
+              <rect x={1} y={4.5 + i * 4} width={w} height={3} rx={1.5} />
             </g>
           );
         })}

@@ -19,7 +19,41 @@ export interface ListItem {
   labels: { nodes: { name: string; color: string; description?: string | null }[] };
   assignees: { nodes: { login: string; avatarUrl: string }[] };
   comments: { totalCount: number };
-  commits?: { nodes: { commit: { statusCheckRollup: { state: string } | null } }[] };
+  /** Pull requests only: comments including review comments. */
+  totalCommentsCount?: number;
+  checks?: CheckSummary | null;
+}
+
+/** Head commit checks: the rollup state and how many of `total` passed. */
+export interface CheckSummary {
+  state: string;
+  passed: number;
+  total: number;
+}
+
+interface StateCount {
+  state: string;
+  count: number;
+}
+
+type RawItem = ListItem & {
+  statusCheckRollup?: {
+    state: string;
+    contexts: { checkRunCount: number; checkRunCountsByState: StateCount[]; statusContextCount: number; statusContextCountsByState: StateCount[] };
+  } | null;
+};
+
+const PASSED = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
+
+function summarizeChecks(rollup: RawItem["statusCheckRollup"]): CheckSummary | null {
+  if (!rollup) return null;
+  const c = rollup.contexts;
+  const passed = [...c.checkRunCountsByState, ...c.statusContextCountsByState].reduce((n, s) => n + (PASSED.has(s.state) ? s.count : 0), 0);
+  return { state: rollup.state, passed, total: c.checkRunCount + c.statusContextCount };
+}
+
+function toItem({ statusCheckRollup, ...item }: RawItem): ListItem {
+  return statusCheckRollup === undefined ? item : { ...item, checks: summarizeChecks(statusCheckRollup) };
 }
 
 export interface ListData {
@@ -38,7 +72,7 @@ const COMMON = `
   comments { totalCount }
 `;
 
-const LIST_QUERY = `
+export const LIST_QUERY = `
 query SearchList($q: String!, $first: Int!, $after: String) {
   search(type: ISSUE_ADVANCED, query: $q, first: $first, after: $after) {
     issueCount
@@ -47,8 +81,14 @@ query SearchList($q: String!, $first: Int!, $after: String) {
       __typename
       ... on Issue { ${COMMON} stateReason }
       ... on PullRequest {
-        ${COMMON} isDraft reviewDecision
-        commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+        ${COMMON} isDraft reviewDecision totalCommentsCount
+        statusCheckRollup {
+          state
+          contexts(first: 0) {
+            checkRunCount checkRunCountsByState { state count }
+            statusContextCount statusContextCountsByState { state count }
+          }
+        }
       }
     }
   }
@@ -59,11 +99,11 @@ const NEXT_PAGE = 100;
 
 async function fetchPage(search: string, after: string | null): Promise<ListData> {
   const data = await gql<{
-    search: { issueCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: (ListItem | null)[] };
+    search: { issueCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: (RawItem | null)[] };
   }>(LIST_QUERY, { q: search, first: after ? NEXT_PAGE : FIRST_PAGE, after });
   const { search: s } = data;
   return {
-    items: s.nodes.filter((n): n is ListItem => !!n && !!n.id),
+    items: s.nodes.filter((n): n is RawItem => !!n && !!n.id).map(toItem),
     total: s.issueCount,
     hasNextPage: s.pageInfo.hasNextPage,
     endCursor: s.pageInfo.endCursor,
@@ -187,4 +227,22 @@ export function setSort(q: string, sort: string | null): string {
 /** `q` without state, kind and sort tokens, for counting across states and kinds. */
 export function baseQuery(q: string): string {
   return stripToken(q, `${STATE_TOKEN}|is:(?:issue|pr|pull-request)|type:(?:issue|pr)|${SORT_TOKEN}`);
+}
+
+/** A qualifier's value: a quoted string or one word. `type:issue` and `type:pr` select a kind, not an issue type. */
+function valuePattern(name: string): string {
+  return `${name === "type" ? "(?!(?:issue|pr)(?:\\s|$))" : ""}(?:"[^"]*"|\\S+)`;
+}
+
+/** Values of the `name:` qualifiers in `q`, unquoted. Negated qualifiers (`-name:`) are skipped. */
+export function getQualifier(q: string, name: string): string[] {
+  const re = new RegExp(`(?:^|\\s)${name}:(${valuePattern(name)})(?=\\s|$)`, "gi");
+  return [...q.matchAll(re)].map((m) => m[1].replace(/^"(.*)"$/, "$1"));
+}
+
+/** `q` with its `name:` qualifiers replaced by one per value. */
+export function setQualifier(q: string, name: string, values: string[]): string {
+  const rest = stripToken(q, `${name}:${valuePattern(name)}`);
+  const added = values.map((v) => `${name}:${/[\s,"]/.test(v) ? `"${v}"` : v}`);
+  return [rest, ...added].filter(Boolean).join(" ");
 }

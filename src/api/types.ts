@@ -64,6 +64,7 @@ export interface SubjectMeta {
   createdAt: string;
   updatedAt: string;
   author: Actor | null;
+  authorAssociation: string;
   body: string;
   bodyHTML: string;
   viewerCanUpdate: boolean;
@@ -90,7 +91,7 @@ export const ACTOR_FIELDS = `login avatarUrl(size: 80) url`;
 export const SUBJECT_META_FIELDS = `
   __typename id number title url state createdAt updatedAt body bodyHTML
   viewerCanUpdate viewerDidAuthor locked
-  author { ${ACTOR_FIELDS} }
+  author { ${ACTOR_FIELDS} } authorAssociation
   labels(first: 100) { nodes { id name color description } }
   assignees(first: 50) { nodes { id ${ACTOR_FIELDS} name } }
   milestone { id number title dueOn state }

@@ -96,6 +96,15 @@
 .sidebar-subissue {
   gap: 2px;
 }
+.sidebar-participants {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.sidebar-participants a {
+  display: inline-flex;
+}
 .sidebar-add {
   margin-top: 8px;
   gap: 4px;

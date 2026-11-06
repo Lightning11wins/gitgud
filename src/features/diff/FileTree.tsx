@@ -42,7 +42,7 @@ export function buildTree(files: DiffFile[]): TreeNode {
       cur = { name: `${cur.name}/${only.name}`, path: only.path, children: only.children };
     }
     const children = cur.children!.map(finish);
-    children.sort((a, b) => (!!b.children === !!a.children ? a.name.localeCompare(b.name) : a.children ? -1 : 1));
+    children.sort((a, b) => (!!b.children === !!a.children ? (a.name < b.name ? -1 : a.name > b.name ? 1 : 0) : a.children ? -1 : 1));
     return { ...cur, children };
   };
   return finish(root);

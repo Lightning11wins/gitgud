@@ -4,7 +4,7 @@ import { gql } from "@/api/client";
 import { keys } from "@/api/keys";
 import { FilterInput } from "../repo/FilterInput";
 import { SubjectList } from "../repo/SubjectList";
-import { buildSearch, useSearchList } from "../repo/searchList";
+import { buildSearch, getSort, useSearchList } from "../repo/searchList";
 import "./dashboard.css";
 import { useTitle } from "@/lib/useTitle";
 
@@ -62,6 +62,7 @@ export function Dashboard() {
           onRetry={() => void list.refetch()}
           loadMore={() => void list.loadMore()}
           showRepo
+          showUpdated={getSort(search)?.startsWith("updated")}
           empty="Nothing matches this search."
           header={
             <span className="muted">

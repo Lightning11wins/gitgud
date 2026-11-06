@@ -37,7 +37,20 @@
 .dv-viewed progress {
   width: 64px;
   height: 8px;
-  accent-color: var(--success-emphasis);
+  appearance: none;
+  border: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--border-muted);
+}
+.dv-viewed progress::-webkit-progress-bar {
+  background: var(--border-muted);
+}
+.dv-viewed progress::-webkit-progress-value {
+  background: var(--success-emphasis);
+}
+.dv-viewed progress::-moz-progress-bar {
+  background: var(--success-emphasis);
 }
 .dv-body {
   display: flex;
@@ -327,6 +340,7 @@
   padding: 0 8px 0 20px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  tab-size: 4;
   color: var(--fg);
 }
 .dc.del::before,

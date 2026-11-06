@@ -4,7 +4,7 @@ import { keys } from "@/api/keys";
 import { persistQueryData, probeThenLoad, queryClient } from "@/api/queryClient";
 import type { SubjectKind } from "@/api/prefetch";
 import * as q from "./queries";
-import { createMerger, FULL_RELOAD_MS, reloadDue, resumed, type TimelineCounts } from "./timelineMerge";
+import { countsTrusted, createMerger, FULL_RELOAD_MS, recheckDue, reloadDue, resumed, type TimelineCounts } from "./timelineMerge";
 import type { TimelineData, TimelineItem } from "./types";
 /** A subject meta query fetched this recently counts as a fresh probe. */
 const META_FRESH_MS = 10_000;
@@ -107,6 +107,7 @@ async function fetchItems(
   const add = (page: Page) => merge(page.nodes);
 
   const first = await fetchPage(subject, base?.endCursor ?? null, 0, true);
+  const trusted = !!base || countsTrusted(first.counts, first.page.filteredCount);
   let last = first.page;
   let endCursor = last.pageInfo.endCursor ?? base?.endCursor ?? null;
   let pages = 1;
@@ -136,8 +137,8 @@ async function fetchItems(
     pages += count;
   }
 
-  // Items added while loading, or a stale count: continue by cursor.
-  while (last.pageInfo.hasNextPage && pages < maxPages) {
+  // Items added while loading, or a stale count: continue by cursor. Untrusted counts continue until an empty page.
+  while ((last.pageInfo.hasNextPage || (!trusted && last.nodes.length > 0)) && pages < maxPages) {
     last = (await fetchPage(subject, endCursor, 0, false)).page;
     pages++;
     add(last);
@@ -145,14 +146,15 @@ async function fetchItems(
     onProgress(items, endCursor);
   }
   const counts = first.counts ?? { total: items.length, movable: 0 };
-  return { items, added, endCursor, complete: !last.pageInfo.hasNextPage, counts };
+  return { items, added, endCursor, complete: !last.pageInfo.hasNextPage && (trusted || !last.nodes.length), counts };
 }
 
 /**
- * Loads the timeline for a new `stamp`. Resumes after the cached end cursor when the cache is recent,
- * and falls back to a full reload when the item counts don't add up (e.g. deletions).
+ * Loads the timeline for a new `stamp`, or for a `recheck` of an unchanged one. Resumes after the cached
+ * end cursor when the cache is recent or rechecked, and falls back to a full reload when the item counts
+ * don't add up (e.g. deletions).
  */
-async function loadTimeline(subject: Subject, stamp: string, maxPages: number): Promise<TimelineData> {
+async function loadTimeline(subject: Subject, stamp: string, maxPages: number, recheck = false): Promise<TimelineData> {
   const key = keys.timeline(subject.owner, subject.repo, subject.number);
   const cached = queryClient.getQueryData<TimelineData>(key);
   const startedAt = Date.now();
@@ -168,17 +170,18 @@ async function loadTimeline(subject: Subject, stamp: string, maxPages: number): 
       items: [...items],
       endCursor,
       fullAt: current?.fullAt ?? startedAt,
+      checkedAt: current?.checkedAt,
       edited: current?.edited,
     });
   };
-  if (cached?.endCursor && startedAt - cached.fullAt < FULL_RELOAD_MS) {
+  if (cached?.endCursor && (recheck || startedAt - cached.fullAt < FULL_RELOAD_MS)) {
     const next = resumed(cached, await fetchItems(subject, cached, maxPages, onProgress), stamp);
-    if (next) return next;
+    if (next) return { ...next, checkedAt: startedAt };
     // Progress may have moved the cursor past the change, so a failed reload must not resume.
     queryClient.setQueryData<TimelineData>(key, (d) => d && { ...d, fullAt: 0 });
   }
   const r = await fetchItems(subject, null, maxPages, onProgress);
-  return { stamp: r.complete ? stamp : "", items: r.items, endCursor: r.endCursor, fullAt: startedAt };
+  return { stamp: r.complete ? stamp : "", items: r.items, endCursor: r.endCursor, fullAt: startedAt, checkedAt: startedAt };
 }
 
 function metaKey(kind: SubjectKind, owner: string, repo: string, number: number) {
@@ -221,7 +224,9 @@ function timelineQueryFn(subject: Subject, maxPages = Infinity) {
   const key = keys.timeline(subject.owner, subject.repo, subject.number);
   const probe = () => subjectStamp(subject);
   const load = (stamp: string) => loadTimeline(subject, stamp, maxPages);
-  if (reloadDue(queryClient.getQueryData<TimelineData>(key), Date.now())) return probe().then(load);
+  const cached = queryClient.getQueryData<TimelineData>(key);
+  if (reloadDue(cached, Date.now())) return probe().then(load);
+  if (recheckDue(cached, Date.now())) return probe().then((stamp) => loadTimeline(subject, stamp, maxPages, stamp === cached!.stamp));
   return probeThenLoad(key, probe, load);
 }
 

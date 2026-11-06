@@ -4,6 +4,7 @@ import { gql } from "@/api/client";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { RelativeTime } from "@/components/RelativeTime";
 import { Spinner } from "@/components/Spinner";
+import { TitleText } from "@/components/TitleText";
 import { StateBadge } from "@/components/StateBadge";
 import { invalidateSubject, patchSubject } from "@/features/conversation/mutations";
 import { Timeline } from "@/features/conversation/Timeline";
@@ -116,7 +117,7 @@ function IssueHeader({ issue, owner, repo }: { issue: IssueMeta; owner: string; 
         ) : (
           <div className="row issue-title-row">
             <h1 className="issue-title grow">
-              <bdi>{issue.title}</bdi> <span className="muted">#{issue.number}</span>
+              <bdi><TitleText text={issue.title} /></bdi> <span className="muted">#{issue.number}</span>
             </h1>
             {issue.viewerCanUpdate && (
               <button
@@ -146,7 +147,7 @@ function IssueHeader({ issue, owner, repo }: { issue: IssueMeta; owner: string; 
         <div className="issue-sticky">
           <div className="issue-sticky-inner row">
             <StateBadge kind="issue" state={issue.state} stateReason={issue.stateReason} small />
-            <strong className="truncate">{issue.title}</strong>
+            <strong className="truncate"><TitleText text={issue.title} /></strong>
             <span className="muted">#{issue.number}</span>
           </div>
         </div>

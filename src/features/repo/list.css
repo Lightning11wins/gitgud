@@ -83,11 +83,6 @@
   flex-shrink: 0;
   height: 22px;
 }
-.lr-slot {
-  display: inline-flex;
-  width: 20px;
-  justify-content: center;
-}
 .lr-comments {
   display: inline-flex;
   align-items: center;
@@ -104,11 +99,15 @@
   margin-left: -6px;
   box-shadow: 0 0 0 2px var(--bg);
 }
-.lr-updated {
-  width: 104px;
-  white-space: nowrap;
-  text-align: right;
-  font-size: 12px;
+.lr-checks {
+  color: inherit;
+}
+.lr-checks:hover {
+  color: var(--accent);
+}
+.lr-checks svg {
+  margin-right: 2px;
+  vertical-align: -1px;
 }
 
 .lr-filter {

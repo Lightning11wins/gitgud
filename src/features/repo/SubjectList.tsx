@@ -20,6 +20,8 @@ export interface SubjectListProps {
   onRetry: () => void;
   loadMore: () => void;
   showRepo?: boolean;
+  /** Show each row's last update time. */
+  showUpdated?: boolean;
   /** Rendered when a finished search has no results. */
   empty: ReactNode;
   /** Header content (toggles, sort); the list renders under it inside the same box. */
@@ -28,7 +30,7 @@ export interface SubjectListProps {
 
 /** Virtualized, auto-paging list of issues and PRs with j/k/Enter keyboard navigation. */
 export function SubjectList(props: SubjectListProps) {
-  const { data, isPending, isFetching, error, moreError, loadingMore, onRetry, loadMore, showRepo, empty, header } = props;
+  const { data, isPending, isFetching, error, moreError, loadingMore, onRetry, loadMore, showRepo, showUpdated, empty, header } = props;
   const items = data?.items ?? [];
   const navigate = useNavigate();
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -122,7 +124,7 @@ export function SubjectList(props: SubjectListProps) {
               </div>
             );
           }
-          return <ListRow key={item.id} item={item} showRepo={showRepo} active={v.index === active} style={style} />;
+          return <ListRow key={item.id} item={item} showRepo={showRepo} showUpdated={showUpdated} active={v.index === active} style={style} />;
         })}
       </div>
     );

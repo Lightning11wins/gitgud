@@ -1,3 +1,15 @@
+:root {
+  --tl-badge-bg: #eff2f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tl-badge-bg: #212830;
+  }
+}
+:root[data-theme="dark"] {
+  --tl-badge-bg: #212830;
+}
+
 .timeline {
   min-width: 0;
 }
@@ -9,7 +21,7 @@
 .tl-list::before {
   content: "";
   position: absolute;
-  top: 0;
+  top: 16px;
   bottom: 0;
   left: 16px;
   width: 2px;
@@ -110,7 +122,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--bg-muted);
+  background: var(--tl-badge-bg);
   border: 2px solid var(--bg);
   color: var(--fg-muted);
 }
@@ -142,6 +154,21 @@
 .tl-event-line .avatar {
   margin-right: 2px;
 }
+.tl-event-line.single {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.tl-event-line.single > * {
+  flex-shrink: 0;
+}
+.tl-event-line.single > .shrink {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .tl-event-line .issue-label {
   vertical-align: middle;
 }
@@ -153,6 +180,7 @@
   color: var(--fg);
 }
 .tl-event-ref {
+  gap: 12px;
   margin-top: 4px;
   padding: 6px 10px;
   border: 1px solid var(--border-muted);

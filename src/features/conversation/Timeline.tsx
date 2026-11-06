@@ -146,6 +146,7 @@ const SubjectBody = memo(function SubjectBody({ subject, kind, owner, repo, numb
     () => ({
       id: subject.id,
       author: subject.author,
+      authorAssociation: subject.authorAssociation,
       body: subject.body,
       bodyHTML: subject.bodyHTML,
       createdAt: subject.createdAt,
@@ -154,7 +155,7 @@ const SubjectBody = memo(function SubjectBody({ subject, kind, owner, repo, numb
       viewerCanReact: true,
       reactionGroups: subject.reactionGroups,
     }),
-    [subject.id, subject.author, subject.body, subject.bodyHTML, subject.createdAt, subject.url, subject.viewerCanUpdate, subject.reactionGroups],
+    [subject.id, subject.author, subject.authorAssociation, subject.body, subject.bodyHTML, subject.createdAt, subject.url, subject.viewerCanUpdate, subject.reactionGroups],
   );
   const onSave = useCallback(
     async (body: string) => {
@@ -180,7 +181,6 @@ const SubjectBody = memo(function SubjectBody({ subject, kind, owner, repo, numb
         draftKey={`${owner}/${repo}#${number}:edit-body`}
         githubUrl={subject.url}
         verb="opened this"
-        isSubjectAuthor
         onSave={onSave}
         onReact={onReact}
       />

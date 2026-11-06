@@ -15,12 +15,25 @@ export interface IssueRef {
   repository: { nameWithOwner: string };
 }
 
+/** A pull request linked to an issue, as shown in the sidebar. */
+export interface PullRef {
+  id: string;
+  number: number;
+  title: string;
+  url: string;
+  state: string;
+  isDraft: boolean;
+  repository: { nameWithOwner: string };
+}
+
 /** Issue-only sidebar data, fetched with the issue page's metadata. */
 export interface IssueExtras {
   comments: { totalCount: number };
   subIssues: { totalCount: number; nodes: IssueRef[] };
   subIssuesSummary: { total: number; completed: number; percentCompleted: number };
   parent: IssueRef | null;
+  closedByPullRequestsReferences: { totalCount: number; nodes: PullRef[] };
+  participants: { totalCount: number; nodes: User[] };
 }
 
 const ISSUE_REF_FIELDS = `id number title url state stateReason repository { nameWithOwner }`;
@@ -30,6 +43,8 @@ export const ISSUE_EXTRA_FIELDS = `
   subIssues(first: 100) { totalCount nodes { ${ISSUE_REF_FIELDS} } }
   subIssuesSummary { total completed percentCompleted }
   parent { ${ISSUE_REF_FIELDS} }
+  closedByPullRequestsReferences(first: 10) { totalCount nodes { id number title url state isDraft repository { nameWithOwner } } }
+  participants(first: 10) { totalCount nodes { id ${ACTOR_FIELDS} name } }
 `;
 
 const LONG = 10 * 60_000;

@@ -103,7 +103,9 @@ function DiffStat({ add, del }: { add: number; del: number }) {
   });
   return (
     <span className="diffstat" title={`${add} additions, ${del} deletions`}>
-      <span className="add">+{add.toLocaleString()}</span> <span className="del">-{del.toLocaleString()}</span>
+      {add > 0 && <span className="add">+{add.toLocaleString()}</span>}
+      {add > 0 && del > 0 && " "}
+      {del > 0 && <span className="del">-{del.toLocaleString()}</span>}
       <span className="boxes">
         {boxes.map((b, i) => (
           <i key={i} className={b} />
@@ -128,7 +130,6 @@ function FileHeader({ file, source, collapsed, viewed, comments, onToggleCollaps
       <button className="btn invisible xs icon" aria-label={collapsed ? "Expand file" : "Collapse file"} aria-expanded={!collapsed} onClick={() => onToggleCollapsed(file.filename)}>
         {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
       </button>
-      <DiffStat add={file.additions} del={file.deletions} />
       <span className="df-path truncate" title={file.filename}>
         {file.previous_filename && file.previous_filename !== file.filename && (
           <>
@@ -159,6 +160,7 @@ function FileHeader({ file, source, collapsed, viewed, comments, onToggleCollaps
           {comments}
         </span>
       )}
+      <DiffStat add={file.additions} del={file.deletions} />
       {onToggleViewed && (
         <label className={`df-viewed ${viewed ? "on" : ""}`} title="Mark as viewed (v)">
           <input type="checkbox" checked={!!viewed} onChange={() => onToggleViewed(file.filename)} />

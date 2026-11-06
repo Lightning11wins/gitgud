@@ -20,18 +20,22 @@ export interface SelectMenuProps<T> {
   /** For server-side filtering; called with the filter text as it changes. */
   onFilterChange?: (text: string) => void;
   footer?: ReactNode;
+  /** Show the filter input. Defaults to true. */
+  filterable?: boolean;
+  /** Shown when there are no items to match. */
+  emptyText?: string;
 }
 
 /** GitHub-style filterable picker used for labels, assignees, reviewers, milestones, etc. */
 export function SelectMenu<T>(props: SelectMenuProps<T>) {
-  const { anchor, title, items, getKey, getText, renderItem, initial, multiple, onApply, onClose, onFilterChange, footer } = props;
+  const { anchor, title, items, getKey, getText, renderItem, initial, multiple, onApply, onClose, onFilterChange, footer, filterable = true, emptyText = "No matches" } = props;
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState(() => new Set(initial));
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => inputRef.current?.focus(), []);
+  useEffect(() => (inputRef.current ?? listRef.current)?.focus(), []);
   useEffect(() => onFilterChange?.(filter), [filter, onFilterChange]);
 
   const shown = useMemo(() => {
@@ -48,6 +52,18 @@ export function SelectMenu<T>(props: SelectMenuProps<T>) {
     if (multiple && changed) onApply(keys);
     onClose();
   };
+
+  // Clicking the anchor again closes the menu, applying changes.
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      e.stopPropagation();
+      closeRef.current();
+    };
+    anchor.addEventListener("click", onClick, true);
+    return () => anchor.removeEventListener("click", onClick, true);
+  }, [anchor]);
 
   const toggle = (item: T) => {
     const key = getKey(item);
@@ -87,26 +103,36 @@ export function SelectMenu<T>(props: SelectMenuProps<T>) {
       <div className="dialog-header" style={{ padding: "8px 12px", fontSize: 13 }}>
         {title}
       </div>
-      <div className="select-menu-filter">
-        <input
-          ref={inputRef}
-          className="input sm"
-          placeholder="Filter"
-          value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value);
-            setActive(0);
-          }}
-          onKeyDown={onKeyDown}
-        />
-      </div>
-      <div className="select-menu-list" ref={listRef} role="listbox" aria-multiselectable={multiple}>
+      {filterable && (
+        <div className="select-menu-filter">
+          <input
+            ref={inputRef}
+            className="input sm"
+            placeholder="Filter"
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setActive(0);
+            }}
+            onKeyDown={onKeyDown}
+          />
+        </div>
+      )}
+      <div
+        className="select-menu-list"
+        ref={listRef}
+        role="listbox"
+        aria-label={title}
+        aria-multiselectable={multiple}
+        tabIndex={filterable ? undefined : -1}
+        onKeyDown={filterable ? undefined : onKeyDown}
+      >
         {!items && (
           <div className="blankslate">
             <Spinner label="Loading options" />
           </div>
         )}
-        {items && shown.length === 0 && <div className="blankslate">No matches</div>}
+        {items && shown.length === 0 && <div className="blankslate">{emptyText}</div>}
         {shown.map((item, i) => {
           const key = getKey(item);
           return (

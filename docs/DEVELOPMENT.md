@@ -17,6 +17,7 @@ Setup: `npx playwright install chromium`. If the default browser cache isn't wri
 | Script | Purpose | Writes to GitHub |
 |---|---|---|
 | `shot.mjs <path> [out.png]` | Screenshot a page; prints console errors and API request counts | No |
+| `compare-shots.mjs <outDir> [--cookie <file>]` | The same pages on github.com and in GitGud, light and dark, for design review. The cookie file holds a github.com `user_session` value | No (non-GET blocked) |
 | `audit-affordances.mjs` | Find elements that look clickable but do nothing, and in-app links that 404. Exits 1 on findings | No (blocked) |
 | `conversation-flows.mjs write <outDir>` | Issue flows: create, comment, edit, react, metadata, sub-issues, close/reopen | Creates and closes a new sandbox issue each run |
 | `conversation-flows.mjs perf <outDir>` | Cold and warm load timings for `PATHS` | No |

@@ -30,24 +30,25 @@ import {
   XCircleIcon,
   type Icon,
 } from "@primer/octicons-react";
-import { memo, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Avatar } from "@/components/Avatar";
 import { IssueLabel } from "@/components/IssueLabel";
 import { RelativeTime } from "@/components/RelativeTime";
-import { StateIcon } from "@/components/StateBadge";
+import { StateBadge, StateIcon } from "@/components/StateBadge";
+import { TitleText } from "@/components/TitleText";
 import type { CommitItem, EventItem, SubjectRef } from "./types";
 
-function SubjectLink({ s, repo }: { s: SubjectRef | null | undefined; repo: string }) {
+function SubjectLink({ s, repo, icon = true }: { s: SubjectRef | null | undefined; repo: string; icon?: boolean }) {
   if (!s) return <span className="muted">a deleted item</span>;
   const [o, r] = s.repository.nameWithOwner.split("/");
   const kind = s.__typename === "PullRequest" ? "pull" : "issues";
   const prefix = s.repository.nameWithOwner === repo ? "" : s.repository.nameWithOwner;
   return (
     <span className="event-ref">
-      <StateIcon kind={kind === "pull" ? "pull" : "issue"} state={s.state} stateReason={s.stateReason} isDraft={s.isDraft} size={14} />{" "}
+      {icon && <><StateIcon kind={kind === "pull" ? "pull" : "issue"} state={s.state} stateReason={s.stateReason} isDraft={s.isDraft} size={14} />{" "}</>}
       <Link to={`/${o}/${r}/${kind}/${s.number}`}>
-        <strong>{s.title}</strong> <span className="muted">{prefix}#{s.number}</span>
+        <strong><TitleText text={s.title} /></strong> <span className="muted">{prefix}#{s.number}</span>
       </Link>
     </span>
   );
@@ -65,14 +66,15 @@ function ActorName({ a }: { a: { login: string; avatarUrl?: string; url?: string
   );
 }
 
-function Row({ icon: I, tone, children, item, block }: { icon: Icon; tone?: string; children: ReactNode; item: EventItem; block?: ReactNode }) {
+/** `single` keeps the line to one row; its `.shrink` children take the ellipsis. */
+function Row({ icon: I, tone, children, item, block, single }: { icon: Icon; tone?: string; children: ReactNode; item: EventItem; block?: ReactNode; single?: boolean }) {
   return (
     <div className="tl-event">
       <span className={`tl-badge ${tone ?? ""}`}>
         <I size={14} />
       </span>
       <div className="tl-event-body">
-        <div className="tl-event-line">
+        <div className={single ? "tl-event-line single" : "tl-event-line"}>
           {item.actor !== undefined && <ActorName a={item.actor} />} {children}
           {item.createdAt && (
             <span className="muted">
@@ -173,22 +175,27 @@ export const EventRow = memo(function EventRow({ item, repo }: { item: EventItem
           reopened this
         </Row>
       );
-    case "CrossReferencedEvent":
+    case "CrossReferencedEvent": {
+      const s = e.source;
+      const ref = (
+        <div className="tl-event-ref row">
+          <span className="grow">
+            <SubjectLink s={s} repo={repo} icon={false} />
+          </span>
+          {s && <StateBadge small kind={s.__typename === "PullRequest" ? "pull" : "issue"} state={s.state} stateReason={s.stateReason} isDraft={s.isDraft} />}
+        </div>
+      );
       return (
-        <Row icon={CrossReferenceIcon} item={e} block={<div className="tl-event-ref"><SubjectLink s={e.source} repo={repo} /></div>}>
+        <Row icon={CrossReferenceIcon} item={e} block={ref}>
           {e.willCloseTarget ? "linked a pull request that will close this" : "mentioned this"}
         </Row>
       );
+    }
     case "ReferencedEvent":
       return (
-        <Row icon={GitCommitIcon} item={e}>
-          added a commit that referenced this{" "}
-          {e.commit && (
-            <a href={e.commit.url} target="_blank" rel="noopener noreferrer">
-              <span className="mono">{e.commit.abbreviatedOid}</span> {e.commit.messageHeadline}
-            </a>
-          )}
-          {e.isCrossRepository && e.commitRepository && <span className="muted"> in {e.commitRepository.nameWithOwner}</span>}
+        <Row icon={GitCommitIcon} item={e} single>
+          <span>added a commit that referenced this</span>
+          <CommitRef e={e} />
         </Row>
       );
     case "ConnectedEvent":
@@ -405,6 +412,62 @@ export const EventRow = memo(function EventRow({ item, repo }: { item: EventItem
         </Row>
       );
   }
+});
+
+/** A referenced commit's link and, when it's in another repository, the repository name. */
+function CommitRef({ e }: { e: EventItem }) {
+  const where = e.isCrossRepository && e.commitRepository ? ` in ${e.commitRepository.nameWithOwner}` : "";
+  return (
+    <>
+      {e.commit && (
+        <a className="shrink" href={e.commit.url} target="_blank" rel="noopener noreferrer" title={`${e.commit.messageHeadline ?? ""}${where}`}>
+          <span className="mono">{e.commit.abbreviatedOid}</span> {e.commit.messageHeadline}
+        </a>
+      )}
+      {where && <span className="muted">{where.trim()}</span>}
+    </>
+  );
+}
+
+/** Consecutive commits from other repositories that referenced this, collapsed into one row. */
+export const ReferenceGroup = memo(function ReferenceGroup({ events }: { events: EventItem[] }) {
+  const [open, setOpen] = useState(false);
+  const last = events[events.length - 1];
+  return (
+    <div className="tl-event">
+      <span className="tl-badge">
+        <GitCommitIcon size={14} />
+      </span>
+      <div className="tl-event-body">
+        <div className="tl-event-line">
+          {events.length} commits in other repositories referenced this{" "}
+          {last.createdAt && (
+            <span className="muted">
+              <RelativeTime date={last.createdAt} />
+            </span>
+          )}{" "}
+          <button className="btn invisible xs" onClick={() => setOpen(!open)} aria-expanded={open}>
+            {open ? "Hide" : "Show all"}
+          </button>
+        </div>
+        {open && (
+          <ul className="tl-commits">
+            {events.map((e) => (
+              <li key={e.id} className="tl-event-line single">
+                <ActorName a={e.actor} />
+                <CommitRef e={e} />
+                {e.createdAt && (
+                  <span className="muted">
+                    <RelativeTime date={e.createdAt} />
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
 });
 
 /** Consecutive commits collapsed into one row. */
