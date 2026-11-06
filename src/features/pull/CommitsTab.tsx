@@ -101,7 +101,7 @@ export function CommitsTab({ pull, owner, repo }: { pull: PullMeta; owner: strin
     if (q.error) return <ErrorBanner error={q.error} />;
     return (
       <div className="blankslate">
-        <Spinner />
+        <Spinner label="Loading commits" />
       </div>
     );
   }

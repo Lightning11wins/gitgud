@@ -286,10 +286,10 @@ export function Composer(props: ComposerProps) {
     <div className="composer" onDrop={onDrop} onDragOver={(e) => e.dataTransfer?.types.includes("Files") && e.preventDefault()}>
       <div className="composer-head">
         <div className="composer-tabs" role="tablist">
-          <button role="tab" aria-selected={tab === "write"} className={tab === "write" ? "active" : ""} onClick={() => setTab("write")}>
+          <button role="tab" aria-selected={tab === "write"} className={`composer-tab${tab === "write" ? " active" : ""}`} onClick={() => setTab("write")}>
             Write
           </button>
-          <button role="tab" aria-selected={tab === "preview"} className={tab === "preview" ? "active" : ""} onClick={() => setTab("preview")}>
+          <button role="tab" aria-selected={tab === "preview"} className={`composer-tab${tab === "preview" ? " active" : ""}`} onClick={() => setTab("preview")}>
             Preview
           </button>
         </div>
@@ -363,7 +363,7 @@ export function Composer(props: ComposerProps) {
           )}
           {actions?.({ value, submitting, run })}
           <button className="btn primary" disabled={!canSubmit} onClick={() => run(onSubmit)}>
-            {submitting && <Spinner size={12} />}
+            {submitting && <Spinner size={12} label="Submitting" />}
             {submitLabel}
           </button>
         </div>
@@ -394,7 +394,7 @@ function Preview({ owner, repo, text, minRows }: { owner: string; repo: string; 
       {!text.trim() ? (
         <span className="muted">Nothing to preview</span>
       ) : q.isPending ? (
-        <Spinner />
+        <Spinner label="Rendering preview" />
       ) : q.error ? (
         <ErrorBanner error={q.error} />
       ) : (

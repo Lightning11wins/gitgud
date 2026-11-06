@@ -17,7 +17,7 @@
   gap: 2px;
   margin-bottom: -1px;
 }
-.composer-tabs button {
+.composer-tab {
   padding: 6px 12px;
   font-size: 13px;
   border: 1px solid transparent;
@@ -27,7 +27,7 @@
   color: var(--fg-muted);
   cursor: pointer;
 }
-.composer-tabs button.active {
+.composer-tab.active {
   background: var(--bg);
   border-color: var(--border);
   color: var(--fg);

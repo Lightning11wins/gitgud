@@ -255,7 +255,7 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
         <span className="diffstat">
           <span className="add">+{totals.add.toLocaleString()}</span> <span className="del">-{totals.del.toLocaleString()}</span>
         </span>
-        {fetching && <Spinner size={14} />}
+        {fetching && <Spinner label="Checking for new changes" />}
         <span className="grow" />
         {viewedError != null && (
           <span className="flash error row dv-flash" role="alert">

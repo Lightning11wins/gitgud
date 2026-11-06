@@ -66,6 +66,10 @@
 a.pull-branch:hover {
   text-decoration: underline;
 }
+span.pull-branch {
+  background: var(--neutral-muted);
+  color: var(--fg-muted);
+}
 .pull-copy {
   color: var(--fg-muted);
 }
@@ -109,7 +113,7 @@ a.pull-branch:hover {
 .pull-tabs {
   position: relative;
 }
-.pull-tabs a {
+.pull-tabs .tab {
   font-size: 14px;
 }
 .pull-tab-icon {

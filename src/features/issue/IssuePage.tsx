@@ -10,6 +10,7 @@ import { Timeline } from "@/features/conversation/Timeline";
 import { MetadataSidebar } from "@/features/sidebar/MetadataSidebar";
 import { useIssueMeta, type IssueMeta } from "./issueData";
 import "./issue.css";
+import { useTitle } from "@/lib/useTitle";
 
 export function IssuePage() {
   const params = useParams();
@@ -26,15 +27,13 @@ export function IssuePage() {
   }, [isPull, owner, repo, number, hash, navigate]);
 
   const title = meta.data && !isPull ? (meta.data as IssueMeta).title : undefined;
-  useEffect(() => {
-    if (title) document.title = `${title} · Issue #${number} · ${owner}/${repo}`;
-  }, [title, number, owner, repo]);
+  useTitle(title, `Issue #${number}`, `${owner}/${repo}`);
 
   if (!Number.isInteger(number) || number <= 0) return <ErrorBanner error={`Failed to open issue "${params.number}": not a number`} />;
   if (meta.isPending)
     return (
       <div className="blankslate">
-        <Spinner size={24} />
+        <Spinner size={20} label="Loading issue" />
       </div>
     );
   if (meta.error && !meta.data) return <ErrorBanner error={meta.error} action={<button className="btn sm" onClick={() => meta.refetch()}>Retry</button>} />;

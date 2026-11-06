@@ -9,7 +9,7 @@ function Loading({ error, retry }: { error: unknown; retry: () => void }) {
   if (error) return <ErrorBanner error={error} action={<button className="btn sm" onClick={retry}>Retry</button>} />;
   return (
     <div className="blankslate">
-      <Spinner size={24} />
+      <Spinner size={20} label="Loading changed files" />
     </div>
   );
 }

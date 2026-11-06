@@ -93,7 +93,7 @@ export function SubjectList(props: SubjectListProps) {
   } else if (isPending) {
     body = (
       <div className="blankslate">
-        <Spinner size={20} />
+        <Spinner size={20} label="Loading results" />
       </div>
     );
   } else if (items.length === 0) {
@@ -117,7 +117,7 @@ export function SubjectList(props: SubjectListProps) {
                     }
                   />
                 ) : (
-                  <Spinner />
+                  <Spinner label="Loading more results" />
                 )}
               </div>
             );
@@ -132,7 +132,7 @@ export function SubjectList(props: SubjectListProps) {
     <div className="box lr-box">
       <div className="box-header lr-header row">
         <div className="row grow">{header}</div>
-        {isFetching && !isPending && <Spinner size={14} />}
+        {isFetching && !isPending && <Spinner label="Checking for updates" />}
       </div>
       {!!error && !!data && (
         <div className="lr-state">

@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, type CSSProperties } from "react";
 import { Link } from "react-router";
-import { CheckCircleIcon, CheckIcon, CommentIcon, DotFillIcon, EyeIcon, FileDiffIcon, XIcon } from "@primer/octicons-react";
+import { CheckCircleIcon, CheckIcon, CommentIcon, DotFillIcon, FileDiffIcon, XIcon } from "@primer/octicons-react";
 import { prefetchSubject } from "@/api/prefetch";
 import { Avatar } from "@/components/Avatar";
 import { IssueLabel } from "@/components/IssueLabel";
@@ -16,11 +16,11 @@ export function itemPath(item: ListItem): string {
   return `/${item.repository.nameWithOwner}/${item.__typename === "PullRequest" ? "pull" : "issues"}/${item.number}`;
 }
 
-const REVIEW = {
+/** Review outcomes worth flagging. Most open PRs await review, so that state has no icon. */
+const REVIEW: Partial<Record<string, { Icon: typeof CheckIcon; color: string; text: string }>> = {
   APPROVED: { Icon: CheckCircleIcon, color: "var(--success)", text: "Approved" },
   CHANGES_REQUESTED: { Icon: FileDiffIcon, color: "var(--danger)", text: "Changes requested" },
-  REVIEW_REQUIRED: { Icon: EyeIcon, color: "var(--attention)", text: "Review required" },
-} as const;
+};
 
 function checkStatus(state: string | undefined) {
   if (state === "SUCCESS") return { Icon: CheckIcon, color: "var(--success)", text: "Checks passed" };
@@ -31,7 +31,7 @@ function checkStatus(state: string | undefined) {
 
 function Status({ item }: { item: ListItem }) {
   if (item.__typename !== "PullRequest" || item.state !== "OPEN") return null;
-  const review = !item.isDraft && item.reviewDecision ? REVIEW[item.reviewDecision] : null;
+  const review = !item.isDraft && item.reviewDecision ? REVIEW[item.reviewDecision] : undefined;
   const ci = checkStatus(item.commits?.nodes[0]?.commit.statusCheckRollup?.state);
   return (
     <>

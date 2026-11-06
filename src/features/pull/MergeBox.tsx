@@ -279,7 +279,7 @@ function MergeabilitySection({ pull, owner, repo }: { pull: PullMeta; owner: str
       />
     );
   if (pull.mergeable === "UNKNOWN")
-    return <Section tone="muted" icon={<Spinner size={14} />} title="Checking for the ability to merge automatically..." detail="Hang in there while we check the branch's status." />;
+    return <Section tone="muted" icon={<Spinner label="Checking mergeability" delay={0} />} title="Checking for the ability to merge automatically..." detail="Hang in there while we check the branch's status." />;
   if (pull.mergeStateStatus === "BEHIND")
     return (
       <Section

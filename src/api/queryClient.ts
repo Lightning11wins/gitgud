@@ -78,7 +78,7 @@ export async function probeThenLoad<T extends { stamp: string }>(
   return load(await probe());
 }
 
-async function persistedData<T>(key: QueryKey): Promise<T | undefined> {
+export async function persistedData<T>(key: QueryKey): Promise<T | undefined> {
   const stored = await get<PersistedQuery>(`q-${hashKey(key)}`, cacheDb).catch(() => undefined);
   if (!stored || stored.buster !== CACHE_VERSION) return undefined;
   return stored.state.data as T | undefined;

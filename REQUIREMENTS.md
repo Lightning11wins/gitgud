@@ -1,4 +1,4 @@
-# gitgud requirements
+# GitGud requirements
 
 A fast replacement for GitHub's issue and PR web flows, backed by the GitHub API.
 

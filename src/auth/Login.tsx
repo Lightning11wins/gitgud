@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { useStore } from "@/lib/store";
 import { auth, signIn } from "./token";
+import { useTitle } from "@/lib/useTitle";
 
 const TOKEN_URL =
-  "https://github.com/settings/tokens/new?description=gitgud&scopes=repo,read:org,read:user,user:email,read:project";
+  "https://github.com/settings/tokens/new?description=GitGud&scopes=repo,read:org,read:user,user:email,read:project";
 
 export function Login() {
+  useTitle("Sign in");
   const { rejected } = useStore(auth);
   const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export function Login() {
   return (
     <div className="login">
       <form className="box login-box" onSubmit={submit}>
-        <h1>gitgud</h1>
+        <h1>GitGud</h1>
         <p className="muted">A fast client for GitHub issues and pull requests. Paste a GitHub token to start.</p>
         {rejected && (
           <div className="flash warn">

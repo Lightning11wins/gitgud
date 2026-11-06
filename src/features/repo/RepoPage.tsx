@@ -8,6 +8,7 @@ import { FilterInput } from "./FilterInput";
 import { SubjectList } from "./SubjectList";
 import { baseQuery, buildSearch, getSort, getState, kindSubset, setSort, setState, useSearchList, type ListData, type StateFilter } from "./searchList";
 import "./repo.css";
+import { useTitle } from "@/lib/useTitle";
 
 const DEFAULT_Q = "is:open";
 const DEFAULT_SORT = "created-desc";
@@ -77,6 +78,7 @@ export function RepoPage({ kind }: { kind?: Kind }) {
   const q = params.get("q") ?? DEFAULT_Q;
   const setQ = (next: string) => setParams(next === DEFAULT_Q ? {} : { q: next }, { replace: true });
   const slug = `${owner}/${repo}`;
+  useTitle(kind === "issue" ? "Issues" : kind === "pr" ? "Pull requests" : null, slug);
 
   const base = baseQuery(q);
   const counts = useQuery({
@@ -117,7 +119,7 @@ export function RepoPage({ kind }: { kind?: Kind }) {
 
       <nav className="tabs" aria-label="Repository lists">
         {tabs.map((t) => (
-          <Link key={t.label} to={t.to} className={t.kind === kind ? "active" : undefined}>
+          <Link key={t.label} to={t.to} className={t.kind === kind ? "tab active" : "tab"}>
             {t.icon}
             {t.label}
             {t.count !== undefined && <span className="counter">{t.count.toLocaleString()}</span>}

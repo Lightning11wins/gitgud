@@ -67,7 +67,7 @@ export function ChecksTab({ pull, owner, repo }: Props) {
         <OutcomeIcon outcome={overall.outcome} />
         <strong>{overall.title}</strong>
         <span className="muted grow">{overall.detail} on <code>{pull.headRefOid.slice(0, 7)}</code></span>
-        {more.isFetching && <Spinner />}
+        {more.isFetching && <Spinner label="Loading more checks" />}
         {ghLink}
       </div>
       {more.error != null && <ErrorBanner error={more.error} />}

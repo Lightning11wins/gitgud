@@ -15,6 +15,7 @@ import type { PullCommit } from "./api";
 import { CommitList } from "./CommitsTab";
 import { plural } from "./util";
 import "./pull.css";
+import { useTitle } from "@/lib/useTitle";
 
 const TEMPLATE_PATHS = [
   ".github/pull_request_template.md",
@@ -136,6 +137,7 @@ function defaultTitle(head: string, commits: PullCommit[]): string {
 export function ComparePage({ head: headProp }: { head?: string } = {}) {
   const { owner = "", repo = "", "*": spec = "" } = useParams();
   const navigate = useNavigate();
+  useTitle(headProp ? "New pull request" : "Compare", `${owner}/${repo}`);
   const parsed = parseSpec(headProp ?? spec, owner);
   const branches = useQuery({ queryKey: ["branches", owner, repo], queryFn: () => fetchBranches(owner, repo) });
   const base = parsed.base ?? branches.data?.defaultBranch;
@@ -165,7 +167,7 @@ export function ComparePage({ head: headProp }: { head?: string } = {}) {
           <BranchPicker label="base" value={base} branches={branches.data?.names} onPick={(b) => go(b, head)} />
           <ArrowLeftIcon className="muted" />
           <BranchPicker label="compare" value={head} branches={branches.data?.names} onPick={(h) => go(base, h)} />
-          {cmp.isFetching && <Spinner />}
+          {cmp.isFetching && <Spinner label="Comparing branches" />}
           {data?.compare && <MergeHint compare={data.compare} />}
         </div>
         {branches.error != null && <ErrorBanner error={branches.error} />}

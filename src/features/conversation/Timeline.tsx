@@ -117,7 +117,7 @@ export function Timeline({ owner, repo, number, kind, subject, beforeComposer }:
       ))}
       {(timeline.isPending || loadingMore || rows.length > limit) && (
         <div className="tl-loading muted row">
-          <Spinner size={14} /> Loading {items ? `(${items.length} items so far)` : "timeline"}
+          <Spinner label="Loading timeline" delay={0} /> Loading {items ? `(${items.length} items so far)` : "timeline"}
         </div>
       )}
       {timeline.error && <ErrorBanner error={timeline.error} action={<button className="btn sm" onClick={() => timeline.refetch()}>Retry</button>} />}

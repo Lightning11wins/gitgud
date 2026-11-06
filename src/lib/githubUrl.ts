@@ -1,5 +1,6 @@
 /** Routes this app handles, mirroring github.com paths. */
 const SUPPORTED = [
+  /^\/[^/]+\/?$/,
   /^\/[^/]+\/[^/]+\/?$/,
   /^\/[^/]+\/[^/]+\/(issues|pulls)\/?$/,
   /^\/[^/]+\/[^/]+\/issues\/(\d+|new)\/?$/,
@@ -7,11 +8,12 @@ const SUPPORTED = [
   /^\/[^/]+\/[^/]+\/compare(\/.*)?$/,
 ];
 
-/** github.com top-level paths that look like `/:owner/:repo` but aren't repos. */
+/** github.com top-level paths that look like `/:owner` or `/:owner/:repo` but aren't. */
 const RESERVED_OWNERS = new Set([
-  "about", "apps", "collections", "customer-stories", "enterprise", "enterprises", "explore", "features", "marketplace",
-  "new", "notifications", "orgs", "organizations", "pricing", "pulls", "issues", "readme", "search", "security",
-  "settings", "site", "sponsors", "team", "topics", "trending", "users",
+  "about", "account", "apps", "codespaces", "collections", "copilot", "customer-stories", "dashboard", "enterprise",
+  "enterprises", "explore", "features", "join", "login", "logout", "marketplace", "new", "notifications", "orgs",
+  "organizations", "pricing", "pulls", "issues", "readme", "search", "security", "settings", "signup", "site", "sponsors",
+  "stars", "team", "topics", "trending", "users", "watching",
 ]);
 
 /**

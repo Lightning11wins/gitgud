@@ -17,6 +17,7 @@ import { MergeBox } from "./MergeBox";
 import { PullHeader } from "./PullHeader";
 import { Reviewers } from "./Reviewers";
 import "./pull.css";
+import { useTitle } from "@/lib/useTitle";
 
 type Tab = "conversation" | "commits" | "checks" | "files";
 const KEPT_TABS: Tab[] = ["conversation", "commits", "checks", "files"];
@@ -39,6 +40,7 @@ export function PullPage() {
 
 function PullView({ owner, repo, number, rest }: { owner: string; repo: string; number: number; rest: string }) {
   const q = usePull(owner, repo, number);
+  useTitle(q.data?.title, `Pull request #${number}`, `${owner}/${repo}`);
   const { tab, sha } = parseTab(rest);
   const view = sha ? `commit:${sha}` : tab;
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set([tab]));
@@ -64,7 +66,7 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
     if (q.error) return <ErrorBanner error={q.error} action={<button className="btn sm" onClick={() => q.refetch()}>Retry</button>} />;
     return (
       <div className="blankslate">
-        <Spinner size={24} />
+        <Spinner size={20} label="Loading pull request" />
       </div>
     );
   }
@@ -133,7 +135,7 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
 
 function TabLink(props: { to: string; active: boolean; icon: ReactNode; label: string; count: number | string; onIntent?: () => void }) {
   return (
-    <Link to={props.to} className={props.active ? "active" : undefined} onMouseEnter={props.onIntent} onFocus={props.onIntent}>
+    <Link to={props.to} className={props.active ? "tab active" : "tab"} onMouseEnter={props.onIntent} onFocus={props.onIntent}>
       <span className="muted pull-tab-icon">{props.icon}</span>
       {props.label}
       <span className="counter">{props.count.toLocaleString()}</span>

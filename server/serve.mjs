@@ -126,4 +126,4 @@ async function handle(req, res) {
 }
 
 const server = TLS ? createHttpsServer(TLS, handle) : createHttpServer(handle);
-server.listen(PORT, HOST, () => console.log(`gitgud serving ${ROOT} on ${TLS ? "https" : "http"}://${HOST}:${PORT}`));
+server.listen(PORT, HOST, () => console.log(`GitGud serving ${ROOT} on ${TLS ? "https" : "http"}://${HOST}:${PORT}`));

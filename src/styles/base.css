@@ -163,11 +163,11 @@ body {
   line-height: 1.5;
 }
 
-a {
+a:where([href]) {
   color: var(--accent);
   text-decoration: none;
 }
-a:hover {
+a:where([href]):hover {
   text-decoration: underline;
 }
 
@@ -225,12 +225,28 @@ samp {
   top: 0;
   z-index: 50;
   height: var(--header-h);
-  display: flex;
+  /* Equal side columns keep the jump box centered on the page. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   padding: 0 16px;
   background: var(--bg-inset);
   border-bottom: 1px solid var(--border);
+}
+.app-header-start,
+.app-header-end {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.app-header-end {
+  justify-content: flex-end;
+  gap: 4px;
+}
+.rate-limit-warning {
+  color: var(--attention);
 }
 .app-header .brand {
   font-weight: 600;
@@ -452,7 +468,7 @@ textarea.input {
   border-bottom: 1px solid var(--border);
   margin-bottom: 16px;
 }
-.tabs a {
+.tab {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -461,11 +477,11 @@ textarea.input {
   color: var(--fg);
   border-bottom: 2px solid transparent;
 }
-.tabs a:hover {
+.tab:hover {
   text-decoration: none;
   border-bottom-color: var(--border);
 }
-.tabs a.active {
+.tab.active {
   font-weight: 600;
   border-bottom-color: #fd8c73;
 }
@@ -529,6 +545,10 @@ textarea.input {
   overflow-y: auto;
   padding: 4px 0;
 }
+.select-menu-header {
+  padding: 6px 12px;
+  font-size: 13px;
+}
 .select-menu-item {
   display: flex;
   align-items: center;
@@ -538,8 +558,10 @@ textarea.input {
   border: none;
   background: none;
   text-align: left;
-  cursor: pointer;
   font-size: 13px;
+}
+.select-menu-item:is(button, a[href], [role="option"]) {
+  cursor: pointer;
 }
 .select-menu-item[data-active="true"] {
   background: var(--bg-hover);
@@ -570,10 +592,16 @@ textarea.input {
 }
 .spinner {
   display: inline-block;
-  border: 2px solid var(--border);
-  border-top-color: var(--fg-muted);
+  flex-shrink: 0;
+  border: 1.5px solid var(--border-muted);
+  border-top-color: var(--fg-subtle);
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  animation: spin 0.9s linear infinite, spinner-in 0.3s ease-out both;
+}
+@keyframes spinner-in {
+  from {
+    opacity: 0;
+  }
 }
 @keyframes spin {
   to {
@@ -652,6 +680,21 @@ kbd {
 }
 
 .jump-box {
-  width: 360px;
+  position: relative;
+  width: 280px;
+}
+.jump-box input {
+  width: 100%;
   background: var(--bg);
+}
+.jump-box kbd {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-subtle);
+  pointer-events: none;
+}
+.jump-box input:focus + kbd {
+  display: none;
 }

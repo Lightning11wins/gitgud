@@ -10,6 +10,7 @@ import { Settings } from "./components/Settings";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { IssuePage } from "./features/issue/IssuePage";
 import { NewIssuePage } from "./features/issue/NewIssuePage";
+import { OwnerPage } from "./features/owner/OwnerPage";
 import { ComparePage } from "./features/pull/ComparePage";
 import { PullPage } from "./features/pull/PullPage";
 import { RepoPage } from "./features/repo/RepoPage";
@@ -20,7 +21,7 @@ export function App() {
   if (status === "loading")
     return (
       <div className="blankslate">
-        <Spinner size={24} />
+        <Spinner size={20} label="Loading your session" />
       </div>
     );
   if (status === "signed-out") return <Login />;
@@ -31,6 +32,7 @@ export function App() {
           <Route element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="settings" element={<Settings />} />
+            <Route path=":owner" element={<OwnerPage />} />
             <Route path=":owner/:repo" element={<RepoPage />} />
             <Route path=":owner/:repo/issues" element={<RepoPage kind="issue" />} />
             <Route path=":owner/:repo/pulls" element={<RepoPage kind="pr" />} />

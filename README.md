@@ -1,4 +1,4 @@
-# gitgud
+# GitGud
 
 A fast client for GitHub issues and pull requests. It runs entirely in the browser: each person pastes their own GitHub token, and the token, cache, and drafts stay in that browser. The server only serves static files.
 
@@ -6,7 +6,7 @@ A fast client for GitHub issues and pull requests. It runs entirely in the brows
 - Every comment, thread, and file loads automatically. There's no "Load more".
 - Long timelines and big diffs stay smooth; syntax highlighting runs in a Web Worker.
 - Unsent comments survive reloads and crashes.
-- URLs mirror github.com: swap `github.com` for your gitgud host in any issue or PR link, or paste a GitHub URL into the jump box (`/`).
+- URLs mirror github.com: swap `github.com` for your GitGud host in any issue or PR link, or paste a GitHub URL into the jump box (`/`).
 
 ## Run it
 

@@ -103,7 +103,7 @@ export function SelectMenu<T>(props: SelectMenuProps<T>) {
       <div className="select-menu-list" ref={listRef} role="listbox" aria-multiselectable={multiple}>
         {!items && (
           <div className="blankslate">
-            <Spinner />
+            <Spinner label="Loading options" />
           </div>
         )}
         {items && shown.length === 0 && <div className="blankslate">No matches</div>}

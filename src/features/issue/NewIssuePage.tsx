@@ -15,6 +15,7 @@ import { useAssignableUsers, useIssueTypes, useMilestones, useRepoLabels } from 
 import "@/features/sidebar/sidebar.css";
 import { drafts } from "@/lib/drafts";
 import "./issue.css";
+import { useTitle } from "@/lib/useTitle";
 
 interface Template {
   name: string;
@@ -69,14 +70,12 @@ export function NewIssuePage() {
   const data = useNewIssueRepo(owner, repo);
   const templateName = params.get("template");
 
-  useEffect(() => {
-    document.title = `New issue · ${owner}/${repo}`;
-  }, [owner, repo]);
+  useTitle("New issue", `${owner}/${repo}`);
 
   if (data.isPending)
     return (
       <div className="blankslate">
-        <Spinner size={24} />
+        <Spinner size={20} label="Loading issue templates" />
       </div>
     );
   if (data.error) return <ErrorBanner error={data.error} action={<button className="btn sm" onClick={() => data.refetch()}>Retry</button>} />;

@@ -163,8 +163,8 @@
   padding: 1px 5px;
   font-size: 12px;
   border-radius: var(--radius);
-  background: var(--accent-subtle);
-  color: var(--accent);
+  background: var(--neutral-muted);
+  color: var(--fg-muted);
 }
 .tl-commits {
   list-style: none;

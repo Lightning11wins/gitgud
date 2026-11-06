@@ -5,8 +5,10 @@ import { clearCache, storageUsage } from "@/api/queryClient";
 import { auth, signOut } from "@/auth/token";
 import { useStore } from "@/lib/store";
 import { setTheme, themePref, type ThemePref } from "@/lib/theme";
+import { useTitle } from "@/lib/useTitle";
 
 export function Settings() {
+  useTitle("Settings");
   const theme = useStore(themePref);
   const { viewer } = useStore(auth);
   const limits = useStore(rateLimits);

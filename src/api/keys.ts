@@ -2,6 +2,7 @@
 export const keys = {
   viewer: () => ["viewer"] as const,
   dashboard: (section: string) => ["dashboard", section] as const,
+  owner: (login: string) => ["owner", login] as const,
   repoList: (owner: string, repo: string, query: string) => ["repo-list", owner, repo, query] as const,
   repoMeta: (owner: string, repo: string) => ["repo", owner, repo] as const,
   /** Repo header and open/closed counts for the list filter `base`. */

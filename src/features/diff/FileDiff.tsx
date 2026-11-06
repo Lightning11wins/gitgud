@@ -118,7 +118,13 @@ function FileHeader({ file, source, collapsed, viewed, comments, onToggleCollaps
   const status = STATUS_TEXT[file.status];
   const blob = `https://github.com/${source.owner}/${source.repo}/blob/${source.head}/${file.filename.split("/").map(encodeURIComponent).join("/")}`;
   return (
-    <div className="df-head" onClick={(e) => e.target === e.currentTarget && onToggleCollapsed(file.filename)}>
+    <div
+      className="df-head"
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("button, a, label, input") || getSelection()?.toString()) return;
+        onToggleCollapsed(file.filename);
+      }}
+    >
       <button className="btn invisible xs icon" aria-label={collapsed ? "Expand file" : "Collapse file"} aria-expanded={!collapsed} onClick={() => onToggleCollapsed(file.filename)}>
         {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
       </button>
@@ -146,7 +152,7 @@ function FileHeader({ file, source, collapsed, viewed, comments, onToggleCollaps
         {copied ? <CheckIcon /> : <CopyIcon />}
       </button>
       {status && <span className={`label df-status ${file.status}`}>{status}</span>}
-      <span className="grow" onClick={() => onToggleCollapsed(file.filename)} />
+      <span className="grow" />
       {comments > 0 && (
         <span className="muted row" style={{ gap: 4, fontSize: 12 }} title={`${comments} comments`}>
           <CommentIcon size={14} />
@@ -441,7 +447,7 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
         </button>
       </>
     );
-  } else if (loaded.isLoading) notice = <Spinner />;
+  } else if (loaded.isLoading) notice = <Spinner label={`Loading diff for ${file.filename}`} />;
   else if (loaded.error) notice = <ErrorBanner error={loaded.error} action={<button className="btn sm" onClick={() => loaded.refetch()}>Retry</button>} />;
   else if (loaded.data?.binary || (file.patch === undefined && file.changes === 0 && file.status !== "renamed")) notice = <span>Binary file not shown.</span>;
   else if (!rows.length && patchHunks.length) notice = <span>Whitespace-only changes.</span>;

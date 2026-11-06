@@ -6,6 +6,7 @@ import { FilterInput } from "../repo/FilterInput";
 import { SubjectList } from "../repo/SubjectList";
 import { buildSearch, useSearchList } from "../repo/searchList";
 import "./dashboard.css";
+import { useTitle } from "@/lib/useTitle";
 
 const FILTERS = [
   { name: "Review requested", q: "is:open is:pr review-requested:@me archived:false" },
@@ -31,6 +32,7 @@ async function fetchCounts(): Promise<number[]> {
 
 export function Dashboard() {
   const [params, setParams] = useSearchParams();
+  useTitle("Dashboard");
   const q = params.get("q") ?? DEFAULT_Q;
   const setQ = (next: string) => setParams(next === DEFAULT_Q ? {} : { q: next }, { replace: true });
 
