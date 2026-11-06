@@ -455,3 +455,17 @@
 .dk:not(.one) .dt:has(.rt.resolved) + .dt:empty {
   display: none;
 }
+
+/* Phone width: the toolbar stays one line (sticky offsets use --dv-bar), so labels give way. */
+@media (max-width: 767px) {
+  .dv-toolbar {
+    gap: 8px;
+    white-space: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .dv-toolbar .dv-wide,
+  .dv-viewed progress {
+    display: none;
+  }
+}

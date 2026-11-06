@@ -321,14 +321,15 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
           />
           Hide whitespace
         </label>
-        <button className="btn sm" onClick={() => setAll(!allCollapsed)}>
+        <button className="btn sm" onClick={() => setAll(!allCollapsed)} aria-label={allCollapsed ? "Expand all" : "Collapse all"}>
           {allCollapsed ? <UnfoldIcon /> : <FoldIcon />}
-          {allCollapsed ? "Expand all" : "Collapse all"}
+          <span className="dv-wide">{allCollapsed ? "Expand all" : "Collapse all"}</span>
         </button>
         {viewed && (
           <span className="dv-viewed" title="Files you've marked as viewed">
             <progress max={ordered.length} value={viewedCount} />
-            {viewedCount} / {ordered.length} files viewed
+            {viewedCount} / {ordered.length}
+            <span className="dv-wide"> files viewed</span>
           </span>
         )}
       </div>
