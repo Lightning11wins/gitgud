@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { QuestionIcon } from "@primer/octicons-react";
 import { apiStats } from "@/api/rateLimit";
 import { clearCache, storageUsage } from "@/api/queryClient";
 import { auth, signOut } from "@/auth/token";
@@ -8,6 +9,8 @@ import { useStore } from "@/lib/store";
 import { setTheme, themePref, type ThemePref } from "@/lib/theme";
 import { useTitle } from "@/lib/useTitle";
 import { ApiUsageBars } from "./ApiUsageBars";
+
+const WARM_UP_TIP = "GitGud automatically starts a new hourly window as soon as the previous window ends, costing one request.";
 
 export function Settings() {
   useTitle("Settings");
@@ -71,11 +74,14 @@ export function Settings() {
         <ApiUsageBars />
         <label className="row" style={{ gap: 6, marginBottom: 8 }}>
           <input type="checkbox" checked={prefs.showApiMeter} onChange={(e) => updateSettings({ showApiMeter: e.target.checked })} />
-          Show the usage meter in the header. It always shows when a limit runs low.
+          Always show usage meter.
         </label>
         <label className="row" style={{ gap: 6 }}>
-          <input type="checkbox" checked={prefs.warmUpRateLimits} onChange={(e) => updateSettings({ warmUpRateLimits: e.target.checked })} />
-          Start each hourly limit as soon as it resets, using one request.
+          <input type="checkbox" checked={!prefs.warmUpRateLimits} onChange={(e) => updateSettings({ warmUpRateLimits: !e.target.checked })} />
+          Disable prewarming.
+          <span className="muted" role="img" aria-label={WARM_UP_TIP} title={WARM_UP_TIP}>
+            <QuestionIcon size={14} />
+          </span>
         </label>
       </section>
       <section className="box" style={{ padding: 16 }}>
