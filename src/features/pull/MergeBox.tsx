@@ -456,7 +456,7 @@ function AutoMergeNote({ pull }: { pull: PullMeta }) {
 function MergeConfirm({ pull, owner, repo, method, onCancel }: { pull: PullMeta; owner: string; repo: string; method: MergeMethod; onCancel: () => void }) {
   const needsMessage = method !== "REBASE";
   const messages = useQuery({
-    queryKey: ["merge-messages", owner, repo, pull.number, pull.headRefOid],
+    queryKey: ["merge-messages", owner, repo, pull.number, pull.headRefOid, pull.updatedAt],
     queryFn: () => fetchMergeMessages(owner, repo, pull.number),
     enabled: needsMessage,
     staleTime: Infinity,
