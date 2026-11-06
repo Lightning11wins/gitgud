@@ -39,8 +39,9 @@ function addPalette(items: [number, string, string, number][]) {
   for (const [c, light, dark, style] of items) {
     const extra = `${style & 1 ? "font-style:italic;" : ""}${style & 2 ? "font-weight:600;" : ""}${style & 4 ? "text-decoration:underline;" : ""}`;
     sheet.insertRule(`.hl-${c}{color:${light};${extra}}`, sheet.cssRules.length);
-    sheet.insertRule(`:root[data-theme="dark"] .hl-${c}{color:${dark}}`, sheet.cssRules.length);
-    sheet.insertRule(`@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .hl-${c}{color:${dark}}}`, sheet.cssRules.length);
+    // Screen only, so printing uses the light palette.
+    sheet.insertRule(`@media screen{:root[data-theme="dark"] .hl-${c}{color:${dark}}}`, sheet.cssRules.length);
+    sheet.insertRule(`@media screen and (prefers-color-scheme: dark){:root:not([data-theme="light"]) .hl-${c}{color:${dark}}}`, sheet.cssRules.length);
   }
 }
 

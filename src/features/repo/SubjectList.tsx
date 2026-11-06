@@ -110,41 +110,42 @@ export function SubjectList(props: SubjectListProps) {
         {empty}
       </div>
     );
-  } else if (printing) {
-    body = (
-      <div className="lr-body">
-        {items.map((item, i) => (
-          <ListRow key={item.id} item={item} checks={checks?.[item.id]} showRepo={showRepo} showUpdated={showUpdated} active={i === active} />
-        ))}
-      </div>
-    );
   } else {
     body = (
-      <div className="lr-body" style={{ height: virtualizer.getTotalSize() }}>
-        {virtualItems.map((v) => {
-          const item = items[v.index];
-          const style = { height: v.size, transform: `translateY(${v.start - margin}px)` };
-          if (!item) {
-            return (
-              <div key="more" className="lr-more" style={style}>
-                {moreError ? (
-                  <ErrorBanner
-                    error={moreError}
-                    action={
-                      <button className="btn sm" onClick={loadMore}>
-                        Retry
-                      </button>
-                    }
-                  />
-                ) : (
-                  <Spinner label="Loading more results" />
-                )}
-              </div>
-            );
-          }
-          return <ListRow key={item.id} item={item} checks={checks?.[item.id]} showRepo={showRepo} showUpdated={showUpdated} active={v.index === active} style={style} />;
-        })}
-      </div>
+      <>
+        {printing && (
+          <div className="lr-body print-only">
+            {items.map((item) => (
+              <ListRow key={item.id} item={item} checks={checks?.[item.id]} showRepo={showRepo} showUpdated={showUpdated} />
+            ))}
+          </div>
+        )}
+        <div className={printing ? "lr-body screen-only" : "lr-body"} style={{ height: virtualizer.getTotalSize() }}>
+          {virtualItems.map((v) => {
+            const item = items[v.index];
+            const style = { height: v.size, transform: `translateY(${v.start - margin}px)` };
+            if (!item) {
+              return (
+                <div key="more" className="lr-more" style={style}>
+                  {moreError ? (
+                    <ErrorBanner
+                      error={moreError}
+                      action={
+                        <button className="btn sm" onClick={loadMore}>
+                          Retry
+                        </button>
+                      }
+                    />
+                  ) : (
+                    <Spinner label="Loading more results" />
+                  )}
+                </div>
+              );
+            }
+            return <ListRow key={item.id} item={item} checks={checks?.[item.id]} showRepo={showRepo} showUpdated={showUpdated} active={v.index === active} style={style} />;
+          })}
+        </div>
+      </>
     );
   }
 

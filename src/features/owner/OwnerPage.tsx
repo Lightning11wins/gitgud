@@ -96,23 +96,26 @@ export function OwnerPage() {
         <div ref={bodyRef}>
           {data && !repos.length && !loading ? (
             <div className="blankslate">{deferred ? "No repositories match this filter." : "No repositories."}</div>
-          ) : printing ? (
-            <div className="owner-body">
-              {repos.map((repo) => (
-                <RepoRow key={repo.name} owner={info?.login ?? login} repo={repo} />
-              ))}
-            </div>
           ) : (
-            <div className="owner-body" style={{ height: virtualizer.getTotalSize() }}>
-              {virtualizer.getVirtualItems().map((v) => (
-                <RepoRow
-                  key={repos[v.index].name}
-                  owner={info?.login ?? login}
-                  repo={repos[v.index]}
-                  style={{ height: v.size, transform: `translateY(${v.start - margin}px)` }}
-                />
-              ))}
-            </div>
+            <>
+              {printing && (
+                <div className="owner-body print-only">
+                  {repos.map((repo) => (
+                    <RepoRow key={repo.name} owner={info?.login ?? login} repo={repo} />
+                  ))}
+                </div>
+              )}
+              <div className={printing ? "owner-body screen-only" : "owner-body"} style={{ height: virtualizer.getTotalSize() }}>
+                {virtualizer.getVirtualItems().map((v) => (
+                  <RepoRow
+                    key={repos[v.index].name}
+                    owner={info?.login ?? login}
+                    repo={repos[v.index]}
+                    style={{ height: v.size, transform: `translateY(${v.start - margin}px)` }}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>

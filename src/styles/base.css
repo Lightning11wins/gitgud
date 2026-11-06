@@ -801,11 +801,17 @@ kbd {
 }
 
 /* Print: page content only, in light colors (dark rules are screen-only). */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
 @media print {
   .app-header,
   .popover,
   .dialog-backdrop,
-  .spinner {
+  .spinner,
+  .screen-only {
     display: none !important;
   }
 }
