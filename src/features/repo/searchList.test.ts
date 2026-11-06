@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchAtLeast, type ListData, type ListItem } from "./searchList";
+import { fetchAtLeast, kindSubset, type ListData, type ListItem } from "./searchList";
 
 const item = (id: string) => ({ id }) as ListItem;
 
@@ -37,5 +37,21 @@ describe("fetchAtLeast", () => {
     expect(data.items.map((i) => i.id)).toEqual(["a", "c"]);
     expect(data.hasNextPage).toBe(false);
     expect(s.calls).toEqual([null]);
+  });
+});
+
+describe("kindSubset", () => {
+  const item = (id: string, __typename: "Issue" | "PullRequest") => ({ id, __typename }) as ListItem;
+  const all: ListData = { items: [item("a", "Issue"), item("b", "PullRequest"), item("c", "Issue")], total: 30, hasNextPage: true, endCursor: "x" };
+
+  it("keeps only the requested kind, in order", () => {
+    expect(kindSubset(all, "issue")?.items.map((i) => i.id)).toEqual(["a", "c"]);
+    expect(kindSubset(all, "pr")?.items.map((i) => i.id)).toEqual(["b"]);
+  });
+
+  it("gives nothing when the loaded part has none of that kind but more exist", () => {
+    expect(kindSubset({ ...all, items: [item("b", "PullRequest")] }, "issue")).toBeUndefined();
+    expect(kindSubset({ ...all, items: [item("b", "PullRequest")], hasNextPage: false }, "issue")?.items).toEqual([]);
+    expect(kindSubset(undefined, "pr")).toBeUndefined();
   });
 });

@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router";
 import { CheckIcon, CodeIcon, IssueOpenedIcon, GitPullRequestIcon, LockIcon, RepoIcon } from "@primer/octicons-react";
 import { gql } from "@/api/client";
@@ -6,7 +6,7 @@ import { keys } from "@/api/keys";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { FilterInput } from "./FilterInput";
 import { SubjectList } from "./SubjectList";
-import { baseQuery, buildSearch, getSort, getState, setSort, setState, useSearchList, type StateFilter } from "./searchList";
+import { baseQuery, buildSearch, getSort, getState, kindSubset, setSort, setState, useSearchList, type ListData, type StateFilter } from "./searchList";
 import "./repo.css";
 
 const DEFAULT_Q = "is:open";
@@ -85,8 +85,14 @@ export function RepoPage({ kind }: { kind?: Kind }) {
     placeholderData: keepPreviousData,
   });
 
+  const qc = useQueryClient();
   const search = buildSearch(q, { repo: slug, kind, defaultSort: DEFAULT_SORT });
-  const list = useSearchList(keys.repoList(owner, repo, `${kind ?? "all"}:${search}`), search);
+  const allKey = keys.repoList(owner, repo, `all:${buildSearch(q, { repo: slug, defaultSort: DEFAULT_SORT })}`);
+  const list = useSearchList(
+    keys.repoList(owner, repo, `${kind ?? "all"}:${search}`),
+    search,
+    kind ? () => kindSubset(qc.getQueryData<ListData>(allKey), kind) : undefined,
+  );
 
   const c = counts.data;
   const state = getState(q);

@@ -86,10 +86,23 @@ export async function fetchAtLeast(fetch: (after: string | null) => Promise<List
 }
 
 /**
+ * The issues or pull requests in a mixed list. With the same filters and sort, they are the top of
+ * the kind-specific list, so they can stand in while it loads.
+ */
+export function kindSubset(data: ListData | undefined, kind: "issue" | "pr"): ListData | undefined {
+  if (!data) return undefined;
+  const typename = kind === "issue" ? "Issue" : "PullRequest";
+  const items = data.items.filter((i) => i.__typename === typename);
+  if (!items.length && data.hasNextPage) return undefined;
+  return { items, total: items.length, hasNextPage: data.hasNextPage, endCursor: null };
+}
+
+/**
  * Pages of a GitHub search as one cached list. Revalidation refetches as many items as were
  * loaded, so stale rows (e.g. closed issues in an is:open list) drop out; `loadMore` appends the next page.
+ * `placeholder` supplies data to show until the first fetch lands.
  */
-export function useSearchList(queryKey: QueryKey, search: string) {
+export function useSearchList(queryKey: QueryKey, search: string, placeholder?: () => ListData | undefined) {
   const qc = useQueryClient();
   const keyRef = useRef(queryKey);
   keyRef.current = queryKey;
@@ -100,7 +113,7 @@ export function useSearchList(queryKey: QueryKey, search: string) {
   const query = useQuery({
     queryKey,
     queryFn: () => fetchAtLeast((after) => fetchPage(search, after), qc.getQueryData<ListData>(queryKey)?.items.length ?? 0),
-    placeholderData: undefined,
+    placeholderData: placeholder,
   });
 
   useEffect(() => setMoreError(null), [search]);
