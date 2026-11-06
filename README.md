@@ -76,3 +76,9 @@ Signing out erases the token, cache, and drafts from the browser.
 ## Contributing
 
 See `docs/DEVELOPMENT.md` for tests and tooling, and `docs/ARCHITECTURE.md` for how the code fits together.
+
+## License
+
+GPL-3.0-or-later. See `LICENSE`.
+
+GitGud is an independent project, not affiliated with or endorsed by GitHub, Inc. GitHub is a trademark of GitHub, Inc.

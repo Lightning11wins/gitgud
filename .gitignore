@@ -17,3 +17,8 @@ playwright-report
 .zshrc
 .claude/
 tsconfig.tsbuildinfo
+*.pem
+*.key
+*.crt
+/*.png
+/flows/
