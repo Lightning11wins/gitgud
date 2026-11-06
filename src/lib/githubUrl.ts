@@ -17,7 +17,7 @@ const SUPPORTED = [
 ];
 
 /** github.com top-level paths that look like `/:owner` or `/:owner/:repo` but aren't. */
-const RESERVED_OWNERS = new Set([
+export const RESERVED_OWNERS = new Set([
   "about", "account", "apps", "codespaces", "collections", "copilot", "customer-stories", "dashboard", "enterprise",
   "enterprises", "explore", "features", "join", "login", "logout", "marketplace", "new", "notifications", "orgs",
   "organizations", "pricing", "pulls", "issues", "readme", "search", "security", "settings", "signup", "site", "sponsors",

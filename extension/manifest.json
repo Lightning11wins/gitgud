@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "GitGud Redirect",
+  "version": "1.0.0",
+  "description": "Opens GitHub issue and pull request links from other sites in GitGud.",
+  "icons": { "48": "icon.svg", "96": "icon.svg" },
+  "permissions": ["declarativeNetRequest"],
+  "host_permissions": ["https://github.com/*"],
+  "options_ui": { "page": "options.html" },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "gitgud-redirect@gitgud",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  }
+}

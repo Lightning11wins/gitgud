@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root { color-scheme: light dark; }
+      body { font: 14px system-ui, sans-serif; margin: 12px; }
+      form { display: flex; gap: 8px; }
+      input { flex: 1; min-width: 0; }
+      p { margin: 8px 0 0; }
+      .error { color: #cf222e; }
+      @media (prefers-color-scheme: dark) { .error { color: #ff7b72; } }
+    </style>
+  </head>
+  <body>
+    <form id="form">
+      <input id="url" type="url" placeholder="https://gitgud.example.com" aria-label="GitGud URL" />
+      <button type="submit">Save</button>
+    </form>
+    <p id="status"></p>
+    <p id="access" hidden>
+      Needs access to github.com to redirect. <button id="grant" type="button">Allow</button>
+    </p>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
