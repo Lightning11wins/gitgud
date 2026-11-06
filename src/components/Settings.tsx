@@ -10,7 +10,7 @@ import { setTheme, themePref, type ThemePref } from "@/lib/theme";
 import { useTitle } from "@/lib/useTitle";
 import { ApiUsageBars } from "./ApiUsageBars";
 
-const WARM_UP_TIP = "GitGud automatically starts a new hourly window as soon as the previous window ends, costing one request.";
+const WARM_UP_TIP = "GitGud automatically starts a new hourly window as soon as the previous window ends, costing one request on each limit.";
 
 export function Settings() {
   useTitle("Settings");
@@ -79,7 +79,7 @@ export function Settings() {
         <label className="row" style={{ gap: 6 }}>
           <input type="checkbox" checked={!prefs.warmUpRateLimits} onChange={(e) => updateSettings({ warmUpRateLimits: !e.target.checked })} />
           Disable prewarming.
-          <span className="muted" role="img" aria-label={WARM_UP_TIP} title={WARM_UP_TIP}>
+          <span className="muted" role="img" style={{ display: "inline-flex" }} aria-label={WARM_UP_TIP} title={WARM_UP_TIP}>
             <QuestionIcon size={14} />
           </span>
         </label>
