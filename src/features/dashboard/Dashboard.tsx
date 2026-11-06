@@ -54,6 +54,7 @@ export function Dashboard() {
         <FilterInput value={q} onApply={(next) => setQ(next || DEFAULT_Q)} placeholder="Search issues and pull requests" />
         <SubjectList
           data={list.data}
+          checks={list.checks}
           isPending={list.isPending}
           isFetching={list.isFetching}
           error={list.error}

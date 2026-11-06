@@ -8,7 +8,7 @@ See `REQUIREMENTS.md` for the product spec.
 
 ```
 src/
-  api/          client.ts (gql, rest, restAll, gqlAll, mapLimit), queryClient.ts (cache), keys.ts, types.ts, rateLimit.ts
+  api/          client.ts (gql, gqlPartial, rest, restAll, gqlAll, mapLimit), queryClient.ts (cache), keys.ts, types.ts, rateLimit.ts
   auth/         token storage + login screen
   components/   shared UI: Layout, Avatar, Button styles, StateBadge, IssueLabel, RelativeTime, Markdown,
                 Popover, Dialog, SelectMenu, Spinner, ErrorBanner
@@ -67,6 +67,7 @@ server/serve.mjs  static server with CSP and compression
 - Fine-grained tokens don't see "mentioned this" events from repositories outside their grant, even public ones. When a timeline holds such hidden items, GitHub undercounts it and can end a page early with `hasNextPage: false`; `fetchItems` in `features/conversation/timeline.ts` keeps paging until an empty page when the counts disagree.
 - References from other issues and commits don't change a subject's `updatedAt`, so cached timelines resume from their end cursor every 10 minutes anyway.
 - Repo lists use `search(type: ISSUE_ADVANCED)`. With the same filters and sort, the issues in the All list are a prefix of the Issues list (same for PRs), so `kindSubset` in `features/repo/searchList.ts` shows them as placeholder data while a tab loads.
+- Selecting check runs in the list query slows it by about 1.5s, so list rows get their check counts from `CHECKS_QUERY`, the same search run alongside each page with the same cursor. Rows whose check runs the token can't read show no count.
 - GraphQL connections page serially at about 1.8s per 100 nodes regardless of fields selected. Owner pages refresh by fetching the first page and merging with the cache.
 - The first request from headless Chromium can fail CORS preflight behind some proxies; it's an environment problem, not an app bug.
 

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { gql } from "@/api/client";
+import { GitHubError, gql, gqlPartial } from "@/api/client";
+import { keys } from "@/api/keys";
+import { persistedData } from "@/api/queryClient";
 
 export interface ListItem {
   __typename: "Issue" | "PullRequest";
@@ -21,7 +23,6 @@ export interface ListItem {
   comments: { totalCount: number };
   /** Pull requests only: comments including review comments. */
   totalCommentsCount?: number;
-  checks?: CheckSummary | null;
 }
 
 /** Head commit checks: the rollup state and how many of `total` passed. */
@@ -31,17 +32,15 @@ export interface CheckSummary {
   total: number;
 }
 
-/** A check run or a commit status, as the list query selects them. */
+/** A check run or a commit status, as `CHECKS_QUERY` selects them. */
 type RawContext = { name: string; conclusion: string | null; databaseId: number } | { context: string; state: string; createdAt: string };
 
-type RawItem = ListItem & {
-  statusCheckRollup?: { state: string; contexts: { nodes: (RawContext | null)[] } } | null;
-};
+type RawRollup = { state: string; contexts: { nodes: (RawContext | null)[] } } | null;
 
 const PASSED = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
 
 /** Counts each check name once, by its newest run, as github.com does for re-runs and duplicate workflow runs. */
-export function summarizeChecks(rollup: RawItem["statusCheckRollup"]): CheckSummary | null {
+export function summarizeChecks(rollup: RawRollup | undefined): CheckSummary | null {
   if (!rollup) return null;
   // Check run ids and status times both grow with each new run.
   const newest = new Map<string, { order: number | string; result: string | null }>();
@@ -56,16 +55,18 @@ export function summarizeChecks(rollup: RawItem["statusCheckRollup"]): CheckSumm
   return { state: rollup.state, passed, total: newest.size };
 }
 
-function toItem({ statusCheckRollup, ...item }: RawItem): ListItem {
-  return statusCheckRollup === undefined ? item : { ...item, checks: summarizeChecks(statusCheckRollup) };
-}
-
-export interface ListData {
-  items: ListItem[];
-  total: number;
+interface Page<T> {
+  items: T[];
   hasNextPage: boolean;
   endCursor: string | null;
 }
+
+export interface ListData extends Page<ListItem> {
+  total: number;
+}
+
+/** Check summaries of a list's pull requests, keyed by node id. `null` means the PR has no checks. */
+export type ListChecks = Record<string, CheckSummary | null>;
 
 const COMMON = `
   id number title url state createdAt updatedAt
@@ -86,6 +87,20 @@ query SearchList($q: String!, $first: Int!, $after: String) {
       ... on Issue { ${COMMON} stateReason }
       ... on PullRequest {
         ${COMMON} isDraft reviewDecision totalCommentsCount
+      }
+    }
+  }
+}`;
+
+/** The same search as `LIST_QUERY`, selecting only check runs. It runs alongside it with the same cursor. */
+export const CHECKS_QUERY = `
+query SearchChecks($q: String!, $first: Int!, $after: String) {
+  search(type: ISSUE_ADVANCED, query: $q, first: $first, after: $after) {
+    pageInfo { hasNextPage endCursor }
+    nodes {
+      ... on Issue { id }
+      ... on PullRequest {
+        id
         statusCheckRollup {
           state
           contexts(first: 100) {
@@ -99,27 +114,61 @@ query SearchList($q: String!, $first: Int!, $after: String) {
 
 const FIRST_PAGE = 50;
 const NEXT_PAGE = 100;
+const ISSUE_TOKEN = /(^|\s)(is|type):issue(?=\s|$)/i;
+const PR_TOKEN = /(is|type):(pr|pull-request)\b/i;
+
+type PageInfo = { hasNextPage: boolean; endCursor: string | null };
 
 async function fetchPage(search: string, after: string | null): Promise<ListData> {
-  const data = await gql<{
-    search: { issueCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: (RawItem | null)[] };
-  }>(LIST_QUERY, { q: search, first: after ? NEXT_PAGE : FIRST_PAGE, after });
+  const data = await gql<{ search: { issueCount: number; pageInfo: PageInfo; nodes: (ListItem | null)[] } }>(LIST_QUERY, {
+    q: search,
+    first: after ? NEXT_PAGE : FIRST_PAGE,
+    after,
+  });
   const { search: s } = data;
   return {
-    items: s.nodes.filter((n): n is RawItem => !!n && !!n.id).map(toItem),
+    items: s.nodes.filter((n): n is ListItem => !!n && !!n.id),
     total: s.issueCount,
     hasNextPage: s.pageInfo.hasNextPage,
     endCursor: s.pageInfo.endCursor,
   };
 }
 
-function appendUnique(base: ListItem[], more: ListItem[]): ListItem[] {
+/** A search result's checks: undefined for issues and for PRs whose check runs the token can't read. */
+type ChecksItem = { id: string; checks?: CheckSummary | null };
+
+async function fetchChecksPage(search: string, after: string | null): Promise<Page<ChecksItem>> {
+  const { data, errors } = await gqlPartial<{ search: { pageInfo: PageInfo; nodes: ({ id?: string; statusCheckRollup?: RawRollup } | null)[] } }>(
+    CHECKS_QUERY,
+    { q: search, first: after ? NEXT_PAGE : FIRST_PAGE, after },
+  );
+  // Fine-grained tokens can't read check runs in repos outside their grant.
+  const hidden = new Set<unknown>();
+  for (const e of errors) {
+    if (e.path?.[0] !== "search" || e.path[1] !== "nodes") throw new GitHubError(`Failed to run GraphQL SearchChecks: ${e.message}`, 200, errors);
+    hidden.add(e.path[2]);
+  }
+  const { search: s } = data;
+  return {
+    items: s.nodes.flatMap((n, i) =>
+      n?.id ? [{ id: n.id, checks: hidden.has(i) || n.statusCheckRollup === undefined ? undefined : summarizeChecks(n.statusCheckRollup) }] : [],
+    ),
+    hasNextPage: s.pageInfo.hasNextPage,
+    endCursor: s.pageInfo.endCursor,
+  };
+}
+
+function toChecks(items: ChecksItem[]): ListChecks {
+  return Object.fromEntries(items.flatMap((i) => (i.checks === undefined ? [] : [[i.id, i.checks]])));
+}
+
+function appendUnique<T extends { id: string }>(base: T[], more: T[]): T[] {
   const seen = new Set(base.map((i) => i.id));
   return [...base, ...more.filter((i) => !seen.has(i.id))];
 }
 
 /** Fetches pages until at least `count` items (or every result) are loaded. */
-export async function fetchAtLeast(fetch: (after: string | null) => Promise<ListData>, count: number): Promise<ListData> {
+export async function fetchAtLeast<P extends Page<{ id: string }>>(fetch: (after: string | null) => Promise<P>, count: number): Promise<P> {
   let data = await fetch(null);
   while (data.hasNextPage && data.items.length < count) {
     const page = await fetch(data.endCursor);
@@ -143,20 +192,41 @@ export function kindSubset(data: ListData | undefined, kind: "issue" | "pr"): Li
 /**
  * Pages of a GitHub search as one cached list. Revalidation refetches as many items as were
  * loaded, so stale rows (e.g. closed issues in an is:open list) drop out; `loadMore` appends the next page.
- * `placeholder` supplies data to show until the first fetch lands.
+ * `checks` holds the pull requests' check summaries, fetched in parallel by `CHECKS_QUERY`.
+ * `placeholderFrom` names a mixed list whose items of `kind` show until the first fetch lands.
  */
-export function useSearchList(queryKey: QueryKey, search: string, placeholder?: () => ListData | undefined) {
+export function useSearchList(queryKey: QueryKey, search: string, placeholderFrom?: { key: QueryKey; kind: "issue" | "pr" }) {
   const qc = useQueryClient();
   const keyRef = useRef(queryKey);
   keyRef.current = queryKey;
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<unknown>(null);
   const inFlight = useRef(false);
+  // Issue-only searches skip `CHECKS_QUERY`.
+  const withChecks = !ISSUE_TOKEN.test(search) || PR_TOKEN.test(search);
 
   const query = useQuery({
     queryKey,
     queryFn: () => fetchAtLeast((after) => fetchPage(search, after), qc.getQueryData<ListData>(queryKey)?.items.length ?? 0),
-    placeholderData: placeholder,
+    placeholderData: placeholderFrom && (() => kindSubset(qc.getQueryData<ListData>(placeholderFrom.key), placeholderFrom.kind)),
+  });
+
+  const checksKey = keys.listChecks(queryKey);
+  const checks = useQuery({
+    queryKey: checksKey,
+    queryFn: async () => {
+      const list = qc.getQueryData<ListData>(queryKey) ?? (await persistedData<ListData>(queryKey));
+      const pages = await fetchAtLeast((after) => fetchChecksPage(search, after), list?.items.length ?? 0);
+      const fetched = toChecks(pages.items);
+      // Keep summaries that `loadMore` added meanwhile for rows still listed.
+      const listed = new Set(qc.getQueryData<ListData>(queryKey)?.items.map((i) => i.id));
+      for (const [id, c] of Object.entries(qc.getQueryData<ListChecks>(checksKey) ?? {})) {
+        if (!(id in fetched) && listed.has(id)) fetched[id] = c;
+      }
+      return fetched;
+    },
+    enabled: withChecks,
+    placeholderData: placeholderFrom && (() => qc.getQueryData<ListChecks>(keys.listChecks(placeholderFrom.key))),
   });
 
   useEffect(() => setMoreError(null), [search]);
@@ -167,6 +237,12 @@ export function useSearchList(queryKey: QueryKey, search: string, placeholder?: 
     if (!data || !data.hasNextPage || inFlight.current) return;
     inFlight.current = true;
     setLoadingMore(true);
+    if (withChecks) {
+      fetchChecksPage(search, data.endCursor).then(
+        (page) => qc.setQueryData<ListChecks>(keys.listChecks(key), (cur) => ({ ...cur, ...toChecks(page.items) })),
+        () => {},
+      );
+    }
     try {
       const page = await fetchPage(search, data.endCursor);
       qc.setQueryData<ListData>(key, (cur) =>
@@ -179,9 +255,9 @@ export function useSearchList(queryKey: QueryKey, search: string, placeholder?: 
       inFlight.current = false;
       setLoadingMore(false);
     }
-  }, [qc, search]);
+  }, [qc, search, withChecks]);
 
-  return { ...query, loadMore, loadingMore, moreError };
+  return { ...query, checks: checks.data, loadMore, loadingMore, moreError };
 }
 
 const KIND_TOKEN = /(^|\s)(is:(issue|pr|pull-request)|type:(issue|pr))(?=\s|$)/i;

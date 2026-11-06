@@ -1,9 +1,13 @@
+import type { QueryKey } from "@tanstack/react-query";
+
 /** Query keys shared across features. Invalidate these after mutations. */
 export const keys = {
   viewer: () => ["viewer"] as const,
   dashboard: (section: string) => ["dashboard", section] as const,
   owner: (login: string) => ["owner", login] as const,
   repoList: (owner: string, repo: string, query: string) => ["repo-list", owner, repo, query] as const,
+  /** Check summaries for the pull requests in the list at `list`. */
+  listChecks: (list: QueryKey) => ["list-checks", ...list] as const,
   repoMeta: (owner: string, repo: string) => ["repo", owner, repo] as const,
   /** Repo header and open/closed counts for the list filter `base`. */
   repoCounts: (owner: string, repo: string, base: string) => ["repo-header", owner, repo, base] as const,

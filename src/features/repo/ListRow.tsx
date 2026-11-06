@@ -7,7 +7,7 @@ import { IssueLabel } from "@/components/IssueLabel";
 import { RelativeTime } from "@/components/RelativeTime";
 import { StateIcon } from "@/components/StateBadge";
 import { TitleText } from "@/components/TitleText";
-import type { ListItem } from "./searchList";
+import type { CheckSummary, ListItem } from "./searchList";
 
 export const ROW_HEIGHT = 56;
 const MAX_LABELS = 4;
@@ -30,10 +30,9 @@ function checkIcon(state: string) {
 }
 
 /** Review decision and checks, as " · Review required · ✓ 6/6". */
-function PullStatus({ item }: { item: ListItem }) {
+function PullStatus({ item, checks }: { item: ListItem; checks?: CheckSummary | null }) {
   const review = item.reviewDecision ? REVIEW[item.reviewDecision] : undefined;
-  const checks = item.checks?.total ? item.checks : null;
-  const ci = checks ? checkIcon(checks.state) : null;
+  const ci = checks?.total ? checkIcon(checks.state) : null;
   return (
     <>
       {review && (
@@ -57,6 +56,8 @@ function PullStatus({ item }: { item: ListItem }) {
 
 export interface ListRowProps {
   item: ListItem;
+  /** Undefined until loaded; null when the PR has no checks. */
+  checks?: CheckSummary | null;
   showRepo?: boolean;
   active?: boolean;
   /** Show when the item was last updated, for lists sorted by it. */
@@ -64,7 +65,7 @@ export interface ListRowProps {
   style?: CSSProperties;
 }
 
-export const ListRow = memo(function ListRow({ item, showRepo, active, showUpdated, style }: ListRowProps) {
+export const ListRow = memo(function ListRow({ item, checks, showRepo, active, showUpdated, style }: ListRowProps) {
   const timer = useRef<number>(0);
   useEffect(() => () => window.clearTimeout(timer.current), []);
   const isPr = item.__typename === "PullRequest";
@@ -104,7 +105,7 @@ export const ListRow = memo(function ListRow({ item, showRepo, active, showUpdat
           #{item.number} <RelativeTime date={item.createdAt} prefix="opened" />
           {item.author && ` by ${item.author.login}`}
           {item.isDraft && " · Draft"}
-          {isPr && <PullStatus item={item} />}
+          {isPr && <PullStatus item={item} checks={checks} />}
           {showUpdated && (
             <>
               {" · "}

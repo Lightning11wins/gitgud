@@ -5,13 +5,15 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 import { Spinner } from "@/components/Spinner";
 import { useHotkey } from "@/lib/hotkeys";
 import { ListRow, ROW_HEIGHT, itemPath } from "./ListRow";
-import type { ListData } from "./searchList";
+import type { ListChecks, ListData } from "./searchList";
 import "./list.css";
 
 const LOAD_AHEAD = 20;
 
 export interface SubjectListProps {
   data: ListData | undefined;
+  /** Check summaries by item id; rows show none until theirs loads. */
+  checks?: ListChecks;
   isPending: boolean;
   isFetching: boolean;
   error: unknown;
@@ -30,7 +32,7 @@ export interface SubjectListProps {
 
 /** Virtualized, auto-paging list of issues and PRs with j/k/Enter keyboard navigation. */
 export function SubjectList(props: SubjectListProps) {
-  const { data, isPending, isFetching, error, moreError, loadingMore, onRetry, loadMore, showRepo, showUpdated, empty, header } = props;
+  const { data, checks, isPending, isFetching, error, moreError, loadingMore, onRetry, loadMore, showRepo, showUpdated, empty, header } = props;
   const items = data?.items ?? [];
   const navigate = useNavigate();
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -124,7 +126,7 @@ export function SubjectList(props: SubjectListProps) {
               </div>
             );
           }
-          return <ListRow key={item.id} item={item} showRepo={showRepo} showUpdated={showUpdated} active={v.index === active} style={style} />;
+          return <ListRow key={item.id} item={item} checks={checks?.[item.id]} showRepo={showRepo} showUpdated={showUpdated} active={v.index === active} style={style} />;
         })}
       </div>
     );

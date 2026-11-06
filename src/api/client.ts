@@ -48,9 +48,30 @@ export interface GqlOptions {
   headers?: Record<string, string>;
 }
 
+export interface GqlError {
+  message: string;
+  type?: string;
+  path?: (string | number)[];
+}
+
+function operationName(query: string): string {
+  return /(?:query|mutation)\s+(\w+)/.exec(query)?.[1] ?? "anonymous";
+}
+
+function gqlFailure(query: string, errors: GqlError[]): GitHubError {
+  return new GitHubError(`Failed to run GraphQL ${operationName(query)}: ${errors.map((e) => e.message).join("; ")}`, 200, errors);
+}
+
 /** Runs a GraphQL query or mutation and returns `data`, throwing on any error. */
 export async function gql<T>(query: string, variables: Record<string, unknown> = {}, opts: GqlOptions = {}): Promise<T> {
-  const opName = /(?:query|mutation)\s+(\w+)/.exec(query)?.[1] ?? "anonymous";
+  const { data, errors } = await gqlPartial<T>(query, variables, opts);
+  if (errors.length) throw gqlFailure(query, errors);
+  return data;
+}
+
+/** Like `gql`, but returns partial `data` with its field errors. Throws only when there is no data. */
+export async function gqlPartial<T>(query: string, variables: Record<string, unknown> = {}, opts: GqlOptions = {}): Promise<{ data: T; errors: GqlError[] }> {
+  const opName = operationName(query);
   opts.signal?.throwIfAborted();
   const session = auth.get();
   recordRequest("graphql", opName);
@@ -62,11 +83,10 @@ export async function gql<T>(query: string, variables: Record<string, unknown> =
   });
   recordRateLimit(res.headers);
   if (!res.ok) throw await failure(res, `run GraphQL ${opName}`, session);
-  const body = (await res.json()) as { data?: T; errors?: { message: string; type?: string }[] };
-  if (body.errors?.length) {
-    throw new GitHubError(`Failed to run GraphQL ${opName}: ${body.errors.map((e) => e.message).join("; ")}`, 200, body.errors);
-  }
-  return body.data as T;
+  const body = (await res.json()) as { data?: T | null; errors?: GqlError[] };
+  const errors = body.errors ?? [];
+  if (body.data == null && errors.length) throw gqlFailure(query, errors);
+  return { data: body.data as T, errors };
 }
 
 export interface RestOptions {
