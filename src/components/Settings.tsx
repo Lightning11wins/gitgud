@@ -4,11 +4,17 @@ import { QuestionIcon } from "@primer/octicons-react";
 import { apiStats } from "@/api/rateLimit";
 import { clearCache, storageUsage } from "@/api/queryClient";
 import { auth, signOut } from "@/auth/token";
-import { settings, updateSettings } from "@/lib/settings";
+import { settings, updateSettings, type RepoTab } from "@/lib/settings";
 import { useStore } from "@/lib/store";
 import { setTheme, themePref, type ThemePref } from "@/lib/theme";
 import { useTitle } from "@/lib/useTitle";
 import { ApiUsageBars } from "./ApiUsageBars";
+
+const REPO_TABS: { value: RepoTab; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "issues", label: "Issues" },
+  { value: "pulls", label: "Pull requests" },
+];
 
 const WARM_UP_TIP = "GitGud automatically starts a new hourly window as soon as the previous window ends, costing one request on each limit.";
 const PREFETCH_TIP = "GitGud loads pages you're likely to open next, like links you hover, so they open instantly. It pauses while any limit has less than 20% left.";
@@ -38,6 +44,17 @@ export function Settings() {
             <label key={t} className="row" style={{ gap: 4 }}>
               <input type="radio" name="theme" checked={theme === t} onChange={() => setTheme(t)} />
               {t[0].toUpperCase() + t.slice(1)}
+            </label>
+          ))}
+        </div>
+      </section>
+      <section className="box" style={{ padding: 16, marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Default repository tab</h3>
+        <div className="row">
+          {REPO_TABS.map((t) => (
+            <label key={t.value} className="row" style={{ gap: 4 }}>
+              <input type="radio" name="repo-tab" checked={prefs.repoTab === t.value} onChange={() => updateSettings({ repoTab: t.value })} />
+              {t.label}
             </label>
           ))}
         </div>

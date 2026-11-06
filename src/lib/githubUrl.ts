@@ -1,3 +1,11 @@
+import { settings } from "./settings";
+
+/** Path to a repo's default tab. */
+export function repoPath(owner: string, repo: string): string {
+  const tab = settings.get().repoTab;
+  return tab === "issues" || tab === "pulls" ? `/${owner}/${repo}/${tab}` : `/${owner}/${repo}`;
+}
+
 /** Routes this app handles, mirroring github.com paths. */
 const SUPPORTED = [
   /^\/[^/]+\/?$/,
@@ -23,7 +31,7 @@ const RESERVED_OWNERS = new Set([
 export function toAppPath(input: string): string | null {
   const text = input.trim();
   const short = /^([\w.-]+)\/([\w.-]+)(?:#(\d+))?$/.exec(text);
-  if (short) return short[3] ? `/${short[1]}/${short[2]}/issues/${short[3]}` : `/${short[1]}/${short[2]}`;
+  if (short) return short[3] ? `/${short[1]}/${short[2]}/issues/${short[3]}` : repoPath(short[1], short[2]);
   let url: URL;
   try {
     url = new URL(text, location.origin);
@@ -34,6 +42,8 @@ export function toAppPath(input: string): string | null {
   if (!isGitHub && url.origin !== location.origin) return null;
   const path = url.pathname.replace(/\/$/, "") || "/";
   if (!SUPPORTED.some((re) => re.test(path)) || RESERVED_OWNERS.has(path.split("/")[1].toLowerCase())) return null;
+  const repo = /^\/([^/]+)\/([^/]+)$/.exec(path);
+  if (repo && !url.search) return repoPath(repo[1], repo[2]) + url.hash;
   return path + url.search + url.hash;
 }
 

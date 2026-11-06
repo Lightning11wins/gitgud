@@ -14,6 +14,7 @@ import { IssueTypeChip } from "@/features/sidebar/MetadataSidebar";
 import { useAssignableUsers, useIssueTypes, useMilestones, useRepoLabels } from "@/features/sidebar/data";
 import "@/features/sidebar/sidebar.css";
 import { drafts } from "@/lib/drafts";
+import { repoPath } from "@/lib/githubUrl";
 import "./issue.css";
 import { useTitle } from "@/lib/useTitle";
 
@@ -88,7 +89,7 @@ export function NewIssuePage() {
   return (
     <div className="new-issue">
       <h2>
-        Create new issue in <Link to={`/${owner}/${repo}`}>{r.nameWithOwner}</Link>
+        Create new issue in <Link to={repoPath(owner, repo)}>{r.nameWithOwner}</Link>
       </h2>
       {choosing ? (
         <TemplateChooser

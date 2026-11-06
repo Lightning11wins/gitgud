@@ -8,6 +8,7 @@ import { RelativeTime } from "@/components/RelativeTime";
 import { Spinner } from "@/components/Spinner";
 import { useOwner, type OwnerRepo } from "./ownerData";
 import { usePrinting } from "@/lib/usePrinting";
+import { repoPath } from "@/lib/githubUrl";
 import { useTitle } from "@/lib/useTitle";
 import "./owner.css";
 
@@ -130,7 +131,7 @@ const RepoRow = memo(function RepoRow({ owner, repo, style }: { owner: string; r
       <Icon size={16} className="muted owner-icon" />
       <div className="owner-main">
         <div className="owner-title">
-          <Link className="owner-link truncate" to={`/${owner}/${repo.name}`}>
+          <Link className="owner-link truncate" to={repoPath(owner, repo.name)}>
             {repo.name}
           </Link>
           <span className="label owner-label">{VISIBILITY[repo.visibility]}</span>

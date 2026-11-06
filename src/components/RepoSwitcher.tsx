@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { RepoForkedIcon, RepoIcon, RepoLockedIcon, TriangleDownIcon } from "@primer/octicons-react";
 import { useOwner, type OwnerRepo } from "@/features/owner/ownerData";
+import { repoPath } from "@/lib/githubUrl";
 import { SelectMenu } from "./SelectMenu";
 
 /** Caret next to the repo crumb that opens a menu of the owner's other repos. */
@@ -47,7 +48,7 @@ function RepoMenu({ anchor, owner, repo, onClose }: { anchor: HTMLElement; owner
         );
       }}
       initial={[current]}
-      onApply={(keys) => navigate(`/${owner}/${keys[0] ?? current}`)}
+      onApply={(keys) => navigate(repoPath(owner, keys[0] ?? current))}
       onClose={onClose}
     />
   );

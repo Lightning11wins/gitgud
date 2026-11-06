@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { rateLimits } from "@/api/rateLimit";
 import { auth, signOut } from "@/auth/token";
-import { toAppPath, toGitHubUrl } from "@/lib/githubUrl";
+import { repoPath, toAppPath, toGitHubUrl } from "@/lib/githubUrl";
 import { useHotkey } from "@/lib/hotkeys";
 import { settings } from "@/lib/settings";
 import { useStore } from "@/lib/store";
@@ -86,7 +86,7 @@ export function Layout() {
               {repo && (
                 <>
                   <span className="muted">/</span>
-                  <Crumb to={`/${repo.owner}/${repo.repo}`} current={pathname} bold>
+                  <Crumb to={repoPath(repo.owner, repo.repo)} current={pathname} bold>
                     {repo.repo}
                   </Crumb>
                   <RepoSwitcher owner={repo.owner} repo={repo.repo} />
