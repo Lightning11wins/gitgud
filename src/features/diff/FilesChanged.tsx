@@ -83,8 +83,8 @@ export function CompareFiles({ owner, repo, base, head }: { owner: string; repo:
   const q = useCompareFiles(owner, repo, base, head);
   const data = q.data;
   const source = useMemo<DiffSource | undefined>(
-    () => data && { owner, repo, id: `compare:${owner}/${repo}@${base}...${head}`, head, base: async () => data.mergeBase },
-    [owner, repo, base, head, data],
+    () => data && { owner, repo, id: `compare:${owner}/${repo}@${data.mergeBase}...${data.head}`, head: data.head, base: async () => data.mergeBase },
+    [owner, repo, data],
   );
   if (!data || !source) return <Loading error={q.error} retry={() => q.refetch()} />;
   return (

@@ -119,16 +119,19 @@ interface CompareResponse {
 
 export interface CompareData {
   mergeBase: string;
+  /** Commit SHA that `head` pointed to. */
+  head: string;
   files: DiffFile[];
 }
 
-/** Files changed between two refs (GitHub returns at most 300). */
+/** Files changed between two refs (GitHub returns at most 300). `head` resolves to a SHA so cached file contents match the diff. */
 export function useCompareFiles(owner: string, repo: string, base: string, head: string) {
   return useQuery({
-    queryKey: ["compare-files", owner, repo, base, head],
+    queryKey: ["compare-diff", owner, repo, base, head],
     queryFn: async (): Promise<CompareData> => {
-      const d = await rest<CompareResponse>(`/repos/${owner}/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}?per_page=1`);
-      return { mergeBase: d.merge_base_commit.sha, files: (d.files ?? []).map(trimFile) };
+      const sha = (await rest<string>(`/repos/${owner}/${repo}/commits/${encodeURIComponent(head)}`, { accept: "application/vnd.github.sha", text: true })).trim();
+      const d = await rest<CompareResponse>(`/repos/${owner}/${repo}/compare/${encodeURIComponent(base)}...${sha}?per_page=1`);
+      return { mergeBase: d.merge_base_commit.sha, head: sha, files: (d.files ?? []).map(trimFile) };
     },
   });
 }
