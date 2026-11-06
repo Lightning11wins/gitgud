@@ -6,7 +6,7 @@ import "./lib/theme";
 import { App } from "./App";
 import { installLinkPrefetch } from "./api/prefetch";
 import { startWarmUp } from "./api/warmUp";
-import { readRecent } from "./api/queryClient";
+import { collectCacheGarbage, readRecent } from "./api/queryClient";
 import { getToken, loadAuth } from "./auth/token";
 import { installClickGuard } from "./lib/clickGuard";
 
@@ -17,6 +17,7 @@ void loadAuth().then(async () => {
 startWarmUp();
 installLinkPrefetch();
 installClickGuard();
+setTimeout(() => collectCacheGarbage().catch(() => {}), 10_000);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -1,6 +1,6 @@
 import { QueryClient, hashKey, type QueryKey } from "@tanstack/react-query";
 import { experimental_createQueryPersister, type PersistedQuery } from "@tanstack/query-persist-client-core";
-import { clear, createStore, del, entries, get, getMany, keys as storedKeys, set } from "idb-keyval";
+import { clear, createStore, del, entries, get, getMany, keys as storedKeys, promisifyRequest, set } from "idb-keyval";
 import { getToken } from "@/auth/token";
 import { AuthError, GitHubError } from "./client";
 import { syncSubjects } from "./subjects";
@@ -77,6 +77,21 @@ export function readRecent(): Promise<{ apply: () => void }> {
 export async function clearCache() {
   queryClient.clear();
   await clear(cacheDb);
+}
+
+/** Deletes persisted queries that are expired or from another `CACHE_VERSION`, reading one at a time. */
+export async function collectCacheGarbage() {
+  const cutoff = Date.now() - MAX_AGE_MS;
+  await cacheDb("readwrite", (store) => {
+    store.openCursor().onsuccess = function () {
+      const cursor = this.result;
+      if (!cursor) return;
+      const q = cursor.value as PersistedQuery | undefined;
+      if (q?.buster !== CACHE_VERSION || !(q.state?.dataUpdatedAt > cutoff)) cursor.delete();
+      cursor.continue();
+    };
+    return promisifyRequest(store.transaction);
+  });
 }
 
 /** Bytes used by this origin (cache, drafts, token), as reported by the browser. */
