@@ -85,7 +85,8 @@ function checkDetail(c: CheckContext, outcome: CheckOutcome): string {
   return c.completedAt ? `${verb} in ${formatDuration(Date.parse(c.completedAt) - Date.parse(c.startedAt))}` : verb;
 }
 
-export function summarize(list: CheckContext[]) {
+/** Counts and a headline for `list`; `statusesOnly` words it for commit statuses when check runs are hidden. */
+export function summarize(list: CheckContext[], statusesOnly = false) {
   const counts: Record<CheckOutcome, number> = { success: 0, failure: 0, pending: 0, skipped: 0, neutral: 0, cancelled: 0, action: 0 };
   for (const c of list) counts[checkOutcome(c)]++;
   const failing = counts.failure + counts.action + counts.cancelled;
@@ -97,9 +98,11 @@ export function summarize(list: CheckContext[]) {
     counts.success && `${counts.success} successful`,
   ].filter(Boolean);
   const outcome: CheckOutcome = failing ? "failure" : counts.pending ? "pending" : "success";
+  const noun = statusesOnly ? "commit statuses" : "checks";
   const title =
-    outcome === "failure" ? "Some checks were not successful" : outcome === "pending" ? "Some checks haven't completed yet" : "All checks have passed";
-  return { counts, outcome, title, detail: `${parts.join(", ")} ${list.length === 1 ? "check" : "checks"}` };
+    outcome === "failure" ? `Some ${noun} were not successful` : outcome === "pending" ? `Some ${noun} haven't completed yet` : `All ${noun} have passed`;
+  const unit = statusesOnly ? (list.length === 1 ? "status" : "statuses") : list.length === 1 ? "check" : "checks";
+  return { counts, outcome, title, detail: `${parts.join(", ")} ${unit}` };
 }
 
 /** One check run or commit status with its status icon, duration, and a link to GitHub. */

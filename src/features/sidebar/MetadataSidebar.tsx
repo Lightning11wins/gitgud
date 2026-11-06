@@ -27,6 +27,7 @@ import {
   type SubjectUpdate,
 } from "./data";
 import "./sidebar.css";
+import { copyText } from "@/lib/clipboard";
 
 export interface MetadataSidebarProps {
   subject: SubjectMeta;
@@ -303,6 +304,8 @@ function SubIssues({ subject, owner, repo, editable, onError }: { subject: Subje
       await addSubIssue(subject.id, target.id);
       patchSubject("issue", owner, repo, subject.number, (s) => {
         const x = s as SubjectMeta & IssueExtras;
+        // A refetch that finished after the mutation may already list it.
+        if (x.subIssues.nodes.some((n) => n.id === target.id)) return {};
         return { subIssues: { totalCount: x.subIssues.totalCount + 1, nodes: [...x.subIssues.nodes, target] } } as Partial<SubjectMeta>;
       });
       setText("");
@@ -430,10 +433,10 @@ function CopyLinkButton({ url }: { url: string }) {
     <button
       className="btn invisible sm sidebar-action"
       onClick={() =>
-        navigator.clipboard?.writeText(url).then(() => {
+        copyText(url).then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 1500);
-        })
+        }, () => {})
       }
     >
       <LinkIcon /> {copied ? "Copied" : "Copy link"}

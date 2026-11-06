@@ -15,6 +15,7 @@ import { DiffHunk } from "./DiffHunk";
 import { ensurePendingReview, invalidateReview, usePendingReview } from "./pending";
 import { useReactions } from "./useReactions";
 import "./review.css";
+import { copyText } from "@/lib/clipboard";
 
 export interface ReviewThreadViewProps {
   thread: ReviewThread;
@@ -288,7 +289,7 @@ const ThreadComment = memo(function ThreadComment({ comment, threadId, owner, re
             <div className="select-menu-list">
               <button className="select-menu-item" onClick={() => {
                   setMenu(null);
-                  navigator.clipboard?.writeText(comment.url).catch(() => {});
+                  copyText(comment.url).catch(() => {});
                 }}>
                 Copy link
               </button>

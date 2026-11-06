@@ -25,6 +25,8 @@ export interface HunkLine {
   /** " " context, "-" deletion, "+" addition. */
   type: " " | "-" | "+";
   text: string;
+  /** Old text of a context line whose whitespace changed. */
+  oldText?: string;
   old: number;
   new: number;
 }
@@ -137,46 +139,108 @@ export function gapSize(hunks: Hunk[], g: number, headLen: number | undefined, e
   return Math.max(0, gap.end - gap.start + 1 - (exp ? exp.top + exp.bottom : 0));
 }
 
+function pushBlock(rows: Row[], dels: HunkLine[], adds: HunkLine[]) {
+  for (let i = 0; i < Math.max(dels.length, adds.length); i++) {
+    const L: Cell | undefined = dels[i] && { n: dels[i].old, t: dels[i].text, k: DEL };
+    const R: Cell | undefined = adds[i] && { n: adds[i].new, t: adds[i].text, k: ADD };
+    if (L && R) {
+      L.p = R;
+      R.p = L;
+    }
+    rows.push({ r: "l", L, R, c: true });
+  }
+}
+
 const norm = (s: string) => s.replace(/\s+/g, "");
 
-function pushBlock(rows: Row[], dels: HunkLine[], adds: HunkLine[], ignoreWs: boolean) {
-  const pair = (d: HunkLine[], a: HunkLine[]) => {
-    for (let i = 0; i < Math.max(d.length, a.length); i++) {
-      const L: Cell | undefined = d[i] && { n: d[i].old, t: d[i].text, k: DEL };
-      const R: Cell | undefined = a[i] && { n: a[i].new, t: a[i].text, k: ADD };
-      if (L && R) {
-        L.p = R;
-        R.p = L;
-      }
-      rows.push({ r: "l", L, R, c: true });
-    }
-  };
-  if (!ignoreWs || !dels.length || !adds.length || dels.length * adds.length > 250_000) return pair(dels, adds);
+/** Pairs a block's deletions with additions equal but for whitespace, which become context lines. */
+function matchWhitespace(out: HunkLine[], dels: HunkLine[], adds: HunkLine[]) {
+  if (!dels.length || !adds.length || dels.length * adds.length > 250_000) {
+    out.push(...dels, ...adds);
+    return;
+  }
   let di = 0;
   let ai = 0;
-  let pd: HunkLine[] = [];
-  let pa: HunkLine[] = [];
   for (const part of diffArrays(dels.map((l) => norm(l.text)), adds.map((l) => norm(l.text)))) {
     const count = part.value.length;
-    if (part.removed) pd.push(...dels.slice(di, (di += count)));
-    else if (part.added) pa.push(...adds.slice(ai, (ai += count)));
-    else {
-      pair(pd, pa);
-      pd = [];
-      pa = [];
+    if (part.removed) out.push(...dels.slice(di, (di += count)));
+    else if (part.added) out.push(...adds.slice(ai, (ai += count)));
+    else
       for (let i = 0; i < count; i++, di++, ai++) {
-        rows.push({ r: "l", L: { n: dels[di].old, t: dels[di].text, k: CTX }, R: { n: adds[ai].new, t: adds[ai].text, k: CTX }, c: true });
+        const d = dels[di];
+        const a = adds[ai];
+        out.push(d.text === a.text ? { type: " ", text: a.text, old: d.old, new: a.new } : { type: " ", text: a.text, oldText: d.text, old: d.old, new: a.new });
+      }
+  }
+}
+
+/**
+ * Hunks as `git diff -w` shows them: lines whose only change is whitespace become context,
+ * context is trimmed to `context` lines around the remaining changes, and hunks left without
+ * changes are dropped. Every line kept is a line of the original patch.
+ */
+export function ignoreWhitespace(hunks: Hunk[], context = 3): Hunk[] {
+  const out: Hunk[] = [];
+  for (const h of hunks) {
+    const lines: HunkLine[] = [];
+    let dels: HunkLine[] = [];
+    let adds: HunkLine[] = [];
+    for (const l of h.lines) {
+      if (l.type === "-" && adds.length) {
+        matchWhitespace(lines, dels, adds);
+        dels = [];
+        adds = [];
+      }
+      if (l.type === "-") dels.push(l);
+      else if (l.type === "+") adds.push(l);
+      else {
+        matchWhitespace(lines, dels, adds);
+        dels = [];
+        adds = [];
+        lines.push(l);
       }
     }
+    matchWhitespace(lines, dels, adds);
+
+    // Old and new line numbers at each line, counting from the hunk start.
+    const oldAt: number[] = [];
+    const newAt: number[] = [];
+    let o = h.oldStart;
+    let n = h.newStart;
+    for (const l of lines) {
+      oldAt.push(o);
+      newAt.push(n);
+      if (l.type !== "+") o++;
+      if (l.type !== "-") n++;
+    }
+    const changed = lines.flatMap((l, i) => (l.type === " " ? [] : [i]));
+    for (let c = 0; c < changed.length; ) {
+      let last = c;
+      while (last + 1 < changed.length && changed[last + 1] - changed[last] - 1 <= 2 * context) last++;
+      const from = Math.max(0, changed[c] - context);
+      const to = Math.min(lines.length - 1, changed[last] + context);
+      const slice = lines.slice(from, to + 1);
+      const oldLines = slice.filter((l) => l.type !== "+").length;
+      const newLines = slice.filter((l) => l.type !== "-").length;
+      out.push({
+        oldStart: oldLines ? oldAt[from] : oldAt[from] - 1,
+        oldLines,
+        newStart: newLines ? newAt[from] : newAt[from] - 1,
+        newLines,
+        section: h.section,
+        lines: slice,
+      });
+      c = last + 1;
+    }
   }
-  pair(pd, pa);
+  return out;
 }
 
 /**
  * Flattens hunks into split-view rows: hunk headers with expanders, expanded context
  * from `head` (the new file's lines), and paired deletion/addition lines.
  */
-export function buildRows(hunks: Hunk[], expansion: Record<number, GapExpansion>, head: string[] | undefined, ignoreWs: boolean, canExpand: boolean): Row[] {
+export function buildRows(hunks: Hunk[], expansion: Record<number, GapExpansion>, head: string[] | undefined, canExpand: boolean): Row[] {
   const rows: Row[] = [];
   const ctx = (gap: Gap, from: number, to: number) => {
     for (let n = from; n <= to; n++) {
@@ -207,7 +271,7 @@ export function buildRows(hunks: Hunk[], expansion: Record<number, GapExpansion>
     let dels: HunkLine[] = [];
     let adds: HunkLine[] = [];
     const flush = () => {
-      if (dels.length || adds.length) pushBlock(rows, dels, adds, ignoreWs);
+      if (dels.length || adds.length) pushBlock(rows, dels, adds);
       dels = [];
       adds = [];
     };
@@ -218,7 +282,7 @@ export function buildRows(hunks: Hunk[], expansion: Record<number, GapExpansion>
       } else if (l.type === "+") adds.push(l);
       else {
         flush();
-        rows.push({ r: "l", L: { n: l.old, t: l.text, k: CTX }, R: { n: l.new, t: l.text, k: CTX }, c: true });
+        rows.push({ r: "l", L: { n: l.old, t: l.oldText ?? l.text, k: CTX }, R: { n: l.new, t: l.text, k: CTX }, c: true });
       }
     }
     flush();

@@ -11,6 +11,7 @@ import { quote } from "@/features/composer/format";
 import type { MinimizeReason } from "./mutations";
 import { ReactionBar } from "@/components/Reactions";
 import type { CommentLike } from "./types";
+import { copyText } from "@/lib/clipboard";
 
 const ASSOCIATION: Record<string, string> = {
   OWNER: "Owner",
@@ -118,7 +119,7 @@ export function CommentCard(props: CommentCardProps) {
               <button
                 className="select-menu-item"
                 onClick={() => {
-                  navigator.clipboard?.writeText(c.url).then(() => setCopied(true));
+                  copyText(c.url).then(() => setCopied(true), () => {});
                   setTimeout(() => setCopied(false), 1500);
                   setMenu(null);
                 }}

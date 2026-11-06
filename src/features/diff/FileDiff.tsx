@@ -26,6 +26,7 @@ import {
   diffContents,
   expandGap,
   hiddenReason,
+  ignoreWhitespace,
   isBinaryText,
   parsePatch,
   sideLines,
@@ -38,6 +39,7 @@ import {
   type Row,
 } from "./model";
 import { useNear, useScheduled } from "./schedule";
+import { copyText } from "@/lib/clipboard";
 
 export interface PullContext {
   owner: string;
@@ -135,10 +137,10 @@ function FileHeader({ file, source, collapsed, viewed, comments, onToggleCollaps
         title="Copy path"
         aria-label="Copy path"
         onClick={() => {
-          navigator.clipboard?.writeText(file.filename).then(() => {
+          copyText(file.filename).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 1200);
-          });
+          }, () => {});
         }}
       >
         {copied ? <CheckIcon /> : <CopyIcon />}
@@ -210,9 +212,10 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
   const needsFetch = file.patch === undefined && file.changes > 0;
   const [load, setLoad] = useState(!hidden && !needsFetch);
   // Expanded gaps and fetched head lines, tagged with the diff version they belong to.
-  const [expansionState, setExpansion] = useState<{ id: string; gaps: Record<number, GapExpansion> }>({ id: source.id, gaps: {} });
+  const gapsId = ignoreWs ? `${source.id}:w` : source.id;
+  const [expansionState, setExpansion] = useState<{ id: string; gaps: Record<number, GapExpansion> }>({ id: gapsId, gaps: {} });
   const [headState, setHead] = useState<{ id: string; lines: string[] }>();
-  const expansion = expansionState.id === source.id ? expansionState.gaps : NO_GAPS;
+  const expansion = expansionState.id === gapsId ? expansionState.gaps : NO_GAPS;
   const head = headState?.id === source.id ? headState.lines : undefined;
   const [expandError, setExpandError] = useState<unknown>(null);
   const [sel, setSel] = useState<Selection | null>(null);
@@ -238,19 +241,22 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
     },
   });
 
-  const hunks = useMemo(() => (file.patch !== undefined ? parsePatch(file.patch) : (loaded.data?.hunks ?? [])), [file.patch, loaded.data]);
+  const patchHunks = useMemo(() => (file.patch !== undefined ? parsePatch(file.patch) : (loaded.data?.hunks ?? [])), [file.patch, loaded.data]);
+  const hunks = useMemo(() => (ignoreWs ? ignoreWhitespace(patchHunks) : patchHunks), [ignoreWs, patchHunks]);
   const headLines = head ?? loaded.data?.head;
   const canExpand = file.status !== "added" && file.status !== "removed" && hunks.length > 0;
-  const rows = useMemo(() => (load ? buildRows(hunks, expansion, headLines, ignoreWs, canExpand) : []), [load, hunks, expansion, headLines, ignoreWs, canExpand]);
+  const rows = useMemo(() => (load ? buildRows(hunks, expansion, headLines, canExpand) : []), [load, hunks, expansion, headLines, canExpand]);
 
   const lang = useMemo(() => languageFor(file.filename), [file.filename]);
   const rendering = load && rows.length > 0;
   const pri = near ? PRI_VISIBLE : PRI_IDLE;
-  const leftSide = useMemo(() => (rendering ? sideLines(hunks, "L") : null), [rendering, hunks]);
-  const rightSide = useMemo(() => (rendering ? sideLines(hunks, "R") : null), [rendering, hunks]);
+  // Far files queue their highlight jobs one at a time while the page is idle.
+  const highlight = useScheduled(ref, rendering, rows.length) && rendering;
+  const leftSide = useMemo(() => (highlight ? sideLines(patchHunks, "L") : null), [highlight, patchHunks]);
+  const rightSide = useMemo(() => (highlight ? sideLines(patchHunks, "R") : null), [highlight, patchHunks]);
   const lt = useTokens(leftSide?.nums.length ? `${source.id}:${file.filename}:L` : null, lang, () => leftSide!.text, pri);
   const rt = useTokens(rightSide?.nums.length ? `${source.id}:${file.filename}:R` : null, lang, () => rightSide!.text, pri);
-  const ft = useTokens(rendering && headLines ? `${source.id}:${file.filename}:full` : null, lang, () => headLines!.join("\n"), pri);
+  const ft = useTokens(highlight && headLines ? `${source.id}:${file.filename}:full` : null, lang, () => headLines!.join("\n"), pri);
   const ltok = useMemo<SideTok | null>(() => (lt && leftSide ? { tokens: lt, idx: patchIndex(leftSide.nums) } : null), [lt, leftSide]);
   const rtok = useMemo<SideTok | null>(() => {
     if (ft) return { tokens: ft, idx: (n) => n - 1 };
@@ -275,12 +281,38 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
       }
       const len = lines.length;
       setExpansion((prev) => {
-        const gaps = prev.id === id ? prev.gaps : {};
-        return { id, gaps: { ...gaps, [gap]: expandGap(hunks, gap, len, gaps[gap], dir) } };
+        const gaps = prev.id === gapsId ? prev.gaps : {};
+        return { id: gapsId, gaps: { ...gaps, [gap]: expandGap(hunks, gap, len, gaps[gap], dir) } };
       });
     },
-    [headLines, hunks, source, file.filename],
+    [headLines, hunks, source, file.filename, gapsId],
   );
+
+  // Hunk of each commentable line per side; GitHub rejects comment ranges that span hunks.
+  const hunkOf = useMemo(() => {
+    const L = new Map<number, number>();
+    const R = new Map<number, number>();
+    let h = 0;
+    for (const r of rows) {
+      if (r.r === "h" || !r.c) {
+        h++;
+        continue;
+      }
+      if (r.L) L.set(r.L.n, h);
+      if (r.R) R.set(r.R.n, h);
+    }
+    return { L, R };
+  }, [rows]);
+  /** `b` moved toward `a` until both are in the same hunk. */
+  const clampEnd = (side: "L" | "R", a: number, b: number) => {
+    const m = hunkOf[side];
+    const h = m.get(a);
+    if (h === undefined || m.get(b) === h) return b;
+    const step = b > a ? 1 : -1;
+    let n = a;
+    while (n !== b && m.get(n + step) === h) n += step;
+    return n;
+  };
 
   // Line selection for new comments: mousedown on a line number, drag or shift-click to extend.
   const commentable = !!pull;
@@ -291,7 +323,7 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
     const side = el.dataset.s as "L" | "R";
     const n = Number(el.dataset.n);
     dragging.current = `${e.clientX},${e.clientY}`;
-    setSel((prev) => (e.shiftKey && prev && prev.side === side ? { side, a: prev.a, b: n, open: false } : { side, a: n, b: n, open: false }));
+    setSel((prev) => (e.shiftKey && prev && prev.side === side ? { side, a: prev.a, b: clampEnd(side, prev.a, n), open: false } : { side, a: n, b: n, open: false }));
   };
   const onMouseOver = (e: MouseEvent) => {
     // Layout shifts under a still pointer (e.g. the open form closing) also fire mouseover; only real moves extend the range.
@@ -302,7 +334,11 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
     if (!el) return;
     const side = el.dataset.s;
     const n = Number(el.dataset.n);
-    setSel((prev) => (prev && prev.side === side && prev.b !== n ? { ...prev, b: n } : prev));
+    setSel((prev) => {
+      if (!prev || prev.side !== side) return prev;
+      const b = clampEnd(prev.side, prev.a, n);
+      return prev.b !== b ? { ...prev, b } : prev;
+    });
   };
   useEffect(() => {
     const up = () => {
@@ -320,6 +356,17 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
     for (let i = 0; i < rows.length; i += CHUNK_ROWS) out.push(rows.slice(i, i + CHUNK_ROWS));
     return out;
   }, [rows]);
+  // Row indices in each chunk that start a run of changed lines, for j/k.
+  const chunkBlocks = useMemo(() => {
+    const out: string[][] = chunks.map(() => []);
+    let prev = false;
+    rows.forEach((r, i) => {
+      const changed = r.r === "l" && ((!!r.L && r.L.k !== CTX) || (!!r.R && r.R.k !== CTX));
+      if (changed && !prev) out[Math.floor(i / CHUNK_ROWS)].push(String(i % CHUNK_ROWS));
+      prev = changed;
+    });
+    return out.map((b) => b.join(","));
+  }, [chunks, rows]);
 
   const range = sel && { side: sel.side, start: Math.min(sel.a, sel.b), end: Math.max(sel.a, sel.b) };
   const suggestion = useMemo(() => {
@@ -351,9 +398,9 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
 
   const maxNum = useMemo(() => {
     let m = 0;
-    for (const h of hunks) m = Math.max(m, h.oldStart + h.oldLines, h.newStart + h.newLines);
+    for (const h of patchHunks) m = Math.max(m, h.oldStart + h.oldLines, h.newStart + h.newLines);
     return Math.max(m, headLines?.length ?? 0);
-  }, [hunks, headLines]);
+  }, [patchHunks, headLines]);
   const nw = `${Math.max(3, String(maxNum).length) + 3}ch`;
 
   const top = (
@@ -371,7 +418,8 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
           {unplaced.length > 0 && (
             <details>
               <summary className="muted">
-                {unplaced.length} outdated {unplaced.length === 1 ? "conversation" : "conversations"} not shown in this diff
+                {unplaced.length} {load && unplaced.every((t) => t.isOutdated) ? "outdated " : ""}
+                {unplaced.length === 1 ? "conversation" : "conversations"} {load ? "not shown in this diff" : "on this file"}
               </summary>
               {unplaced.map((t) => (
                 <ReviewThreadView key={t.id} thread={t} owner={pull.owner} repo={pull.repo} number={pull.number} pullId={pull.pullId} showHunk />
@@ -396,6 +444,7 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
   } else if (loaded.isLoading) notice = <Spinner />;
   else if (loaded.error) notice = <ErrorBanner error={loaded.error} action={<button className="btn sm" onClick={() => loaded.refetch()}>Retry</button>} />;
   else if (loaded.data?.binary || (file.patch === undefined && file.changes === 0 && file.status !== "renamed")) notice = <span>Binary file not shown.</span>;
+  else if (!rows.length && patchHunks.length) notice = <span>Whitespace-only changes.</span>;
   else if (!rows.length) notice = <span>{file.status === "renamed" ? "File renamed without changes." : file.status === "added" ? "Empty file added." : file.status === "removed" ? "Empty file deleted." : "File mode changed."}</span>;
 
   return (
@@ -411,6 +460,7 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
             <Chunk
               key={i}
               rows={c}
+              blocks={chunkBlocks[i]}
               ltok={ltok}
               rtok={rtok}
               lmap={lmap}
@@ -469,6 +519,8 @@ function placeThreads(threads: ReviewThread[] | undefined, rows: Row[]) {
 
 interface ChunkProps {
   rows: Row[];
+  /** Comma-separated row indices that start a change block. */
+  blocks: string;
   ltok: SideTok | null;
   rtok: SideTok | null;
   lmap: Map<number, ReviewThread[]>;
@@ -482,11 +534,12 @@ interface ChunkProps {
 const KIND_CLASS = ["ctx", "del", "add"] as const;
 
 /** Up to CHUNK_ROWS rows in one grid; mounted when near the viewport or when the page is idle. */
-const Chunk = memo(function Chunk({ rows, ltok, rtok, lmap, rmap, pull, sel, form, onExpand }: ChunkProps) {
+const Chunk = memo(function Chunk({ rows, blocks, ltok, rtok, lmap, rmap, pull, sel, form, onExpand }: ChunkProps) {
   const ref = useRef<HTMLDivElement>(null);
   const mounted = useScheduled(ref, true, rows.length);
   const colored = useScheduled(ref, mounted && !!(ltok || rtok), rows.length);
-  if (!mounted) return <div ref={ref} className="dk-ph" style={{ height: rows.length * ROW_H }} />;
+  if (!mounted) return <div ref={ref} className="dk-ph" data-blocks={blocks || undefined} style={{ height: rows.length * ROW_H }} />;
+  const starts = blocks ? blocks.split(",").map(Number) : [];
   const L = colored ? ltok : null;
   const R = colored ? rtok : null;
   const out: ReactNode[] = [];
@@ -500,11 +553,12 @@ const Chunk = memo(function Chunk({ rows, ltok, rtok, lmap, rmap, pull, sel, for
     const c = row.c && !!pull;
     const lSel = !!sel && sel.side === "L" && !!row.L && row.L.n >= sel.start && row.L.n <= sel.end;
     const rSel = !!sel && sel.side === "R" && !!row.R && row.R.n >= sel.start && row.R.n <= sel.end;
-    let lTok = L && row.L ? lookup(L, row.L.n) : null;
+    // Expanded context shows head text on both sides, so it takes the right side's tokens.
+    let lTok = L && row.L && row.c ? lookup(L, row.L.n) : null;
     if (!lTok && row.L?.k === CTX && row.R && R) lTok = lookup(R, row.R.n);
     const rTok = R && row.R ? lookup(R, row.R.n) : null;
     out.push(
-      <NumCell key={`${key}a`} cell={row.L} side="L" c={c} sel={lSel} />,
+      <NumCell key={`${key}a`} cell={row.L} side="L" c={c} sel={lSel} blk={starts.includes(i)} />,
       <CodeCell key={`${key}b`} cell={row.L} tok={lTok} sel={lSel} />,
       <NumCell key={`${key}c`} cell={row.R} side="R" c={c} sel={rSel} />,
       <CodeCell key={`${key}d`} cell={row.R} tok={rTok} sel={rSel} />,
@@ -527,7 +581,7 @@ const Chunk = memo(function Chunk({ rows, ltok, rtok, lmap, rmap, pull, sel, for
     }
   }
   return (
-    <div ref={ref} className="dk" style={{ containIntrinsicSize: `auto ${rows.length * ROW_H}px` }}>
+    <div ref={ref} className="dk" data-blocks={blocks || undefined} style={{ containIntrinsicSize: `auto ${rows.length * ROW_H}px` }}>
       {out}
     </div>
   );
@@ -538,9 +592,9 @@ function lookup(s: SideTok, n: number): { tokens: Tokens; i: number } | null {
   return i >= 0 && i < s.tokens.starts.length - 1 ? { tokens: s.tokens, i } : null;
 }
 
-function NumCell({ cell, side, c, sel }: { cell?: Cell; side: "L" | "R"; c: boolean; sel: boolean }) {
-  if (!cell) return <div className="dn empty" />;
-  return <div className={`dn ${KIND_CLASS[cell.k]}${sel ? " sel" : ""}`} data-n={cell.n} data-s={side} data-c={c ? "" : undefined} />;
+function NumCell({ cell, side, c, sel, blk }: { cell?: Cell; side: "L" | "R"; c: boolean; sel: boolean; blk?: boolean }) {
+  if (!cell) return <div className="dn empty" data-blk={blk ? "" : undefined} />;
+  return <div className={`dn ${KIND_CLASS[cell.k]}${sel ? " sel" : ""}`} data-n={cell.n} data-s={side} data-c={c ? "" : undefined} data-blk={blk ? "" : undefined} />;
 }
 
 function CodeCell({ cell, tok, sel }: { cell?: Cell; tok: { tokens: Tokens; i: number } | null; sel: boolean }) {

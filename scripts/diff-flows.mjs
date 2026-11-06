@@ -180,6 +180,9 @@ if (flag("write")) {
   await page.waitForTimeout(3000);
   check("file-level thread shows at the file top", (await inv.locator(".df-threads").count()) === 1);
   await shot("file-thread");
+  const pendingIds = execFileSync("gh", ["api", "graphql", "-f", `query={ repository(owner:"Lightning11wins", name:"gitgud-sandbox") { pullRequest(number:${number}) { reviews(states:PENDING, first:5) { nodes { id } } } } }`, "--jq", ".data.repository.pullRequest.reviews.nodes[].id"], { encoding: "utf8" }).split("\n").filter(Boolean);
+  for (const id of pendingIds) execFileSync("gh", ["api", "graphql", "-f", `query=mutation { deletePullRequestReview(input: { pullRequestReviewId: "${id}" }) { clientMutationId } }`]);
+  console.log(`discarded ${pendingIds.length} pending review(s)`);
 }
 
 await browser.close();

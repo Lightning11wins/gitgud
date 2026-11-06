@@ -16,6 +16,8 @@ interface Entry {
   tokens: Tokens | null | undefined;
   pri: number;
   listeners: Set<() => void>;
+  /** Mounted users near the viewport; their entries are never evicted. */
+  holders: number;
 }
 
 const MAX_ENTRIES = 800;
@@ -62,7 +64,7 @@ const post = (m: WorkerRequest) => getWorker().postMessage(m);
 function evict() {
   for (const [key, e] of entries) {
     if (entries.size <= MAX_ENTRIES) return;
-    if (e.listeners.size) continue;
+    if (e.listeners.size || e.holders) continue;
     if (e.tokens === undefined) {
       post({ type: "cancel", id: e.id });
       byId.delete(e.id);
@@ -82,7 +84,7 @@ function request(key: string, lang: string, code: () => string, pri: number): En
     }
     return e;
   }
-  e = { id: nextId++, tokens: undefined, pri, listeners: new Set() };
+  e = { id: nextId++, tokens: undefined, pri, listeners: new Set(), holders: 0 };
   entries.set(key, e);
   const text = code();
   if (text.length > MAX_CHARS) e.tokens = null;
@@ -102,6 +104,14 @@ export function useTokens(key: string | null, lang: string | null, code: () => s
   const [, force] = useState(0);
   const entry = key && lang ? request(key, lang, code, pri) : null;
   const pending = entry?.tokens === undefined;
+  const visible = pri >= PRI_VISIBLE;
+  useEffect(() => {
+    if (!entry || !visible) return;
+    entry.holders++;
+    return () => {
+      entry.holders--;
+    };
+  }, [entry, visible]);
   useEffect(() => {
     if (!entry || !pending) return;
     const l = () => force((n) => n + 1);

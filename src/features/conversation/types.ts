@@ -118,4 +118,6 @@ export interface TimelineData {
   endCursor: string | null;
   /** When every item was last fetched from scratch (ms). */
   fullAt: number;
+  /** An earlier item changed since `fullAt`, so the timeline reloads from scratch once `fullAt` is old. */
+  edited?: boolean;
 }

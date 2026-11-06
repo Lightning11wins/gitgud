@@ -1,11 +1,11 @@
-import { FoldIcon, SidebarCollapseIcon, SidebarExpandIcon, UnfoldIcon } from "@primer/octicons-react";
+import { FoldIcon, SidebarCollapseIcon, SidebarExpandIcon, UnfoldIcon, XIcon } from "@primer/octicons-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "react-router";
 import type { ReviewThread } from "@/api/types";
 import { Spinner } from "@/components/Spinner";
 import { useHotkey } from "@/lib/hotkeys";
 import type { DiffSource, ViewedMap } from "./data";
-import { FileDiff, fileDomId, type PullContext } from "./FileDiff";
+import { FileDiff, ROW_H, fileDomId, type PullContext } from "./FileDiff";
 import { FileTree, buildTree, treeOrder } from "./FileTree";
 import type { DiffFile } from "./model";
 import "./diff.css";
@@ -17,6 +17,9 @@ export interface DiffViewProps {
   threads?: ReviewThread[];
   viewed?: ViewedMap;
   onSetViewed?: (paths: string[], viewed: boolean) => void;
+  /** The last failed viewed toggle, shown in the toolbar until dismissed. */
+  viewedError?: unknown;
+  onDismissViewedError?: () => void;
   fetching?: boolean;
   /** Shown above the toolbar, e.g. a truncation warning. */
   notice?: string;
@@ -41,7 +44,7 @@ function stickyTop(): number {
 }
 
 /** Split diff of many files with a file tree, viewed state, and inline review threads. */
-export function DiffView({ files, source, pull, threads, viewed, onSetViewed, fetching, notice }: DiffViewProps) {
+export function DiffView({ files, source, pull, threads, viewed, onSetViewed, viewedError, onDismissViewedError, fetching, notice }: DiffViewProps) {
   const [params, setParams] = useSearchParams();
   const ignoreWs = params.get("w") === "1";
   const root = useMemo(() => buildTree(files), [files]);
@@ -167,19 +170,71 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, fe
   useHotkey("p", () => stepFile(-1));
   useHotkey("v", () => active && onToggleViewed(active), !!viewed && !!onSetViewed);
 
+  // j/k next/previous change block, placed one row below the sticky toolbar and file header.
+  const blockAlign = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(blockAlign.current), []);
+  const stepBlock = (d: 1 | -1) => {
+    const rootEl = rootRef.current;
+    if (!rootEl) return;
+    const bar = rootEl.querySelector(".dv-toolbar")?.getBoundingClientRect().height ?? 0;
+    const head = rootEl.querySelector(".df-head")?.getBoundingClientRect().height ?? 0;
+    const anchorAt = () => stickyTop() + bar + head + ROW_H;
+    const anchor = anchorAt();
+    // Unmounted chunks are placeholders of fixed-height rows; mounted ones mark block starts with data-blk.
+    const tops = (el: HTMLElement) =>
+      el.classList.contains("dk-ph")
+        ? el.dataset.blocks!.split(",").map((i) => el.getBoundingClientRect().top + Number(i) * ROW_H)
+        : [...el.querySelectorAll("[data-blk]")].map((c) => c.getBoundingClientRect().top);
+    const chunks = [...rootEl.querySelectorAll<HTMLElement>(".dv-files [data-blocks]")];
+    let target: { el: HTMLElement; k: number } | null = null;
+    for (let c = d === 1 ? 0 : chunks.length - 1; !target && c >= 0 && c < chunks.length; c += d) {
+      const el = chunks[c];
+      const box = el.getBoundingClientRect();
+      if (d === 1 ? box.bottom <= anchor + 1 : box.top >= anchor - 1) continue;
+      const t = tops(el);
+      const k = d === 1 ? t.findIndex((y) => y > anchor + 1) : t.findLastIndex((y) => y < anchor - 1);
+      if (k >= 0) target = { el, k };
+    }
+    if (!target) return;
+    const { el, k } = target;
+    const align = () => {
+      const y = tops(el)[k];
+      if (y !== undefined) window.scrollBy(0, y - anchorAt());
+    };
+    align();
+    // The chunk mounts once near the viewport and sizes around it settle; keep aligning for a few frames.
+    cancelAnimationFrame(blockAlign.current);
+    let frames = 0;
+    const tick = () => {
+      align();
+      if (++frames < 8) blockAlign.current = requestAnimationFrame(tick);
+    };
+    blockAlign.current = requestAnimationFrame(tick);
+  };
+  useHotkey("j", () => stepBlock(1));
+  useHotkey("k", () => stepBlock(-1));
+
+  const stopResize = useRef<(() => void) | null>(null);
+  useEffect(() => () => stopResize.current?.(), []);
   const startResize = (e: React.PointerEvent) => {
     const startX = e.clientX;
     const startW = treeWidth;
     const move = (ev: PointerEvent) => setTreeWidth(Math.max(180, Math.min(600, startW + ev.clientX - startX)));
-    const up = (ev: PointerEvent) => {
+    const stop = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      stopResize.current = null;
+    };
+    const up = (ev: PointerEvent) => {
+      stop();
       try {
         localStorage.setItem(TREE_WIDTH_KEY, String(Math.max(180, Math.min(600, startW + ev.clientX - startX))));
       } catch {
         // Storage blocked; the width lasts for this session.
       }
     };
+    stopResize.current?.();
+    stopResize.current = stop;
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
   };
@@ -202,6 +257,16 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, fe
         </span>
         {fetching && <Spinner size={14} />}
         <span className="grow" />
+        {viewedError != null && (
+          <span className="flash error row dv-flash" role="alert">
+            <span className="truncate">{viewedError instanceof Error ? viewedError.message : String(viewedError)}</span>
+            {onDismissViewedError && (
+              <button className="btn invisible xs icon" aria-label="Dismiss" onClick={onDismissViewedError}>
+                <XIcon />
+              </button>
+            )}
+          </span>
+        )}
         <label className="row dv-ws" title="Hide whitespace-only changes">
           <input
             type="checkbox"

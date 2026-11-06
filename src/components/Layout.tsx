@@ -171,10 +171,11 @@ function UserMenu() {
 
 const SHORTCUTS: [string, string][] = [
   ["/", "Focus the jump box"],
-  ["j / k", "Next / previous item"],
+  ["j / k", "Next / previous item, or change in Files changed"],
   ["Enter / o", "Open selected item"],
   ["r", "Reply / focus the comment box"],
   ["n / p", "Next / previous file in Files changed"],
+  ["v", "Toggle viewed on the current file"],
   ["Ctrl+Enter", "Submit the comment you're writing"],
   ["Esc", "Cancel / close"],
   ["?", "Show this help"],

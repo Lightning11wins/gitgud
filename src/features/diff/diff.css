@@ -20,6 +20,13 @@
   gap: 4px;
   cursor: pointer;
 }
+.dv-flash {
+  min-width: 0;
+  max-width: 50%;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
+  font-size: 12px;
+}
 .dv-viewed {
   display: inline-flex;
   align-items: center;

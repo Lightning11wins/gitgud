@@ -1,5 +1,6 @@
 import { CheckIcon, CopyIcon } from "@primer/octicons-react";
 import { useEffect, useState } from "react";
+import { copyText } from "@/lib/clipboard";
 
 export function CopyButton({ text, label = "Copy", size = 14 }: { text: string; label?: string; size?: number }) {
   const [copied, setCopied] = useState(false);
@@ -17,7 +18,7 @@ export function CopyButton({ text, label = "Copy", size = 14 }: { text: string; 
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        navigator.clipboard.writeText(text).then(() => setCopied(true), () => {});
+        copyText(text).then(() => setCopied(true), () => {});
       }}
     >
       {copied ? <CheckIcon size={size} className="pull-copied" /> : <CopyIcon size={size} />}

@@ -186,6 +186,8 @@ export const PULL_ITEM_TYPES = [
 const PAGE = `pageInfo { hasNextPage endCursor } filteredCount`;
 /** Count of all matching items, ignoring the cursor; used to detect deletions on resume. */
 const TOTAL = `total: timelineItems(first: 0, itemTypes: $types) @include(if: $withTotal) { filteredCount }`;
+/** Count of the item types GitHub can insert before the cursor; see `MOVABLE_TYPENAMES` in timelineMerge.ts. */
+const movable = (types: string) => `movable: timelineItems(first: 0, itemTypes: [${types}]) @include(if: $withTotal) { filteredCount }`;
 
 export const ISSUE_TIMELINE_QUERY = `
   query IssueTimeline($owner: String!, $repo: String!, $number: Int!, $after: String, $skip: Int, $withTotal: Boolean!, $types: [IssueTimelineItemsItemType!]) {
@@ -193,6 +195,7 @@ export const ISSUE_TIMELINE_QUERY = `
       issue(number: $number) {
         timelineItems(first: 100, after: $after, skip: $skip, itemTypes: $types) { ${PAGE} nodes { ${COMMON_ITEMS} } }
         ${TOTAL}
+        ${movable("REFERENCED_EVENT")}
       }
     }
   }`;
@@ -203,6 +206,7 @@ export const PULL_TIMELINE_QUERY = `
       pullRequest(number: $number) {
         timelineItems(first: 100, after: $after, skip: $skip, itemTypes: $types) { ${PAGE} nodes { ${COMMON_ITEMS} ${PULL_ITEMS} } }
         ${TOTAL}
+        ${movable("PULL_REQUEST_COMMIT, PULL_REQUEST_COMMIT_COMMENT_THREAD, REFERENCED_EVENT")}
       }
     }
   }`;

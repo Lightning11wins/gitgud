@@ -4,6 +4,8 @@ export const keys = {
   dashboard: (section: string) => ["dashboard", section] as const,
   repoList: (owner: string, repo: string, query: string) => ["repo-list", owner, repo, query] as const,
   repoMeta: (owner: string, repo: string) => ["repo", owner, repo] as const,
+  /** Repo header and open/closed counts for the list filter `base`. */
+  repoCounts: (owner: string, repo: string, base: string) => ["repo-header", owner, repo, base] as const,
   issue: (owner: string, repo: string, number: number) => ["issue", owner, repo, number] as const,
   pull: (owner: string, repo: string, number: number) => ["pull", owner, repo, number] as const,
   timeline: (owner: string, repo: string, number: number) => ["timeline", owner, repo, number] as const,

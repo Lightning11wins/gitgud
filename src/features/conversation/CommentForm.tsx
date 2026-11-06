@@ -41,6 +41,8 @@ export function CommentForm({ kind, owner, repo, number, subject, handle, locked
   const [reason, setReason] = useState<CloseReason>("COMPLETED");
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const [dupFor, setDupFor] = useState<ComposerActionContext | null>(null);
+  /** A comment posted by "Close with comment" whose close or reopen then failed; a retry skips posting it. */
+  const [posted, setPosted] = useState<{ subjectId: string; body: string } | null>(null);
   const canClose = subject.viewerCanUpdate || canTriage(subject.repository.viewerPermission);
   const isOpen = subject.state === "OPEN";
 
@@ -81,17 +83,30 @@ export function CommentForm({ kind, owner, repo, number, subject, handle, locked
     invalidateSubject(kind, owner, repo, number);
   };
 
+  const isPosted = (body: string) => posted?.subjectId === subject.id && posted.body === body;
+
   const setState = async (body: string, close: boolean, why: CloseReason = reason, duplicateId?: string) => {
-    if (body.trim()) await comment(body);
-    if (kind === "issue") await (close ? closeIssue(subject.id, why, duplicateId) : reopenIssue(subject.id));
-    else await (close ? closePull(subject.id) : reopenPull(subject.id));
+    if (body.trim() && !isPosted(body)) {
+      await comment(body);
+      setPosted({ subjectId: subject.id, body });
+    }
+    try {
+      if (kind === "issue") await (close ? closeIssue(subject.id, why, duplicateId) : reopenIssue(subject.id));
+      else await (close ? closePull(subject.id) : reopenPull(subject.id));
+    } catch (e) {
+      if (!body.trim()) throw e;
+      const noun = kind === "issue" ? "issue" : "pull request";
+      const message = (e instanceof Error ? e.message : String(e)).replace(/\.$/, "");
+      throw new Error(`${message}. Your comment was posted; retrying only ${close ? "closes" : "reopens"} the ${noun}.`, { cause: e });
+    }
+    setPosted(null);
     patchSubject(kind, owner, repo, number, () => (kind === "issue" ? { state: close ? "CLOSED" : "OPEN", stateReason: close ? why : "REOPENED" } : { state: close ? "CLOSED" : "OPEN" }));
     invalidateSubject(kind, owner, repo, number);
   };
 
   const actions = (ctx: ComposerActionContext) => {
     if (!canClose || subject.state === "MERGED") return null;
-    const withText = ctx.value.trim().length > 0;
+    const withText = ctx.value.trim().length > 0 && !isPosted(ctx.value);
     const noun = kind === "issue" ? "issue" : "pull request";
     if (!isOpen) {
       return (

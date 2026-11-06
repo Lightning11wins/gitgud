@@ -70,6 +70,7 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
   }
   const pull = q.data;
   const base = `/${owner}/${repo}/pull/${number}`;
+  const checkCount = pull.rollup?.totalCount ?? 0;
   const panel = (t: Tab, node: ReactNode) =>
     KEPT_TABS.includes(t) && (visited.has(t) || (tab === t && !sha)) ? (
       <div key={t} hidden={tab !== t || !!sha}>
@@ -91,7 +92,13 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
           count={pull.commits.totalCount}
           onIntent={() => prefetchCommits(owner, repo, number)}
         />
-        <TabLink to={`${base}/checks`} active={tab === "checks"} icon={<ChecklistIcon />} label="Checks" count={pull.rollup?.totalCount ?? 0} />
+        <TabLink
+          to={`${base}/checks`}
+          active={tab === "checks"}
+          icon={<ChecklistIcon />}
+          label="Checks"
+          count={pull.checkRunsHidden ? (checkCount ? `${checkCount}+` : "?") : checkCount}
+        />
         <TabLink to={`${base}/files`} active={tab === "files"} icon={<FileDiffIcon />} label="Files changed" count={pull.changedFiles} />
         <span className="grow" />
         <span className="pull-diffstat">
@@ -124,7 +131,7 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
   );
 }
 
-function TabLink(props: { to: string; active: boolean; icon: ReactNode; label: string; count: number; onIntent?: () => void }) {
+function TabLink(props: { to: string; active: boolean; icon: ReactNode; label: string; count: number | string; onIntent?: () => void }) {
   return (
     <Link to={props.to} className={props.active ? "active" : undefined} onMouseEnter={props.onIntent} onFocus={props.onIntent}>
       <span className="muted pull-tab-icon">{props.icon}</span>

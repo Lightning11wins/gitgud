@@ -4,6 +4,7 @@ import { keys } from "@/api/keys";
 import { registerPrefetcher } from "@/api/prefetch";
 import { queryClient } from "@/api/queryClient";
 import { ACTOR_FIELDS, PULL_ONLY_FIELDS, SUBJECT_META_FIELDS, type Actor, type SubjectMeta } from "@/api/types";
+import { getToken } from "@/auth/token";
 
 export type MergeMethod = "MERGE" | "SQUASH" | "REBASE";
 export type Mergeable = "MERGEABLE" | "CONFLICTING" | "UNKNOWN";
@@ -96,6 +97,8 @@ export interface PullMeta extends SubjectMeta {
   /** Checks and statuses of the head commit; null when there are none or the token can't read them. */
   rollup: CheckRollup | null;
   checksForbidden: boolean;
+  /** The head commit has check suites whose runs the token can't see (fine-grained tokens on private repos). */
+  checkRunsHidden: boolean;
 }
 
 export const CHECK_CONTEXT_FIELDS = `
@@ -108,14 +111,14 @@ export const CHECK_CONTEXT_FIELDS = `
 `;
 
 const ROLLUP_FIELDS = `
-  headCommit: commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 100) {
+  headCommit: commits(last: 1) { nodes { commit { checkSuites { totalCount } statusCheckRollup { state contexts(first: 100) {
     totalCount pageInfo { hasNextPage endCursor } nodes { ${CHECK_CONTEXT_FIELDS} }
   } } } } }
 `;
 
 export const pullQuery = (withChecks: boolean) => `query PullMeta($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
-    mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed deleteBranchOnMerge viewerDefaultMergeMethod
+    isPrivate mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed deleteBranchOnMerge viewerDefaultMergeMethod
     pullRequest(number: $number) {
       ${SUBJECT_META_FIELDS} ${PULL_ONLY_FIELDS}
       baseRefName headRefName headRefOid baseRefOid isCrossRepository
@@ -143,12 +146,12 @@ interface RawRollup {
   contexts: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: (CheckContext | null)[] };
 }
 
-type RawPull = Omit<PullMeta, "mergeSettings" | "rollup" | "checksForbidden"> & {
-  headCommit?: { nodes: { commit: { statusCheckRollup: RawRollup | null } }[] };
+type RawPull = Omit<PullMeta, "mergeSettings" | "rollup" | "checksForbidden" | "checkRunsHidden"> & {
+  headCommit?: { nodes: { commit: { checkSuites: { totalCount: number }; statusCheckRollup: RawRollup | null } }[] };
 };
 
 interface RawPullResponse {
-  repository: (PullMeta["mergeSettings"] & { pullRequest: RawPull | null }) | null;
+  repository: (PullMeta["mergeSettings"] & { isPrivate: boolean; pullRequest: RawPull | null }) | null;
 }
 
 /** Repos where the token can't read check runs, so later loads skip straight to the query without checks. */
@@ -176,7 +179,7 @@ export function toRollup(raw: RawRollup | null | undefined): CheckRollup | null 
 export async function fetchPull(owner: string, repo: string, number: number): Promise<PullMeta> {
   const repoKey = `${owner}/${repo}`.toLowerCase();
   const vars = { owner, repo, number };
-  let checksForbidden = checksForbiddenRepos.has(repoKey);
+  let checksForbidden = checksForbiddenRepos.has(repoKey) || !!queryClient.getQueryData<PullMeta>(keys.pull(owner, repo, number))?.checksForbidden;
   let data: RawPullResponse;
   try {
     data = await gql<RawPullResponse>(pullQuery(!checksForbidden), vars);
@@ -190,8 +193,16 @@ export async function fetchPull(owner: string, repo: string, number: number): Pr
   const pr = r?.pullRequest;
   if (!r || !pr) throw new GitHubError(`Failed to find pull request ${owner}/${repo}#${number}`, 404);
   const { headCommit, ...rest } = pr;
+  const commit = headCommit?.nodes[0]?.commit;
+  const rollup = toRollup(commit?.statusCheckRollup);
+  // GitHub has no Checks permission for fine-grained tokens, so their private-repo rollups leave check runs out.
+  const checkRunsHidden =
+    r.isPrivate && !!getToken()?.startsWith("github_pat_") && !!commit?.checkSuites.totalCount && !rollup?.contexts.some((c) => c.__typename === "CheckRun");
+  const merged = mergedPulls.get(JSON.stringify(keys.pull(owner, repo, number)));
+  const lagging = merged && rest.state === "OPEN" && Date.now() - merged.at < MERGED_GRACE_MS ? merged.patch : undefined;
   return {
     ...rest,
+    ...lagging,
     mergeSettings: {
       mergeCommitAllowed: r.mergeCommitAllowed,
       squashMergeAllowed: r.squashMergeAllowed,
@@ -199,8 +210,9 @@ export async function fetchPull(owner: string, repo: string, number: number): Pr
       deleteBranchOnMerge: r.deleteBranchOnMerge,
       viewerDefaultMergeMethod: r.viewerDefaultMergeMethod,
     },
-    rollup: toRollup(headCommit?.nodes[0]?.commit.statusCheckRollup),
+    rollup,
     checksForbidden,
+    checkRunsHidden,
   };
 }
 
@@ -329,8 +341,26 @@ export function setDraft(pullId: string, draft: boolean) {
     : gql(`mutation MarkReady($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { clientMutationId } }`, { id: pullId });
 }
 
-export function mergePull(input: { pullRequestId: string; mergeMethod: MergeMethod; commitHeadline?: string; commitBody?: string; expectedHeadOid: string }) {
-  return gql(`mutation MergePull($input: MergePullRequestInput!) { mergePullRequest(input: $input) { clientMutationId } }`, { input });
+export async function mergePull(input: { pullRequestId: string; mergeMethod: MergeMethod; commitHeadline?: string; commitBody?: string; expectedHeadOid: string }) {
+  type Merged = Pick<PullMeta, "state" | "merged" | "mergedAt" | "mergedBy" | "closedAt">;
+  const data = await gql<{ mergePullRequest: { pullRequest: Merged } }>(
+    `mutation MergePull($input: MergePullRequestInput!) { mergePullRequest(input: $input) { pullRequest { state merged mergedAt mergedBy { ${ACTOR_FIELDS} } closedAt } } }`,
+    { input },
+  );
+  return data.mergePullRequest.pullRequest;
+}
+
+/** PRs merged from this tab, so a lagging read can't show them open again. */
+const mergedPulls = new Map<string, { at: number; patch: Partial<PullMeta> }>();
+const MERGED_GRACE_MS = 120_000;
+
+/** Shows the PR as merged right away and refetches it. */
+export async function markMerged(owner: string, repo: string, number: number, patch: Partial<PullMeta>) {
+  const key = keys.pull(owner, repo, number);
+  mergedPulls.set(JSON.stringify(key), { at: Date.now(), patch });
+  await queryClient.cancelQueries({ queryKey: key });
+  patchPull(owner, repo, number, patch);
+  return refreshPull(owner, repo, number);
 }
 
 export interface MergeMessages {

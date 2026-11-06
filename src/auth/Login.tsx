@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { signIn } from "./token";
+import { useStore } from "@/lib/store";
+import { auth, signIn } from "./token";
 
 const TOKEN_URL =
   "https://github.com/settings/tokens/new?description=gitgud&scopes=repo,read:org,read:user,user:email";
 
 export function Login() {
+  const { rejected } = useStore(auth);
   const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,6 +29,12 @@ export function Login() {
       <form className="box login-box" onSubmit={submit}>
         <h1>gitgud</h1>
         <p className="muted">A fast client for GitHub issues and pull requests. Paste a GitHub token to start.</p>
+        {rejected && (
+          <div className="flash warn">
+            GitHub rejected your token for <strong>{rejected.login}</strong>. It may have expired or been revoked. Paste a
+            new token to continue where you left off.
+          </div>
+        )}
         <label htmlFor="token" className="login-label">
           Personal access token
         </label>

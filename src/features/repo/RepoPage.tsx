@@ -80,7 +80,7 @@ export function RepoPage({ kind }: { kind?: Kind }) {
 
   const base = baseQuery(q);
   const counts = useQuery({
-    queryKey: ["repo-header", owner, repo, base],
+    queryKey: keys.repoCounts(owner, repo, base),
     queryFn: () => fetchCounts(owner, repo, base),
     placeholderData: keepPreviousData,
   });

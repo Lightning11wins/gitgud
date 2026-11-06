@@ -155,6 +155,9 @@ function NewIssueForm({ owner, repo, data, template, params }: { owner: string; 
   const [type, setType] = useState<IssueType | null>(template?.type ?? null);
   const [menu, setMenu] = useState<{ which: Menu; anchor: HTMLElement } | null>(null);
   const titleLoaded = useRef(false);
+  const titleEdited = useRef(false);
+  const titleRef = useRef(title);
+  titleRef.current = title;
   const triage = canTriage(data.viewerPermission);
 
   // Labels named in `?labels=a,b` resolve once the repo's labels load.
@@ -172,16 +175,17 @@ function NewIssueForm({ owner, repo, data, template, params }: { owner: string; 
   }, [labelParam, repoLabels.data]);
 
   useEffect(() => {
+    const titleParam = params.has("title");
     drafts.get(`${base}:title`).then((t) => {
-      if (t && !titleLoaded.current) setTitle(t);
+      // The `?title=` param and text typed while the draft loaded both win over the draft.
+      if (t && !titleParam && !titleEdited.current) setTitle(t);
       titleLoaded.current = true;
+      if (titleEdited.current) drafts.setSoon(`${base}:title`, titleRef.current);
     });
   }, [base]);
 
   useEffect(() => {
-    if (!titleLoaded.current) return;
-    const t = setTimeout(() => drafts.set(`${base}:title`, title), 250);
-    return () => clearTimeout(t);
+    if (titleLoaded.current) drafts.setSoon(`${base}:title`, title);
   }, [base, title]);
 
   const create = async (body: string) => {
@@ -221,7 +225,10 @@ function NewIssueForm({ owner, repo, data, template, params }: { owner: string; 
           autoFocus
           placeholder="Title"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            titleEdited.current = true;
+            setTitle(e.target.value);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") e.preventDefault();
           }}

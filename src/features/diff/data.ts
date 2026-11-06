@@ -26,12 +26,12 @@ export interface PullFiles {
 
 const HEAD_QUERY = `
   query PullDiffHead($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) { pullRequest(number: $number) { id headRefOid baseRefOid } }
+    repository(owner: $owner, name: $repo) { pullRequest(number: $number) { id headRefOid baseRefOid baseRefName } }
   }`;
 
-type HeadData = { repository: { pullRequest: { id: string; headRefOid: string; baseRefOid: string } } };
+type HeadData = { repository: { pullRequest: { id: string; headRefOid: string; baseRefOid: string; baseRefName: string } } };
 
-/** Every file of a PR. A 1-point probe of the head SHA reuses the cached diff until the head moves. */
+/** Every file of a PR. A 1-point probe of the head SHA and base branch reuses the cached diff until either changes. */
 export function usePullFiles(owner: string, repo: string, number: number) {
   const key = keys.pullFiles(owner, repo, number);
   return useQuery({
@@ -42,11 +42,11 @@ export function usePullFiles(owner: string, repo: string, number: number) {
         key,
         async () => {
           head = (await gql<HeadData>(HEAD_QUERY, { owner, repo, number })).repository.pullRequest;
-          return head.headRefOid;
+          return `${head.headRefOid}:${head.baseRefName}`;
         },
         async (stamp) => {
           const files = await restAll<DiffFile>(`/repos/${owner}/${repo}/pulls/${number}/files`, { maxPages: 30 });
-          return { stamp, pullId: head!.id, head: stamp, baseRefOid: head!.baseRefOid, files: files.map(trimFile) };
+          return { stamp, pullId: head!.id, head: head!.headRefOid, baseRefOid: head!.baseRefOid, files: files.map(trimFile) };
         },
       );
     },
@@ -170,7 +170,11 @@ export function useSetViewed(owner: string, repo: string, number: number, pullId
   return useMutation({
     mutationFn: async ({ paths, viewed }: { paths: string[]; viewed: boolean }) => {
       if (!pullId) throw new Error(`Failed to mark files viewed: PR ${owner}/${repo}#${number} has no id yet`);
-      await mapLimit(paths, 4, (path) => gql(viewed ? MARK_VIEWED : UNMARK_VIEWED, { pullId, path }));
+      await mapLimit(paths, 4, (path) =>
+        gql(viewed ? MARK_VIEWED : UNMARK_VIEWED, { pullId, path }).catch((e) => {
+          throw new Error(`Failed to mark ${path} as ${viewed ? "viewed" : "not viewed"}: ${e instanceof Error ? e.message : String(e)}`);
+        }),
+      );
     },
     onMutate: async ({ paths, viewed }) => {
       await queryClient.cancelQueries({ queryKey: key });

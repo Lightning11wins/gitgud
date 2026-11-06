@@ -75,9 +75,19 @@ function appendUnique(base: ListItem[], more: ListItem[]): ListItem[] {
   return [...base, ...more.filter((i) => !seen.has(i.id))];
 }
 
+/** Fetches pages until at least `count` items (or every result) are loaded. */
+export async function fetchAtLeast(fetch: (after: string | null) => Promise<ListData>, count: number): Promise<ListData> {
+  let data = await fetch(null);
+  while (data.hasNextPage && data.items.length < count) {
+    const page = await fetch(data.endCursor);
+    data = { ...page, items: appendUnique(data.items, page.items) };
+  }
+  return data;
+}
+
 /**
- * Pages of a GitHub search as one cached list. Revalidation refetches only the first page and
- * keeps any later pages already loaded; `loadMore` appends the next page.
+ * Pages of a GitHub search as one cached list. Revalidation refetches as many items as were
+ * loaded, so stale rows (e.g. closed issues in an is:open list) drop out; `loadMore` appends the next page.
  */
 export function useSearchList(queryKey: QueryKey, search: string) {
   const qc = useQueryClient();
@@ -89,13 +99,7 @@ export function useSearchList(queryKey: QueryKey, search: string) {
 
   const query = useQuery({
     queryKey,
-    queryFn: async (): Promise<ListData> => {
-      const fresh = await fetchPage(search, null);
-      const prev = qc.getQueryData<ListData>(queryKey);
-      if (!prev || prev.items.length <= fresh.items.length || !fresh.hasNextPage) return fresh;
-      const tail = prev.items.slice(fresh.items.length);
-      return { ...fresh, items: appendUnique(fresh.items, tail), endCursor: prev.endCursor, hasNextPage: prev.hasNextPage };
-    },
+    queryFn: () => fetchAtLeast((after) => fetchPage(search, after), qc.getQueryData<ListData>(queryKey)?.items.length ?? 0),
     placeholderData: undefined,
   });
 

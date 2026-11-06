@@ -72,7 +72,7 @@ export function CommitView({ pull, owner, repo, sha }: { pull: PullMeta; owner: 
           <CopyButton text={fullSha} label="Copy full SHA" />
         </div>
       </div>
-      <CommitFiles owner={owner} repo={repo} sha={fullSha} />
+      <CommitFiles owner={owner} repo={repo} sha={sha} />
     </div>
   );
 }

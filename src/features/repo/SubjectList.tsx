@@ -63,16 +63,18 @@ export function SubjectList(props: SubjectListProps) {
     if (item) navigate(itemPath(item));
   };
   useHotkey("o", open);
+  const openRef = useRef(open);
+  openRef.current = open;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (e.key !== "Enter" || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       if (t && (t.closest("a, button, input, textarea, select") || t.isContentEditable)) return;
-      open();
+      openRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, []);
 
   let body: ReactNode;
   if (error && !data) {

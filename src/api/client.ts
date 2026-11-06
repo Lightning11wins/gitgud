@@ -1,4 +1,4 @@
-import { getToken } from "@/auth/token";
+import { auth, tokenRejected, type AuthState } from "@/auth/token";
 import { recordRateLimit, recordRequest } from "./rateLimit";
 
 export const API_BASE = "https://api.github.com";
@@ -16,13 +16,13 @@ export class GitHubError extends Error {
 
 export class AuthError extends GitHubError {}
 
-function authHeaders(): Record<string, string> {
-  const token = getToken();
-  if (!token) throw new AuthError("Failed to call the GitHub API: no token is set", 401);
-  return { Authorization: `Bearer ${token}`, "X-GitHub-Api-Version": "2022-11-28" };
+function authHeaders(session: AuthState): Record<string, string> {
+  if (!session.token) throw new AuthError("Failed to call the GitHub API: no token is set", 401);
+  return { Authorization: `Bearer ${session.token}`, "X-GitHub-Api-Version": "2022-11-28" };
 }
 
-async function failure(res: Response, what: string): Promise<GitHubError> {
+async function failure(res: Response, what: string, session: AuthState): Promise<GitHubError> {
+  if (res.status === 401) tokenRejected(session);
   let message = `${res.status} ${res.statusText}`;
   let errors: unknown[] | undefined;
   try {
@@ -51,15 +51,17 @@ export interface GqlOptions {
 /** Runs a GraphQL query or mutation and returns `data`, throwing on any error. */
 export async function gql<T>(query: string, variables: Record<string, unknown> = {}, opts: GqlOptions = {}): Promise<T> {
   const opName = /(?:query|mutation)\s+(\w+)/.exec(query)?.[1] ?? "anonymous";
+  opts.signal?.throwIfAborted();
+  const session = auth.get();
   recordRequest("graphql", opName);
   const res = await fetch(`${API_BASE}/graphql`, {
     method: "POST",
-    headers: { ...authHeaders(), "Content-Type": "application/json", ...opts.headers },
+    headers: { ...authHeaders(session), "Content-Type": "application/json", ...opts.headers },
     body: JSON.stringify({ query, variables }),
     signal: opts.signal,
   });
   recordRateLimit(res.headers);
-  if (!res.ok) throw await failure(res, `run GraphQL ${opName}`);
+  if (!res.ok) throw await failure(res, `run GraphQL ${opName}`, session);
   const body = (await res.json()) as { data?: T; errors?: { message: string; type?: string }[] };
   if (body.errors?.length) {
     throw new GitHubError(`Failed to run GraphQL ${opName}: ${body.errors.map((e) => e.message).join("; ")}`, 200, body.errors);
@@ -89,8 +91,10 @@ export async function restRaw<T>(path: string, opts: RestOptions = {}): Promise<
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
   // The token goes only to api.github.com.
   if (!url.startsWith(`${API_BASE}/`)) throw new GitHubError(`Failed to ${method} ${path}: not an api.github.com URL`, 0);
+  opts.signal?.throwIfAborted();
+  const session = auth.get();
   recordRequest("rest", `${method} ${path.replace(/\?.*/, "")}`);
-  const headers: Record<string, string> = { ...authHeaders(), Accept: opts.accept ?? "application/vnd.github+json" };
+  const headers: Record<string, string> = { ...authHeaders(session), Accept: opts.accept ?? "application/vnd.github+json" };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
   const res = await fetch(url, {
     method,
@@ -101,7 +105,7 @@ export async function restRaw<T>(path: string, opts: RestOptions = {}): Promise<
     cache: method === "GET" ? "no-cache" : "no-store",
   });
   recordRateLimit(res.headers);
-  if (!res.ok) throw await failure(res, `${method} ${path}`);
+  if (!res.ok) throw await failure(res, `${method} ${path}`, session);
   let data: unknown;
   if (opts.text) data = await res.text();
   else if (res.status === 204) data = undefined;

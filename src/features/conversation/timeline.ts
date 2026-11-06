@@ -4,10 +4,8 @@ import { keys } from "@/api/keys";
 import { persistQueryData, probeThenLoad, queryClient } from "@/api/queryClient";
 import type { SubjectKind } from "@/api/prefetch";
 import { ISSUE_ITEM_TYPES, ISSUE_TIMELINE_QUERY, PULL_ITEM_TYPES, PULL_TIMELINE_QUERY, SUBJECT_STAMP_QUERY } from "./queries";
+import { createMerger, FULL_RELOAD_MS, reloadDue, resumed, type TimelineCounts } from "./timelineMerge";
 import type { TimelineData, TimelineItem } from "./types";
-
-/** Cached timelines older than this are refetched from scratch so edits by others show up. */
-const FULL_RELOAD_MS = 30 * 60_000;
 /** A subject meta query fetched this recently counts as a fresh probe. */
 const META_FRESH_MS = 10_000;
 
@@ -29,31 +27,43 @@ interface Page {
 interface PageResult {
   page: Page;
   /** Matching items in the whole timeline, when requested. */
-  total?: number;
+  counts?: TimelineCounts;
 }
 
-type TimelineHolder = { timelineItems: Page; total?: { filteredCount: number } | null } | null;
+type Count = { filteredCount: number } | null;
+type TimelineHolder = { timelineItems: Page; total?: Count; movable?: Count } | null;
 
-async function fetchPage(kind: SubjectKind, owner: string, repo: string, number: number, after: string | null, skip: number, withTotal: boolean): Promise<PageResult> {
+interface Subject {
+  kind: SubjectKind;
+  owner: string;
+  repo: string;
+  number: number;
+  signal?: AbortSignal;
+}
+
+async function fetchPage({ kind, owner, repo, number, signal }: Subject, after: string | null, skip: number, withTotal: boolean): Promise<PageResult> {
+  signal?.throwIfAborted();
   const vars = { owner, repo, number, after, skip: skip || null, withTotal };
   let holder: TimelineHolder;
   if (kind === "issue") {
-    const d = await gql<{ repository: { issue: TimelineHolder } }>(ISSUE_TIMELINE_QUERY, { ...vars, types: ISSUE_ITEM_TYPES });
+    const d = await gql<{ repository: { issue: TimelineHolder } }>(ISSUE_TIMELINE_QUERY, { ...vars, types: ISSUE_ITEM_TYPES }, { signal });
     holder = d.repository.issue;
   } else {
-    const d = await gql<{ repository: { pullRequest: TimelineHolder } }>(PULL_TIMELINE_QUERY, { ...vars, types: PULL_ITEM_TYPES });
+    const d = await gql<{ repository: { pullRequest: TimelineHolder } }>(PULL_TIMELINE_QUERY, { ...vars, types: PULL_ITEM_TYPES }, { signal });
     holder = d.repository.pullRequest;
   }
   if (!holder) throw new Error(`Failed to load the timeline: ${owner}/${repo}#${number} is not ${kind === "issue" ? "an issue" : "a pull request"}`);
-  return { page: holder.timelineItems, total: holder.total?.filteredCount };
+  const counts = holder.total && holder.movable ? { total: holder.total.filteredCount, movable: holder.movable.filteredCount } : undefined;
+  return { page: holder.timelineItems, counts };
 }
 
 interface FetchResult {
   items: TimelineItem[];
+  /** Items whose ids weren't in `base`. */
+  added: TimelineItem[];
   endCursor: string | null;
   complete: boolean;
-  /** Matching items in the whole timeline. */
-  total: number;
+  counts: TimelineCounts;
 }
 
 /**
@@ -61,27 +71,15 @@ interface FetchResult {
  * count, so the rest are fetched in parallel by offset from its cursor. Progress is reported in order.
  */
 async function fetchItems(
-  kind: SubjectKind,
-  owner: string,
-  repo: string,
-  number: number,
+  subject: Subject,
   base: TimelineData | null,
   maxPages: number,
   onProgress: (items: TimelineItem[], endCursor: string | null) => void,
 ): Promise<FetchResult> {
-  const items = base ? [...base.items] : [];
-  const index = new Map(items.map((it, i) => [it.id, i]));
-  const add = (page: Page) => {
-    for (const node of page.nodes) {
-      const i = index.get(node.id);
-      if (i === undefined) {
-        index.set(node.id, items.length);
-        items.push(node);
-      } else items[i] = node;
-    }
-  };
+  const { items, added, add: merge } = createMerger(base?.items ?? []);
+  const add = (page: Page) => merge(page.nodes);
 
-  const first = await fetchPage(kind, owner, repo, number, base?.endCursor ?? null, 0, true);
+  const first = await fetchPage(subject, base?.endCursor ?? null, 0, true);
   let last = first.page;
   let endCursor = last.pageInfo.endCursor ?? base?.endCursor ?? null;
   let pages = 1;
@@ -97,7 +95,7 @@ async function fetchItems(
     const worker = async () => {
       while (next < count) {
         const i = next++;
-        results[i] = (await fetchPage(kind, owner, repo, number, from, i * PAGE_SIZE, false)).page;
+        results[i] = (await fetchPage(subject, from, i * PAGE_SIZE, false)).page;
         if (merged !== i) continue;
         while (results[merged]) {
           last = results[merged++];
@@ -113,21 +111,22 @@ async function fetchItems(
 
   // Items added while loading, or a stale count: continue by cursor.
   while (last.pageInfo.hasNextPage && pages < maxPages) {
-    last = (await fetchPage(kind, owner, repo, number, endCursor, 0, false)).page;
+    last = (await fetchPage(subject, endCursor, 0, false)).page;
     pages++;
     add(last);
     endCursor = last.pageInfo.endCursor ?? endCursor;
     onProgress(items, endCursor);
   }
-  return { items, endCursor, complete: !last.pageInfo.hasNextPage, total: first.total ?? items.length };
+  const counts = first.counts ?? { total: items.length, movable: 0 };
+  return { items, added, endCursor, complete: !last.pageInfo.hasNextPage, counts };
 }
 
 /**
  * Loads the timeline for a new `stamp`. Resumes after the cached end cursor when the cache is recent,
- * and falls back to a full reload when the item count doesn't add up (e.g. deletions).
+ * and falls back to a full reload when the item counts don't add up (e.g. deletions).
  */
-async function loadTimeline(kind: SubjectKind, owner: string, repo: string, number: number, stamp: string, maxPages: number): Promise<TimelineData> {
-  const key = keys.timeline(owner, repo, number);
+async function loadTimeline(subject: Subject, stamp: string, maxPages: number): Promise<TimelineData> {
+  const key = keys.timeline(subject.owner, subject.repo, subject.number);
   const cached = queryClient.getQueryData<TimelineData>(key);
   const startedAt = Date.now();
   const gen = editGen.get(hashKey(key));
@@ -137,18 +136,21 @@ async function loadTimeline(kind: SubjectKind, owner: string, repo: string, numb
     const current = queryClient.getQueryData<TimelineData>(key);
     if (current && current.items.length > items.length) return;
     // A refresh of a complete timeline keeps its stamp so no loading line flashes.
-    queryClient.setQueryData<TimelineData>(key, { stamp: current?.stamp ?? "", items: [...items], endCursor, fullAt: current?.fullAt ?? startedAt });
+    queryClient.setQueryData<TimelineData>(key, {
+      stamp: current?.stamp ?? "",
+      items: [...items],
+      endCursor,
+      fullAt: current?.fullAt ?? startedAt,
+      edited: current?.edited,
+    });
   };
   if (cached?.endCursor && startedAt - cached.fullAt < FULL_RELOAD_MS) {
-    const r = await fetchItems(kind, owner, repo, number, cached, maxPages, onProgress);
-    if (!r.complete) return { stamp: "", items: r.items, endCursor: r.endCursor, fullAt: cached.fullAt };
-    if (r.items.length === r.total) {
-      // Nothing appended means an edit to an earlier item; keep the old stamp so the next full reload picks it up.
-      const appended = r.endCursor !== cached.endCursor;
-      return { stamp: appended || !cached.stamp ? stamp : cached.stamp, items: r.items, endCursor: r.endCursor, fullAt: cached.fullAt };
-    }
+    const next = resumed(cached, await fetchItems(subject, cached, maxPages, onProgress), stamp);
+    if (next) return next;
+    // Progress may have moved the cursor past the change, so a failed reload must not resume.
+    queryClient.setQueryData<TimelineData>(key, (d) => d && { ...d, fullAt: 0 });
   }
-  const r = await fetchItems(kind, owner, repo, number, null, maxPages, onProgress);
+  const r = await fetchItems(subject, null, maxPages, onProgress);
   return { stamp: r.complete ? stamp : "", items: r.items, endCursor: r.endCursor, fullAt: startedAt };
 }
 
@@ -175,7 +177,7 @@ function waitForIdle(query: Query): Promise<void> {
  * The subject's `updatedAt`. Reuses the page's own metadata request when it is in flight or just
  * finished, so an unchanged thread costs no extra request; otherwise runs a 1-point probe.
  */
-async function subjectStamp(kind: SubjectKind, owner: string, repo: string, number: number): Promise<string> {
+async function subjectStamp({ kind, owner, repo, number, signal }: Subject): Promise<string> {
   // Let refetches triggered in the same tick (focus, invalidation) start first.
   await new Promise((r) => setTimeout(r, 0));
   const query = queryClient.getQueryCache().find({ queryKey: metaKey(kind, owner, repo, number), exact: true });
@@ -184,22 +186,22 @@ async function subjectStamp(kind: SubjectKind, owner: string, repo: string, numb
     const { data, dataUpdatedAt } = query.state as { data?: { updatedAt?: string }; dataUpdatedAt: number };
     if (data?.updatedAt && dataUpdatedAt > Date.now() - META_FRESH_MS) return data.updatedAt;
   }
-  const d = await gql<{ repository: { issueOrPullRequest: { updatedAt: string } | null } }>(SUBJECT_STAMP_QUERY, { owner, repo, number });
+  const d = await gql<{ repository: { issueOrPullRequest: { updatedAt: string } | null } }>(SUBJECT_STAMP_QUERY, { owner, repo, number }, { signal });
   return d.repository.issueOrPullRequest?.updatedAt ?? "";
 }
 
-function timelineQueryFn(kind: SubjectKind, owner: string, repo: string, number: number, maxPages = Infinity) {
-  return probeThenLoad(
-    keys.timeline(owner, repo, number),
-    () => subjectStamp(kind, owner, repo, number),
-    (stamp) => loadTimeline(kind, owner, repo, number, stamp, maxPages),
-  );
+function timelineQueryFn(subject: Subject, maxPages = Infinity) {
+  const key = keys.timeline(subject.owner, subject.repo, subject.number);
+  const probe = () => subjectStamp(subject);
+  const load = (stamp: string) => loadTimeline(subject, stamp, maxPages);
+  if (reloadDue(queryClient.getQueryData<TimelineData>(key), Date.now())) return probe().then(load);
+  return probeThenLoad(key, probe, load);
 }
 
 export function useTimeline(kind: SubjectKind, owner: string, repo: string, number: number) {
   return useQuery({
     queryKey: keys.timeline(owner, repo, number),
-    queryFn: () => timelineQueryFn(kind, owner, repo, number),
+    queryFn: ({ signal }) => timelineQueryFn({ kind, owner, repo, number, signal }),
   });
 }
 
@@ -207,7 +209,7 @@ export function useTimeline(kind: SubjectKind, owner: string, repo: string, numb
 export function prefetchTimeline(kind: SubjectKind, owner: string, repo: string, number: number) {
   return queryClient.prefetchQuery({
     queryKey: keys.timeline(owner, repo, number),
-    queryFn: () => timelineQueryFn(kind, owner, repo, number, 1),
+    queryFn: ({ signal }) => timelineQueryFn({ kind, owner, repo, number, signal }, 1),
     staleTime: 60_000,
   });
 }

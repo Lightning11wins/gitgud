@@ -36,6 +36,8 @@ server/serve.mjs  static server with CSP and compression
 - For expensive queries, use `probeThenLoad` from `api/queryClient.ts`: a 1-point probe (e.g. `updatedAt`) skips the full reload when nothing changed.
 - `bodyHTML` / `body_html` is GitHub-rendered HTML. Render it only through `components/Markdown.tsx`, which sanitizes it with DOMPurify. Never use `dangerouslySetInnerHTML` elsewhere.
 - Every request is counted in `window.__gitgudApiStats` and the rate limit is shown in the header. Keep request counts low: no polling, and no fetching per item in a list.
+- A 401 from GitHub returns to the sign-in screen at the same URL. Signing in as the same user keeps the cache and drafts; another user starts clean.
+- Save drafts with `drafts.setSoon` (debounced); `drafts.clear` and sign-out cancel pending writes.
 
 ## Performance rules
 

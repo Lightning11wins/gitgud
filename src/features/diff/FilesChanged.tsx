@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { Spinner } from "@/components/Spinner";
 import { useReviewThreads } from "@/features/review/threads";
@@ -25,7 +25,7 @@ export function FilesChanged({ owner, repo, number }: { owner: string; repo: str
       data && {
         owner,
         repo,
-        id: `pr:${owner}/${repo}#${number}@${data.head}`,
+        id: `pr:${owner}/${repo}#${number}@${data.stamp}`,
         head: data.head,
         base: () => fetchMergeBase(owner, repo, data.baseRefOid, data.head),
       },
@@ -34,6 +34,12 @@ export function FilesChanged({ owner, repo, number }: { owner: string; repo: str
   const pull = useMemo(() => data && { owner, repo, number, pullId: data.pullId, head: data.head }, [owner, repo, number, data]);
   const mutate = setViewed.mutate;
   const onSetViewed = useMemo(() => (paths: string[], v: boolean) => mutate({ paths, viewed: v }), [mutate]);
+  const { error: viewedError, reset: resetViewed } = setViewed;
+  useEffect(() => {
+    if (!viewedError) return;
+    const t = setTimeout(resetViewed, 8000);
+    return () => clearTimeout(t);
+  }, [viewedError, resetViewed]);
   if (!data || !source || !pull) return <Loading error={files.error} retry={() => files.refetch()} />;
   return (
     <DiffView
@@ -43,6 +49,8 @@ export function FilesChanged({ owner, repo, number }: { owner: string; repo: str
       threads={threads.data}
       viewed={viewed.data}
       onSetViewed={onSetViewed}
+      viewedError={viewedError}
+      onDismissViewedError={resetViewed}
       fetching={files.isFetching || threads.isFetching}
       notice={data.files.length >= 3000 ? "GitHub returns at most 3,000 files for a pull request; some files are not shown." : undefined}
     />

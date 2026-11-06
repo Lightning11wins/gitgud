@@ -90,7 +90,10 @@ export function Composer(props: ComposerProps) {
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  /** Counts edits so a draft that loads after the user started typing doesn't replace their text. */
+  const edits = useRef(0);
   const setValue = (v: string) => {
+    edits.current++;
     setValueState(v);
     onChangeRef.current?.(v);
   };
@@ -102,13 +105,17 @@ export function Composer(props: ComposerProps) {
     // A new key (e.g. navigating to another issue) must not keep the previous key's text.
     const reset = loadedKey.current !== draftKey;
     loadedKey.current = draftKey;
+    const editsAtStart = edits.current;
     drafts.get(draftKey).then((d) => {
       if (cancelled) return;
-      if (d || reset) {
+      loaded.current = true;
+      if (edits.current !== editsAtStart) {
+        const v = valueRef.current;
+        drafts.setSoon(draftKey, v === initialValue ? "" : v);
+      } else if (d || reset) {
         setValueState(d ?? initialValue);
         onChangeRef.current?.(d ?? initialValue);
       }
-      loaded.current = true;
     });
     return () => {
       cancelled = true;
@@ -116,9 +123,7 @@ export function Composer(props: ComposerProps) {
   }, [draftKey]);
 
   useEffect(() => {
-    if (!loaded.current) return;
-    const t = setTimeout(() => drafts.set(draftKey, value === initialValue ? "" : value), 250);
-    return () => clearTimeout(t);
+    if (loaded.current) drafts.setSoon(draftKey, value === initialValue ? "" : value);
   }, [draftKey, value, initialValue]);
 
   useEffect(() => {

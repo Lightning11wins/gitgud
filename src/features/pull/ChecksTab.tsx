@@ -41,9 +41,16 @@ export function ChecksTab({ pull, owner, repo }: Props) {
   if (pull.checksForbidden)
     return (
       <div className="flash warn">
-        Your token can't read check runs for this repository. Grant the token read access to checks and commit statuses, or {ghLink}.
+        Your token can't read checks or commit statuses for this repository. {ghLink}
       </div>
     );
+  const hiddenNote = pull.checkRunsHidden && (
+    <div className="flash warn checks-hidden">
+      Check runs aren't visible to your token: GitHub doesn't give fine-grained tokens access to checks in private repositories.
+      {all.length > 0 && " Only commit statuses are shown."} {ghLink}
+    </div>
+  );
+  if (hiddenNote && all.length === 0) return hiddenNote;
   if (!rollup || all.length === 0)
     return (
       <div className="blankslate box">
@@ -52,9 +59,10 @@ export function ChecksTab({ pull, owner, repo }: Props) {
       </div>
     );
 
-  const overall = summarize(all);
+  const overall = summarize(all, !!hiddenNote);
   return (
     <div className="checks-tab">
+      {hiddenNote}
       <div className="row checks-summary">
         <OutcomeIcon outcome={overall.outcome} />
         <strong>{overall.title}</strong>

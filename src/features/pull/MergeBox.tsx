@@ -14,6 +14,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { rest } from "@/api/client";
+import { keys } from "@/api/keys";
+import { queryClient } from "@/api/queryClient";
 import { canWrite } from "@/api/types";
 import { auth } from "@/auth/token";
 import { Avatar } from "@/components/Avatar";
@@ -21,7 +23,7 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 import { Popover } from "@/components/Popover";
 import { Spinner } from "@/components/Spinner";
 import { useStore } from "@/lib/store";
-import { deleteBranch, fetchMergeMessages, mergePull, patchPull, refreshPull, restoreBranch, setDraft, type MergeMethod, type PullMeta } from "./api";
+import { deleteBranch, fetchMergeMessages, markMerged, mergePull, patchPull, refreshPull, restoreBranch, setDraft, type MergeMethod, type PullMeta } from "./api";
 import { CheckRow, sortChecks, summarize } from "./checks";
 import { BranchName, plural } from "./util";
 
@@ -175,14 +177,32 @@ function ChecksSection({ pull, owner, repo }: { pull: PullMeta; owner: string; r
       />
     );
   const rollup = pull.rollup;
-  if (!rollup || rollup.contexts.length === 0) return null;
-  const s = summarize(rollup.contexts);
+  const hidden = pull.checkRunsHidden && (
+    <>
+      Check runs aren't visible to your token.{" "}
+      <a href={`${pull.url}/checks`} target="_blank" rel="noopener noreferrer">
+        View them on GitHub
+      </a>
+      .
+    </>
+  );
+  if (!rollup || rollup.contexts.length === 0)
+    return hidden ? <Section tone="muted" icon={<AlertIcon />} title="Checks hidden" detail={hidden} /> : null;
+  const s = summarize(rollup.contexts, !!hidden);
   return (
     <Section
-      tone={s.outcome === "success" ? "success" : s.outcome === "failure" ? "danger" : "attention"}
+      tone={s.outcome === "failure" ? "danger" : s.outcome !== "success" ? "attention" : hidden ? "muted" : "success"}
       icon={s.outcome === "success" ? <CheckIcon /> : s.outcome === "failure" ? <XIcon /> : <DotFillIcon />}
       title={s.title}
-      detail={s.detail}
+      detail={
+        hidden ? (
+          <>
+            {s.detail}. {hidden}
+          </>
+        ) : (
+          s.detail
+        )
+      }
       aside={<Toggle open={open} onClick={() => setOpen(!open)} labels={["Show all checks", "Hide all checks"]} />}
     >
       {open && (
@@ -418,18 +438,25 @@ function MergeConfirm({ pull, owner, repo, method, onCancel }: { pull: PullMeta;
   const merge = async () => {
     setBusy(true);
     setError(null);
+    const head = pull.headRefOid;
+    let merged;
     try {
-      await mergePull({
+      merged = await mergePull({
         pullRequestId: pull.id,
         mergeMethod: method,
-        expectedHeadOid: pull.headRefOid,
+        expectedHeadOid: head,
         ...(needsMessage ? { commitHeadline: headlineValue, commitBody: bodyValue } : {}),
       });
-      await refreshPull(owner, repo, pull.number);
     } catch (e) {
-      setError(e);
+      await refreshPull(owner, repo, pull.number).catch(() => {});
+      const now = queryClient.getQueryData<PullMeta>(keys.pull(owner, repo, pull.number))?.headRefOid;
+      const moved = (now && now !== head) || (e instanceof Error && /head branch was modified/i.test(e.message));
+      const at = now && now !== head ? ` (now at ${now.slice(0, 7)})` : "";
+      setError(moved ? new Error(`Failed to merge: new commits were pushed to ${pull.headRefName}${at}. Review them, then merge again.`) : e);
       setBusy(false);
+      return;
     }
+    await markMerged(owner, repo, pull.number, { ...merged, state: "MERGED", merged: true });
   };
   const confirmLabel = METHODS.find((m) => m.method === method)!.confirm;
   return (
