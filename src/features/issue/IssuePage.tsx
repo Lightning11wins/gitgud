@@ -4,11 +4,11 @@ import { gql, isNotFound } from "@/api/client";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { NotFound } from "@/components/NotFound";
 import { RelativeTime } from "@/components/RelativeTime";
-import { Spinner } from "@/components/Spinner";
 import { TitleText } from "@/components/TitleText";
 import { StateBadge } from "@/components/StateBadge";
 import { invalidateSubject, patchSubject } from "@/features/conversation/mutations";
 import { Timeline } from "@/features/conversation/Timeline";
+import { SubjectSeed } from "@/features/conversation/SubjectSeed";
 import { MetadataSidebar } from "@/features/sidebar/MetadataSidebar";
 import { useIssueMeta, type IssueMeta } from "./issueData";
 import "./issue.css";
@@ -32,12 +32,7 @@ export function IssuePage() {
   useTitle(title, `Issue #${number}`, `${owner}/${repo}`);
 
   if (!Number.isInteger(number) || number <= 0) return <ErrorBanner error={`Failed to open issue "${params.number}": not a number`} />;
-  if (meta.isPending)
-    return (
-      <div className="blankslate">
-        <Spinner size={20} label="Loading issue" />
-      </div>
-    );
+  if (meta.isPending) return <SubjectSeed kind="issue" owner={owner} repo={repo} number={number} />;
   if (meta.error && !meta.data && isNotFound(meta.error)) return <NotFound title={`Issue #${number} doesn't exist in ${owner}/${repo}, or your token can't see it`} />;
   if (meta.error && !meta.data) return <ErrorBanner error={meta.error} action={<button className="btn sm" onClick={() => meta.refetch()}>Retry</button>} />;
   if (isPull || !meta.data) return null;

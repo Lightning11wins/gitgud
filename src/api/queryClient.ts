@@ -1,13 +1,15 @@
 import { QueryClient, hashKey, type QueryKey } from "@tanstack/react-query";
 import { experimental_createQueryPersister, type PersistedQuery } from "@tanstack/query-persist-client-core";
-import { clear, createStore, del, entries, get, set } from "idb-keyval";
+import { clear, createStore, del, entries, get, getMany, keys as storedKeys, set } from "idb-keyval";
 import { getToken } from "@/auth/token";
 import { AuthError, GitHubError } from "./client";
+import { syncSubjects } from "./subjects";
 
 const cacheDb = createStore("gitgud-cache", "queries");
 
 /** Bump to discard every persisted query after a breaking change to cached data shapes. */
 const CACHE_VERSION = "1";
+const MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
 
 const persister = experimental_createQueryPersister<PersistedQuery>({
   storage: {
@@ -21,7 +23,7 @@ const persister = experimental_createQueryPersister<PersistedQuery>({
   serialize: (q) => q,
   deserialize: (q) => q,
   buster: CACHE_VERSION,
-  maxAge: 1000 * 60 * 60 * 24 * 30,
+  maxAge: MAX_AGE_MS,
   prefix: "q",
 });
 
@@ -37,6 +39,39 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+syncSubjects(queryClient);
+
+/** Query key roots that `restoreRecent` loads at startup: lists and their counts, which pages show first. */
+const RESTORE_ROOTS = ["repo-list", "list-checks", "repo-header", "dashboard"];
+const RESTORE_MAX = 60;
+
+/**
+ * Reads the most recently fetched lists from IndexedDB into memory. Pages then render from memory on
+ * the first frame, and other pages can borrow their rows (see `api/subjects.ts`). Call `apply` once
+ * the user is known to be signed in.
+ */
+export function readRecent(): Promise<{ apply: () => void }> {
+  const read = async () => {
+    const prefixes = RESTORE_ROOTS.map((r) => `q-["${r}"`);
+    const wanted = (await storedKeys(cacheDb)).filter((k): k is string => typeof k === "string" && prefixes.some((p) => k.startsWith(p)));
+    const stored = (await getMany<PersistedQuery | undefined>(wanted, cacheDb)).filter(
+      (q): q is PersistedQuery => !!q && q.buster === CACHE_VERSION && q.state.dataUpdatedAt > Date.now() - MAX_AGE_MS,
+    );
+    return stored.sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt).slice(0, RESTORE_MAX);
+  };
+  return read().then(
+    (stored) => ({
+      apply: () => {
+        // Oldest first, so subject sync spreads the newest copies last.
+        for (const q of [...stored].reverse()) {
+          if (queryClient.getQueryData(q.queryKey) === undefined) queryClient.setQueryData(q.queryKey, q.state.data, { updatedAt: q.state.dataUpdatedAt });
+        }
+      },
+    }),
+    () => ({ apply: () => {} }),
+  );
+}
 
 export async function clearCache() {
   queryClient.clear();

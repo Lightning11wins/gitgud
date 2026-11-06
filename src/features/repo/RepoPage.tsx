@@ -2,12 +2,14 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router";
 import { CheckIcon, CodeIcon, IssueOpenedIcon, GitPullRequestIcon, LockIcon, RepoIcon } from "@primer/octicons-react";
 import { gql } from "@/api/client";
+import { intentHandlers, registerPathPrefetcher, speculate } from "@/api/prefetch";
+import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/keys";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { FilterInput } from "./FilterInput";
 import { DEFAULT_SORT, ListFilters } from "./ListFilters";
 import { SubjectList } from "./SubjectList";
-import { baseQuery, buildSearch, getSort, getState, setState, useSearchList, type StateFilter } from "./searchList";
+import { baseQuery, buildSearch, getSort, getState, prefetchSearchList, setState, useSearchList, type StateFilter } from "./searchList";
 import "./repo.css";
 import { useTitle } from "@/lib/useTitle";
 
@@ -59,6 +61,27 @@ async function fetchCounts(owner: string, name: string, base: string): Promise<R
   };
 }
 
+function listKey(owner: string, repo: string, kind: Kind, q: string) {
+  const search = buildSearch(q, { repo: `${owner}/${repo}`, kind, defaultSort: DEFAULT_SORT });
+  return { key: keys.repoList(owner, repo, `${kind ?? "all"}:${search}`), search };
+}
+
+/** Warms a repo list page: its counts and its first rows. */
+function prefetchRepoList(owner: string, repo: string, kind: Kind, q: string) {
+  const { key, search } = listKey(owner, repo, kind, q);
+  const base = baseQuery(q);
+  speculate(JSON.stringify(key), () =>
+    Promise.all([
+      queryClient.prefetchQuery({ queryKey: keys.repoCounts(owner, repo, base), queryFn: () => fetchCounts(owner, repo, base), staleTime: 60_000 }),
+      prefetchSearchList(key, search),
+    ]),
+  );
+}
+
+registerPathPrefetcher(/^\/([^/]+)\/([^/]+)(?:\/(issues|pulls))?$/, ([, owner, repo, tab], params) =>
+  prefetchRepoList(owner, repo, tab === "issues" ? "issue" : tab === "pulls" ? "pr" : undefined, params.get("q") ?? DEFAULT_Q),
+);
+
 function stateCount(c: RepoCounts | undefined, kind: Kind, state: StateFilter): number | undefined {
   if (!c) return undefined;
   const i = state === "open" ? c.iOpen : c.iClosed;
@@ -81,9 +104,11 @@ export function RepoPage({ kind }: { kind?: Kind }) {
     placeholderData: keepPreviousData,
   });
 
-  const search = buildSearch(q, { repo: slug, kind, defaultSort: DEFAULT_SORT });
-  const allKey = keys.repoList(owner, repo, `all:${buildSearch(q, { repo: slug, defaultSort: DEFAULT_SORT })}`);
-  const list = useSearchList(keys.repoList(owner, repo, `${kind ?? "all"}:${search}`), search, kind && { key: allKey, kind });
+  const { key: listQueryKey, search } = listKey(owner, repo, kind, q);
+  const standIn = kind
+    ? { kind, all: listKey(owner, repo, undefined, q).key }
+    : { issues: listKey(owner, repo, "issue", q).key, pulls: listKey(owner, repo, "pr", q).key };
+  const list = useSearchList(listQueryKey, search, standIn);
 
   const c = counts.data;
   const state = getState(q);
@@ -156,7 +181,13 @@ export function RepoPage({ kind }: { kind?: Kind }) {
         header={
           <>
             {(["open", "closed"] as const).map((s) => (
-              <button key={s} className="repo-toggle" data-selected={state === s} onClick={() => setQ(setState(q, s))}>
+              <button
+                key={s}
+                className="repo-toggle"
+                data-selected={state === s}
+                onClick={() => setQ(setState(q, s))}
+                {...intentHandlers(() => prefetchRepoList(owner, repo, kind, setState(q, s)))}
+              >
                 {s === "closed" ? <CheckIcon size={16} /> : kind === "pr" ? <GitPullRequestIcon size={16} /> : <IssueOpenedIcon size={16} />}
                 {s === "open" ? "Open" : "Closed"}
                 {stateCount(c, kind, s) !== undefined && <span className="muted">{stateCount(c, kind, s)?.toLocaleString()}</span>}

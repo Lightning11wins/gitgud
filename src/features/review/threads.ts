@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { gql, gqlAll, type PageInfo } from "@/api/client";
 import { keys } from "@/api/keys";
+import { queryClient } from "@/api/queryClient";
 import { REVIEW_COMMENT_FIELDS, REVIEW_THREAD_FIELDS, type ReviewComment, type ReviewThread } from "@/api/types";
 
 const THREADS_QUERY = `
@@ -49,6 +50,10 @@ export async function fetchReviewThreads(owner: string, repo: string, number: nu
       }),
   );
   return threads;
+}
+
+export function prefetchReviewThreads(owner: string, repo: string, number: number) {
+  return queryClient.prefetchQuery({ queryKey: keys.reviewThreads(owner, repo, number), queryFn: () => fetchReviewThreads(owner, repo, number), staleTime: 60_000 });
 }
 
 export function useReviewThreads(owner: string, repo: string, number: number) {

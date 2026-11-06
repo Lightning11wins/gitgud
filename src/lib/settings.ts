@@ -5,10 +5,12 @@ export interface Settings {
   showApiMeter: boolean;
   /** Send one request to each hourly rate limit as its window resets, so a new window starts right away. */
   warmUpRateLimits: boolean;
+  /** Load pages the user is likely to open next, like hovered links, in the background. */
+  prefetch: boolean;
 }
 
 const KEY = "gitgud-settings";
-const DEFAULTS: Settings = { showApiMeter: true, warmUpRateLimits: true };
+const DEFAULTS: Settings = { showApiMeter: true, warmUpRateLimits: true, prefetch: true };
 
 function read(): Settings {
   try {

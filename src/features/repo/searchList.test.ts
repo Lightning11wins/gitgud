@@ -6,8 +6,11 @@ import {
   getQualifier,
   getState,
   kindSubset,
+  mergeKinds,
+  overlay,
   setQualifier,
   setState,
+  sortKey,
   summarizeChecks,
   type ListData,
   type ListItem,
@@ -132,5 +135,59 @@ describe("state", () => {
     const item = (id: string, __typename: "Issue" | "PullRequest", state: string) => ({ id, __typename, state }) as ListItem;
     const all: ListData = { items: [item("a", "Issue", "OPEN"), item("b", "PullRequest", "OPEN")], total: 2, hasNextPage: false, endCursor: null };
     expect(kindSubset(all, "issue")?.items.map((i) => i.id)).toEqual(["a"]);
+  });
+});
+
+describe("mergeKinds", () => {
+  const at = (id: string, day: number) => ({ id, createdAt: `2026-01-${String(day).padStart(2, "0")}T00:00:00Z` }) as ListItem;
+  const list = (items: ListItem[], hasNextPage: boolean): ListData => ({ items, total: items.length + (hasNextPage ? 10 : 0), hasNextPage, endCursor: null });
+  const newest = sortKey("created")!;
+
+  it("interleaves both lists through the last row both cover", () => {
+    const issues = list([at("i9", 9), at("i5", 5), at("i2", 2)], true);
+    const pulls = list([at("p8", 8), at("p4", 4)], true);
+    expect(mergeKinds(issues, pulls, newest)?.items.map((i) => i.id)).toEqual(["i9", "p8", "i5", "p4"]);
+  });
+
+  it("keeps every row when both lists are complete", () => {
+    const merged = mergeKinds(list([at("i1", 1)], false), list([at("p3", 3)], false), newest);
+    expect(merged?.items.map((i) => i.id)).toEqual(["p3", "i1"]);
+    expect(merged?.hasNextPage).toBe(false);
+  });
+
+  it("gives up when no row is certain", () => {
+    expect(mergeKinds(list([at("i1", 1)], true), list([], true), newest)).toBeUndefined();
+  });
+
+  it("sorts oldest first for asc", () => {
+    const merged = mergeKinds(list([at("i1", 1), at("i5", 5)], false), list([at("p3", 3)], false), sortKey("created-asc")!);
+    expect(merged?.items.map((i) => i.id)).toEqual(["i1", "p3", "i5"]);
+  });
+
+  it("has no key for other sorts", () => {
+    expect(sortKey("comments")).toBeUndefined();
+    expect(sortKey(null)).toBeUndefined();
+  });
+});
+
+describe("overlay", () => {
+  const at = (id: string, day: number) => ({ id, updatedAt: `2026-01-${String(day).padStart(2, "0")}T00:00:00Z` }) as ListItem;
+  const list = (items: ListItem[], hasNextPage: boolean): ListData => ({ items, total: 20, hasNextPage, endCursor: "c" });
+  const key = sortKey("updated")!;
+
+  it("puts fresh rows on top and keeps older cached rows past them", () => {
+    const fresh = list([at("a", 9), at("b", 7)], true);
+    const cached = list([at("b", 6), at("c", 8), at("d", 3)], true);
+    expect(overlay(fresh, cached, key).items.map((i) => i.id)).toEqual(["a", "b", "d"]);
+  });
+
+  it("uses a complete fresh list as is", () => {
+    const fresh = list([at("a", 9)], false);
+    expect(overlay(fresh, list([at("z", 1)], true), key)).toBe(fresh);
+  });
+
+  it("keeps the cached list without a sort key", () => {
+    const cached = list([at("z", 1)], true);
+    expect(overlay(list([at("a", 9)], true), cached, undefined)).toBe(cached);
   });
 });

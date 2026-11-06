@@ -4,11 +4,17 @@ import "./styles/base.css";
 import "./styles/markdown.css";
 import "./lib/theme";
 import { App } from "./App";
+import { installLinkPrefetch } from "./api/prefetch";
 import { startWarmUp } from "./api/warmUp";
-import { loadAuth } from "./auth/token";
+import { readRecent } from "./api/queryClient";
+import { getToken, loadAuth } from "./auth/token";
 
-loadAuth();
+const recent = readRecent();
+void loadAuth().then(async () => {
+  if (getToken()) (await recent).apply();
+});
 startWarmUp();
+installLinkPrefetch();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -4,8 +4,9 @@ import { Link, useParams } from "react-router";
 import { isNotFound } from "@/api/client";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { NotFound } from "@/components/NotFound";
-import { Spinner } from "@/components/Spinner";
+import { SubjectSeed } from "@/features/conversation/SubjectSeed";
 import { Timeline } from "@/features/conversation/Timeline";
+import { prefetchPullFiles } from "@/features/diff/data";
 import { FilesChanged } from "@/features/diff/FilesChanged";
 import { MetadataSidebar } from "@/features/sidebar/MetadataSidebar";
 import { HotkeysActive } from "@/lib/hotkeys";
@@ -22,6 +23,7 @@ import { useTitle } from "@/lib/useTitle";
 
 type Tab = "conversation" | "commits" | "checks" | "files";
 const KEPT_TABS: Tab[] = ["conversation", "commits", "checks", "files"];
+const FILES_PREFETCH_DELAY_MS = 2000;
 
 function parseTab(rest: string): { tab: Tab; sha?: string } {
   const [first, second] = rest.split("/");
@@ -52,6 +54,14 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
     if (!sha) setVisited((v) => (v.has(tab) ? v : new Set(v).add(tab)));
   }, [tab, sha]);
 
+  // Files changed is the likeliest next tab; load it once the page settles.
+  const loaded = !!q.data;
+  useEffect(() => {
+    if (!loaded) return;
+    const timer = window.setTimeout(() => prefetchPullFiles(owner, repo, number, "background"), FILES_PREFETCH_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [loaded, owner, repo, number]);
+
   // Each tab keeps its own scroll position, capped to the top of the tab bar.
   useLayoutEffect(() => {
     if (lastView.current === view) return;
@@ -66,11 +76,7 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
   if (!q.data) {
     if (q.error && isNotFound(q.error)) return <NotFound title={`Pull request #${number} doesn't exist in ${owner}/${repo}, or your token can't see it`} />;
     if (q.error) return <ErrorBanner error={q.error} action={<button className="btn sm" onClick={() => q.refetch()}>Retry</button>} />;
-    return (
-      <div className="blankslate">
-        <Spinner size={20} label="Loading pull request" />
-      </div>
-    );
+    return <SubjectSeed kind="pull" owner={owner} repo={repo} number={number} />;
   }
   const pull = q.data;
   const base = `/${owner}/${repo}/pull/${number}`;

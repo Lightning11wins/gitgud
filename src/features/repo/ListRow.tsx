@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { Link } from "react-router";
 import { CheckIcon, CommentIcon, DotFillIcon, GitPullRequestIcon, XIcon } from "@primer/octicons-react";
-import { prefetchSubject } from "@/api/prefetch";
+import { HOVER_DELAY_MS, prefetchSubject } from "@/api/prefetch";
 import { Avatar } from "@/components/Avatar";
 import { IssueLabel } from "@/components/IssueLabel";
 import { RelativeTime } from "@/components/RelativeTime";
@@ -11,7 +11,6 @@ import type { CheckSummary, ListItem } from "./searchList";
 
 export const ROW_HEIGHT = 56;
 const MAX_LABELS = 4;
-const PREFETCH_DELAY_MS = 150;
 const byName = new Intl.Collator(undefined, { sensitivity: "base" });
 
 export function itemPath(item: ListItem): string {
@@ -79,6 +78,16 @@ export const ListRow = memo(function ListRow({ item, checks, showRepo, active, s
   useEffect(() => () => window.clearTimeout(timer.current), []);
   const isPr = item.__typename === "PullRequest";
   const [owner, repo] = item.repository.nameWithOwner.split("/");
+  const prefetchSoon = () => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => prefetchSubject(isPr ? "pull" : "issue", owner, repo, item.number), HOVER_DELAY_MS);
+  };
+  // The j/k selection is keyboard users' hover.
+  useEffect(() => {
+    if (!active) return;
+    prefetchSoon();
+    return () => window.clearTimeout(timer.current);
+  }, [active]);
   const labels = useMemo(() => [...item.labels.nodes].sort((a, b) => byName.compare(a.name, b.name)), [item.labels.nodes]);
   const comments = item.totalCommentsCount ?? item.comments.totalCount;
 
@@ -87,9 +96,7 @@ export const ListRow = memo(function ListRow({ item, checks, showRepo, active, s
       className="list-row"
       data-active={active}
       style={style}
-      onMouseEnter={() => {
-        timer.current = window.setTimeout(() => prefetchSubject(isPr ? "pull" : "issue", owner, repo, item.number), PREFETCH_DELAY_MS);
-      }}
+      onMouseEnter={prefetchSoon}
       onMouseLeave={() => window.clearTimeout(timer.current)}
     >
       <span className="lr-icon">

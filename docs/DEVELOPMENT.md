@@ -23,6 +23,7 @@ Setup: `npx playwright install chromium`. If the default browser cache isn't wri
 | `diff-flows.mjs [--write]` | Files changed: tree, expand context, Load diff, viewed, keys, line and range comments | Viewed state (restored); with `--write`, review comments, then discards the pending review |
 | `review-flows.mjs` | Pending review, reply, resolve, reactions | Yes, and restores what it changes |
 | `pull-flows.mjs <scenario> <outDir>` | `read`, `sandbox` (reviewers, title, draft), `merge`, `compare` | `merge` creates and merges a throwaway PR into sandbox `main` |
+| `prefetch-flows.mjs [owner/repo]` | List stand-ins, hover prefetch, seeded PR page, and the click guard; `VERBOSE=1` logs each request | No |
 | `diff-perf.mjs <path>` | Frame times and time to first diff rows on a production build | No |
 | `check-*-queries` | Validate GraphQL documents against the live schema | No |
 

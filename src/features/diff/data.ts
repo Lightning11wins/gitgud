@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { gql, gqlAll, mapLimit, rest, restAll, restRaw, type PageInfo } from "@/api/client";
 import { keys } from "@/api/keys";
+import { registerPathPrefetcher, speculate } from "@/api/prefetch";
 import { probeThenLoad, queryClient } from "@/api/queryClient";
 import { trimFile, type DiffFile } from "./model";
 
@@ -33,8 +34,27 @@ type HeadData = { repository: { pullRequest: { id: string; headRefOid: string; b
 
 /** Every file of a PR. A 1-point probe of the head SHA and base branch reuses the cached diff until either changes. */
 export function usePullFiles(owner: string, repo: string, number: number) {
+  return useQuery(pullFilesQueryOptions(owner, repo, number));
+}
+
+/** Files of PRs this large aren't prefetched; they take several requests. */
+const PREFETCH_MAX_FILES = 300;
+
+/** Warms a PR's files, unless the cached PR is known to be large. */
+export function prefetchPullFiles(owner: string, repo: string, number: number, lane: "intent" | "background" = "intent") {
+  const changed = queryClient.getQueryData<{ changedFiles?: number }>(keys.pull(owner, repo, number))?.changedFiles;
+  if (changed !== undefined && changed > PREFETCH_MAX_FILES) return;
+  speculate(`files:${owner}/${repo}#${number}`.toLowerCase(), () => queryClient.prefetchQuery({ ...pullFilesQueryOptions(owner, repo, number), staleTime: 60_000 }), {
+    resource: "core",
+    lane,
+  });
+}
+
+registerPathPrefetcher(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/files$/, ([, owner, repo, number]) => prefetchPullFiles(owner, repo, Number(number)));
+
+function pullFilesQueryOptions(owner: string, repo: string, number: number) {
   const key = keys.pullFiles(owner, repo, number);
-  return useQuery({
+  return {
     queryKey: key,
     queryFn: () => {
       let head: HeadData["repository"]["pullRequest"] | undefined;
@@ -50,7 +70,7 @@ export function usePullFiles(owner: string, repo: string, number: number) {
         },
       );
     },
-  });
+  };
 }
 
 function lastPage(link: string | null): number {

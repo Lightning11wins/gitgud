@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { GitHubError, gql, gqlAll, rest } from "@/api/client";
+import { GitHubError, gql, gqlAll, gqlPartial, rest } from "@/api/client";
 import { keys } from "@/api/keys";
-import { registerPrefetcher } from "@/api/prefetch";
+import { registerPathPrefetcher, registerPrefetcher, speculate } from "@/api/prefetch";
 import { queryClient } from "@/api/queryClient";
 import { ACTOR_FIELDS, PULL_ONLY_FIELDS, SUBJECT_META_FIELDS, type Actor, type SubjectMeta } from "@/api/types";
 import { getToken } from "@/auth/token";
+import { prefetchTimeline } from "@/features/conversation/timeline";
+import { prefetchReviewThreads } from "@/features/review/threads";
 import type { IssueRef } from "@/features/sidebar/data";
 
 export type MergeMethod = "MERGE" | "SQUASH" | "REBASE";
@@ -195,9 +197,15 @@ export async function fetchPull(owner: string, repo: string, number: number): Pr
     checksForbidden = true;
     data = await gql<RawPullResponse>(pullQuery(false), vars);
   }
-  const r = data.repository;
+  const pull = toPullMeta(owner, repo, number, data.repository, checksForbidden);
+  if (!pull) throw new GitHubError(`Failed to find pull request ${owner}/${repo}#${number}`, 404);
+  return pull;
+}
+
+/** `PullMeta` from one `pullQuery` response's repository, or undefined when the PR is missing. */
+function toPullMeta(owner: string, repo: string, number: number, r: RawPullResponse["repository"], checksForbidden: boolean): PullMeta | undefined {
   const pr = r?.pullRequest;
-  if (!r || !pr) throw new GitHubError(`Failed to find pull request ${owner}/${repo}#${number}`, 404);
+  if (!r || !pr) return undefined;
   const { headCommit, ...rest } = pr;
   const commit = headCommit?.nodes[0]?.commit;
   const rollup = toRollup(commit?.statusCheckRollup);
@@ -222,6 +230,30 @@ export async function fetchPull(owner: string, repo: string, number: number): Pr
   };
 }
 
+/**
+ * Loads several PRs' metadata in one request, for warming the cache. PRs that fail to load are left
+ * out; their pages load them as usual.
+ */
+export async function fetchPullsBatch(refs: { owner: string; repo: string; number: number }[]): Promise<{ ref: (typeof refs)[number]; pull: PullMeta }[]> {
+  if (!refs.length) return [];
+  const forbidden = refs.map((r) => checksForbiddenRepos.has(`${r.owner}/${r.repo}`.toLowerCase()));
+  // Each alias is `pullQuery`'s repository selection with numbered variables.
+  const parts = refs.map((_, i) => {
+    const body = pullQuery(!forbidden[i]);
+    const selection = body.slice(body.indexOf("repository("), body.lastIndexOf("}", body.lastIndexOf("}") - 1) + 1);
+    return `p${i}: ${selection.replace(/\$owner\b/g, `$o${i}`).replace(/\$repo\b/g, `$r${i}`).replace(/\$number\b/g, `$n${i}`)}`;
+  });
+  const params = refs.map((_, i) => `$o${i}: String!, $r${i}: String!, $n${i}: Int!`).join(", ");
+  const vars = Object.fromEntries(refs.flatMap((r, i) => [[`o${i}`, r.owner], [`r${i}`, r.repo], [`n${i}`, r.number]]));
+  const { data, errors } = await gqlPartial<Record<string, RawPullResponse["repository"]>>(`query PullMetaBatch(${params}) {\n${parts.join("\n")}\n}`, vars);
+  const failed = new Set(errors.map((e) => e.path?.[0]));
+  return refs.flatMap((ref, i) => {
+    if (failed.has(`p${i}`)) return [];
+    const pull = toPullMeta(ref.owner, ref.repo, ref.number, data[`p${i}`], forbidden[i]);
+    return pull ? [{ ref, pull }] : [];
+  });
+}
+
 export function pullQueryOptions(owner: string, repo: string, number: number) {
   return { queryKey: keys.pull(owner, repo, number), queryFn: () => fetchPull(owner, repo, number) };
 }
@@ -230,9 +262,13 @@ export function usePull(owner: string, repo: string, number: number) {
   return useQuery(pullQueryOptions(owner, repo, number));
 }
 
-registerPrefetcher("pull", (owner, repo, number) => {
-  queryClient.prefetchQuery({ ...pullQueryOptions(owner, repo, number), staleTime: 30_000 });
-});
+registerPrefetcher("pull", (owner, repo, number) =>
+  Promise.all([
+    queryClient.prefetchQuery({ ...pullQueryOptions(owner, repo, number), staleTime: 30_000 }),
+    prefetchTimeline("pull", owner, repo, number),
+    prefetchReviewThreads(owner, repo, number),
+  ]),
+);
 
 /** Updates the cached PR in place, e.g. for optimistic edits. */
 export function patchPull(owner: string, repo: string, number: number, patch: Partial<PullMeta>) {
@@ -331,6 +367,19 @@ export function commitsQueryOptions(owner: string, repo: string, number: number)
 export function prefetchCommits(owner: string, repo: string, number: number) {
   queryClient.prefetchQuery({ ...commitsQueryOptions(owner, repo, number), staleTime: 30_000 });
 }
+
+registerPathPrefetcher(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/commits$/, ([, owner, repo, number]) =>
+  speculate(`commits:${owner}/${repo}#${number}`.toLowerCase(), () => queryClient.prefetchQuery({ ...commitsQueryOptions(owner, repo, Number(number)), staleTime: 30_000 })),
+);
+
+/** The Checks tab loads every check only when the head commit has more than the PR query's first page. */
+registerPathPrefetcher(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/checks$/, ([, owner, repo, num]) => {
+  const number = Number(num);
+  const pull = queryClient.getQueryData<PullMeta>(keys.pull(owner, repo, number));
+  if (!pull?.rollup?.hasNextPage) return;
+  const queryKey = keys.checks(owner, repo, pull.headRefOid);
+  speculate(JSON.stringify(queryKey), () => queryClient.prefetchQuery({ queryKey, queryFn: () => fetchAllChecks(owner, repo, number, pull.headRefOid), staleTime: 60_000 }));
+});
 
 // Mutations
 
