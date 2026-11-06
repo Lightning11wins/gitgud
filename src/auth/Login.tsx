@@ -4,7 +4,7 @@ import { auth, signIn } from "./token";
 import { useTitle } from "@/lib/useTitle";
 
 const TOKEN_URL =
-  "https://github.com/settings/tokens/new?description=GitGud&scopes=repo,read:org,read:user,user:email,read:project";
+  "https://github.com/settings/tokens/new?description=GitGud&scopes=repo,read:org,read:user,read:project";
 
 export function Login() {
   useTitle("Sign in");
@@ -61,7 +61,8 @@ export function Login() {
               Create a classic token
             </a>{" "}
             with <code>repo</code> and <code>read:org</code> scopes, or a fine-grained token with read/write access to
-            Contents, Issues, and Pull requests (plus read access to Checks and Metadata).
+            Contents, Issues, and Pull requests, plus read access to Actions, Commit statuses, and Metadata (and Members
+            and Projects for organizations).
           </p>
           <p>
             The token stays in this browser (IndexedDB). It's only ever sent to api.github.com, never to the server
