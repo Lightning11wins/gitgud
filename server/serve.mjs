@@ -1,5 +1,5 @@
 // Static file server for the built app: SPA fallback, compression, and strict security headers.
-// Usage: node server/serve.mjs [--port 8080] [--host 127.0.0.1] [--dir dist] [--cert cert.pem --key key.pem]
+// Usage: node server/serve.mjs [--port 4483] [--host 127.0.0.1] [--dir dist] [--cert cert.pem --key key.pem]
 // With --cert and --key it serves HTTPS.
 import { readFileSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
@@ -11,7 +11,7 @@ import { brotliCompressSync, gzipSync } from "node:zlib";
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith("--") ? [...acc, [a.slice(2), all[i + 1]]] : acc), []),
 );
-const PORT = Number(args.port ?? process.env.PORT ?? 8080);
+const PORT = Number(args.port ?? process.env.PORT ?? 4483);
 const HOST = args.host ?? process.env.HOST ?? "127.0.0.1";
 const ROOT = resolve(args.dir ?? new URL("../dist", import.meta.url).pathname);
 const CERT = args.cert ?? process.env.TLS_CERT;

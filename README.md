@@ -18,17 +18,17 @@ npm run build
 npm run serve
 ```
 
-Then open http://localhost:8080. `npm run dev` starts a dev server with hot reload.
+Then open http://localhost:4483. `npm run dev` starts a dev server with hot reload.
 
 ## Share it on a network
 
 Bind to all interfaces and anyone who can reach the machine can use it, including over Tailscale or a work VPN:
 
 ```sh
-npm run serve -- --host 0.0.0.0 --port 8080
+npm run serve -- --host 0.0.0.0 --port 4483
 ```
 
-Each address is its own browser origin, so `http://10.0.0.5:8080` and `http://gitgud.lan:8080` keep separate tokens and caches. Pick one address and share that.
+Each address is its own browser origin, so `http://10.0.0.5:4483` and `http://gitgud.lan:4483` keep separate tokens and caches. Pick one address and share that.
 
 ### Plain HTTP or HTTPS
 
@@ -44,14 +44,14 @@ Plain HTTP works, with two costs:
 With a certificate for the server's hostname, for example from your work's internal CA or [mkcert](https://github.com/FiloSottile/mkcert):
 
 ```sh
-npm run serve -- --host 0.0.0.0 --port 8443 --cert cert.pem --key key.pem
+npm run serve -- --host 0.0.0.0 --port 4483 --cert cert.pem --key key.pem
 ```
 
 On Tailscale, `tailscale serve` provides a certificate automatically:
 
 ```sh
-npm run serve -- --port 8080
-tailscale serve --bg --https=443 http://127.0.0.1:8080
+npm run serve -- --port 4483
+tailscale serve --bg --https=443 http://127.0.0.1:4483
 ```
 
 A reverse proxy like Caddy or nginx also works. The server sets a strict Content-Security-Policy and other security headers, so the proxy only needs to pass responses through.
