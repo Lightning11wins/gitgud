@@ -1,0 +1,37 @@
+.dash {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.dash-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: calc(var(--header-h) + 16px);
+}
+.dash-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.dash-filter:hover {
+  background: var(--bg-hover);
+}
+.dash-filter[data-selected="true"] {
+  background: var(--bg-selected);
+  font-weight: 600;
+}
+.dash-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}

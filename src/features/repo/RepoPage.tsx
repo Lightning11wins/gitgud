@@ -1,3 +1,183 @@
-export function RepoPage(_props: { kind?: "issue" | "pr" }) {
-  return <div className="blankslate">RepoPage is not built yet.</div>;
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Link, useParams, useSearchParams } from "react-router";
+import { CheckIcon, CodeIcon, IssueOpenedIcon, GitPullRequestIcon, LockIcon, RepoIcon } from "@primer/octicons-react";
+import { gql } from "@/api/client";
+import { keys } from "@/api/keys";
+import { ErrorBanner } from "@/components/ErrorBanner";
+import { FilterInput } from "./FilterInput";
+import { SubjectList } from "./SubjectList";
+import { baseQuery, buildSearch, getSort, getState, setSort, setState, useSearchList, type StateFilter } from "./searchList";
+import "./repo.css";
+
+const DEFAULT_Q = "is:open";
+const DEFAULT_SORT = "created-desc";
+const SORTS = [
+  { value: "created-desc", label: "Newest" },
+  { value: "created-asc", label: "Oldest" },
+  { value: "updated-desc", label: "Recently updated" },
+  { value: "comments-desc", label: "Most commented" },
+];
+
+type Kind = "issue" | "pr" | undefined;
+
+const COUNTS_QUERY = `
+query RepoCounts($owner: String!, $name: String!, $iOpen: String!, $iClosed: String!, $pOpen: String!, $pClosed: String!) {
+  repository(owner: $owner, name: $name) { nameWithOwner description isPrivate }
+  iOpen: search(type: ISSUE_ADVANCED, query: $iOpen, first: 0) { issueCount }
+  iClosed: search(type: ISSUE_ADVANCED, query: $iClosed, first: 0) { issueCount }
+  pOpen: search(type: ISSUE_ADVANCED, query: $pOpen, first: 0) { issueCount }
+  pClosed: search(type: ISSUE_ADVANCED, query: $pClosed, first: 0) { issueCount }
+}`;
+
+interface RepoCounts {
+  nameWithOwner: string;
+  description: string | null;
+  isPrivate: boolean;
+  iOpen: number;
+  iClosed: number;
+  pOpen: number;
+  pClosed: number;
+}
+
+async function fetchCounts(owner: string, name: string, base: string): Promise<RepoCounts> {
+  const scope = (kind: string, state: string) => `repo:${owner}/${name} ${base} is:${kind} is:${state}`.replace(/\s+/g, " ");
+  const data = await gql<{
+    repository: { nameWithOwner: string; description: string | null; isPrivate: boolean };
+    iOpen: { issueCount: number };
+    iClosed: { issueCount: number };
+    pOpen: { issueCount: number };
+    pClosed: { issueCount: number };
+  }>(COUNTS_QUERY, {
+    owner,
+    name,
+    iOpen: scope("issue", "open"),
+    iClosed: scope("issue", "closed"),
+    pOpen: scope("pr", "open"),
+    pClosed: scope("pr", "closed"),
+  });
+  return {
+    ...data.repository,
+    iOpen: data.iOpen.issueCount,
+    iClosed: data.iClosed.issueCount,
+    pOpen: data.pOpen.issueCount,
+    pClosed: data.pClosed.issueCount,
+  };
+}
+
+function stateCount(c: RepoCounts | undefined, kind: Kind, state: StateFilter): number | undefined {
+  if (!c) return undefined;
+  const i = state === "open" ? c.iOpen : c.iClosed;
+  const p = state === "open" ? c.pOpen : c.pClosed;
+  return kind === "issue" ? i : kind === "pr" ? p : i + p;
+}
+
+export function RepoPage({ kind }: { kind?: Kind }) {
+  const { owner = "", repo = "" } = useParams();
+  const [params, setParams] = useSearchParams();
+  const q = params.get("q") ?? DEFAULT_Q;
+  const setQ = (next: string) => setParams(next === DEFAULT_Q ? {} : { q: next }, { replace: true });
+  const slug = `${owner}/${repo}`;
+
+  const base = baseQuery(q);
+  const counts = useQuery({
+    queryKey: ["repo-header", owner, repo, base],
+    queryFn: () => fetchCounts(owner, repo, base),
+    placeholderData: keepPreviousData,
+  });
+
+  const search = buildSearch(q, { repo: slug, kind, defaultSort: DEFAULT_SORT });
+  const list = useSearchList(keys.repoList(owner, repo, `${kind ?? "all"}:${search}`), search);
+
+  const c = counts.data;
+  const state = getState(q);
+  const sort = getSort(q) ?? DEFAULT_SORT;
+  const tabQuery = params.toString() ? `?${params.toString()}` : "";
+  const tabs = [
+    { to: `/${slug}${tabQuery}`, label: "All", icon: null, kind: undefined, count: c && c.iOpen + c.pOpen },
+    { to: `/${slug}/issues${tabQuery}`, label: "Issues", icon: <IssueOpenedIcon size={16} />, kind: "issue", count: c?.iOpen },
+    { to: `/${slug}/pulls${tabQuery}`, label: "Pull requests", icon: <GitPullRequestIcon size={16} />, kind: "pr", count: c?.pOpen },
+  ] as const;
+
+  return (
+    <div className="repo">
+      <div className="repo-head">
+        <h1 className="repo-name">
+          <RepoIcon size={20} />
+          <span className="muted">{owner} /</span> <strong>{repo}</strong>
+          {c?.isPrivate && <LockIcon size={16} className="muted" />}
+        </h1>
+        {c?.description && <p className="muted repo-desc">{c.description}</p>}
+      </div>
+
+      <nav className="tabs" aria-label="Repository lists">
+        {tabs.map((t) => (
+          <Link key={t.label} to={t.to} className={t.kind === kind ? "active" : undefined}>
+            {t.icon}
+            {t.label}
+            {t.count !== undefined && <span className="counter">{t.count.toLocaleString()}</span>}
+          </Link>
+        ))}
+        <span className="grow" />
+        <a className="btn sm repo-tab-btn" href={`https://github.com/${slug}`} target="_blank" rel="noopener noreferrer">
+          <CodeIcon size={14} /> Code
+        </a>
+      </nav>
+
+      <div className="repo-toolbar">
+        <FilterInput value={q} onApply={(next) => setQ(next || DEFAULT_Q)} placeholder="is:open" />
+        <Link className="btn" to={`/${slug}/compare`}>
+          New pull request
+        </Link>
+        <Link className="btn primary" to={`/${slug}/issues/new`}>
+          New issue
+        </Link>
+      </div>
+
+      {counts.error && !c && <ErrorBanner error={counts.error} action={<button className="btn sm" onClick={() => void counts.refetch()}>Retry</button>} />}
+
+      <SubjectList
+        data={list.data}
+        isPending={list.isPending}
+        isFetching={list.isFetching}
+        error={list.error}
+        moreError={list.moreError}
+        loadingMore={list.loadingMore}
+        onRetry={() => void list.refetch()}
+        loadMore={() => void list.loadMore()}
+        empty={
+          <>
+            <strong>No results</strong>
+            <br />
+            Try a different search or filter.
+          </>
+        }
+        header={
+          <>
+            {(["open", "closed"] as const).map((s) => (
+              <button key={s} className="repo-toggle" data-selected={state === s} onClick={() => setQ(setState(q, s))}>
+                {s === "open" ? <IssueOpenedIcon size={16} /> : <CheckIcon size={16} />}
+                {s === "open" ? "Open" : "Closed"}
+                {stateCount(c, kind, s) !== undefined && <span className="muted">{stateCount(c, kind, s)?.toLocaleString()}</span>}
+              </button>
+            ))}
+            <span className="grow" />
+            <label className="row muted repo-sort">
+              Sort
+              <select
+                className="input sm"
+                value={sort}
+                onChange={(e) => setQ(setSort(q, e.target.value === DEFAULT_SORT ? null : e.target.value))}
+              >
+                {SORTS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        }
+      />
+    </div>
+  );
 }

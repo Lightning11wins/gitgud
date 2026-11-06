@@ -1,0 +1,150 @@
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { ErrorBanner } from "@/components/ErrorBanner";
+import { Spinner } from "@/components/Spinner";
+import { useHotkey } from "@/lib/hotkeys";
+import { ListRow, ROW_HEIGHT, itemPath } from "./ListRow";
+import type { ListData } from "./searchList";
+import "./list.css";
+
+const LOAD_AHEAD = 20;
+
+export interface SubjectListProps {
+  data: ListData | undefined;
+  isPending: boolean;
+  isFetching: boolean;
+  error: unknown;
+  moreError: unknown;
+  loadingMore: boolean;
+  onRetry: () => void;
+  loadMore: () => void;
+  showRepo?: boolean;
+  /** Rendered when a finished search has no results. */
+  empty: ReactNode;
+  /** Header content (toggles, sort); the list renders under it inside the same box. */
+  header?: ReactNode;
+}
+
+/** Virtualized, auto-paging list of issues and PRs with j/k/Enter keyboard navigation. */
+export function SubjectList(props: SubjectListProps) {
+  const { data, isPending, isFetching, error, moreError, loadingMore, onRetry, loadMore, showRepo, empty, header } = props;
+  const items = data?.items ?? [];
+  const navigate = useNavigate();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [margin, setMargin] = useState(0);
+  const [active, setActive] = useState(-1);
+
+  useLayoutEffect(() => {
+    const top = (bodyRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
+    if (Math.abs(top - margin) > 0.5) setMargin(top);
+  });
+
+  const hasMore = !!data?.hasNextPage;
+  const count = items.length + (hasMore ? 1 : 0);
+  const virtualizer = useWindowVirtualizer({ count, estimateSize: () => ROW_HEIGHT, overscan: 8, scrollMargin: margin });
+  const virtualItems = virtualizer.getVirtualItems();
+  const lastIndex = virtualItems.length ? virtualItems[virtualItems.length - 1].index : 0;
+
+  useEffect(() => {
+    if (hasMore && !moreError && !loadingMore && lastIndex >= items.length - LOAD_AHEAD) loadMore();
+  }, [hasMore, moreError, loadingMore, lastIndex, items.length, loadMore]);
+
+  const move = (delta: number) => {
+    if (!items.length) return;
+    const next = Math.max(0, Math.min(items.length - 1, active + delta));
+    setActive(next);
+    virtualizer.scrollToIndex(next, { align: "auto" });
+  };
+  useHotkey("j", () => move(1));
+  useHotkey("k", () => move(-1));
+  const open = () => {
+    const item = items[active];
+    if (item) navigate(itemPath(item));
+  };
+  useHotkey("o", open);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.key !== "Enter" || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      if (t && (t.closest("a, button, input, textarea, select") || t.isContentEditable)) return;
+      open();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  let body: ReactNode;
+  if (error && !data) {
+    body = (
+      <div className="lr-state">
+        <ErrorBanner
+          error={error}
+          action={
+            <button className="btn sm" onClick={onRetry}>
+              Retry
+            </button>
+          }
+        />
+      </div>
+    );
+  } else if (isPending) {
+    body = (
+      <div className="blankslate">
+        <Spinner size={20} />
+      </div>
+    );
+  } else if (items.length === 0) {
+    body = <div className="blankslate">{empty}</div>;
+  } else {
+    body = (
+      <div className="lr-body" style={{ height: virtualizer.getTotalSize() }}>
+        {virtualItems.map((v) => {
+          const item = items[v.index];
+          const style = { height: v.size, transform: `translateY(${v.start - margin}px)` };
+          if (!item) {
+            return (
+              <div key="more" className="lr-more" style={style}>
+                {moreError ? (
+                  <ErrorBanner
+                    error={moreError}
+                    action={
+                      <button className="btn sm" onClick={loadMore}>
+                        Retry
+                      </button>
+                    }
+                  />
+                ) : (
+                  <Spinner />
+                )}
+              </div>
+            );
+          }
+          return <ListRow key={item.id} item={item} showRepo={showRepo} active={v.index === active} style={style} />;
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="box lr-box">
+      <div className="box-header lr-header row">
+        <div className="row grow">{header}</div>
+        {isFetching && !isPending && <Spinner size={14} />}
+      </div>
+      {!!error && !!data && (
+        <div className="lr-state">
+          <ErrorBanner
+            error={error}
+            action={
+              <button className="btn sm" onClick={onRetry}>
+                Retry
+              </button>
+            }
+          />
+        </div>
+      )}
+      <div ref={bodyRef}>{body}</div>
+    </div>
+  );
+}
