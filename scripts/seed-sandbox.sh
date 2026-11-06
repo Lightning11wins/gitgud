@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Seeds issues, PRs, comments, and reviews into the sandbox repo for manual testing.
+# The repo comes from GITGUD_SANDBOX (owner/name), in the environment or the repo's .env.
 # Expects branches big-refactor, small-fix, draft-work to exist.
 set -u
-R=Lightning11wins/gitgud-sandbox
+R=${GITGUD_SANDBOX:-$(sed -n "s/^GITGUD_SANDBOX=//p" "$(dirname "$0")/../.env" 2>/dev/null)}
+: "${R:?Failed to find the sandbox repo: set GITGUD_SANDBOX to owner/name (got empty)}"
 api() { gh api "$@" 2>&1; }
 pause() { sleep 1.2; }
 
@@ -22,7 +24,7 @@ api repos/$R/issues/1 -X PATCH -f title="Inventory totals are wrong for empty ca
 - [x] Reproduced locally
 - [ ] Wrote a failing test" -f milestone=1 >/dev/null
 api repos/$R/issues/1/labels -f "labels[]=bug" -f "labels[]=priority: high" >/dev/null
-api repos/$R/issues/1/assignees -f "assignees[]=Lightning11wins" >/dev/null
+api repos/$R/issues/1/assignees -f "assignees[]=$(gh api user -q .login)" >/dev/null
 
 titles=("Add CSV export to reports" "Server crashes on /h5 with long paths" "Document the inventory API" "Support dark mode in the report viewer" "Flaky test in reports_test.py" "Rename computeTotal helpers" "Add rate limiting to the server" "Typo in guide section 7" "Improve error messages" "Investigate memory growth" "Migrate config to TOML" "Add pagination to item listing")
 labels=("enhancement" "bug" "documentation" "enhancement" "bug" "good first issue" "enhancement" "documentation" "needs triage" "bug" "enhancement" "enhancement")

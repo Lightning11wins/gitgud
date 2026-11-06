@@ -57,5 +57,5 @@ A fast replacement for GitHub's issue and PR web flows, backed by the GitHub API
 - Core keyboard shortcuts: j/k, `/` search, r reply, n/p next/prev file, Ctrl+Enter submit.
 
 ## Testing
-- Writes only go to a new private sandbox repo (e.g. `Lightning11wins/gitgud-sandbox`).
+- Writes only go to a new private sandbox repo (set with `GITGUD_SANDBOX`).
 - Read-only performance tests may use large public PRs.

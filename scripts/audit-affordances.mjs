@@ -13,13 +13,14 @@
 // Exits 1 when anything is found.
 import { execFileSync } from "node:child_process";
 import { chromium } from "playwright";
+import { sandbox } from "./sandbox.mjs";
 
 const argv = process.argv.slice(2);
 const opt = (name) => {
   const i = argv.indexOf(`--${name}`);
   return i >= 0 ? argv[i + 1] : undefined;
 };
-const SB = "Lightning11wins/gitgud-sandbox";
+const { repo: SB, owner: SB_OWNER } = sandbox();
 const PR = "cli/cli/pull/14957";
 
 const gh = (...args) => execFileSync("gh", args, { encoding: "utf8" }).trim();
@@ -35,7 +36,7 @@ const OPEN = {
 };
 const DEFAULT_PAGES = [
   { path: "/", open: [OPEN.user] },
-  { path: "/Lightning11wins" },
+  { path: `/${SB_OWNER}` },
   { path: "/microsoft" },
   { path: `/${SB}` },
   { path: `/${SB}/issues` },

@@ -2,6 +2,9 @@
 // Usage: node scripts/check-conversation-queries.ts
 import { execFileSync } from "node:child_process";
 import * as q from "../src/features/conversation/queries.ts";
+import { sandbox } from "./sandbox.mjs";
+
+const SB = sandbox();
 
 function run(name: string, query: string, vars: Record<string, unknown>) {
   let out: string;
@@ -16,6 +19,6 @@ function run(name: string, query: string, vars: Record<string, unknown>) {
   return data.data;
 }
 
-run("issue timeline", q.ISSUE_TIMELINE_QUERY, { owner: "Lightning11wins", repo: "gitgud-sandbox", number: 1, types: q.ISSUE_ITEM_TYPES, withTotal: true });
+run("issue timeline", q.ISSUE_TIMELINE_QUERY, { owner: SB.owner, repo: SB.name, number: 1, types: q.ISSUE_ITEM_TYPES, withTotal: true });
 run("pull timeline", q.PULL_TIMELINE_QUERY, { owner: "microsoft", repo: "vscode", number: 288294, types: q.PULL_ITEM_TYPES, withTotal: true, skip: 50 });
-run("stamp", q.SUBJECT_STAMP_QUERY, { owner: "Lightning11wins", repo: "gitgud-sandbox", number: 1 });
+run("stamp", q.SUBJECT_STAMP_QUERY, { owner: SB.owner, repo: SB.name, number: 1 });

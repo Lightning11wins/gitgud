@@ -3,6 +3,7 @@
 // Usage: node scripts/diff-flows.mjs [--number 15] [--write] [--dark]
 import { execFileSync } from "node:child_process";
 import { chromium } from "playwright";
+import { sandbox } from "./sandbox.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(`--${name}`);
@@ -10,7 +11,7 @@ const opt = (name, def) => {
   const i = argv.indexOf(`--${name}`);
   return i >= 0 ? argv[i + 1] : def;
 };
-const R = "Lightning11wins/gitgud-sandbox";
+const { repo: R, owner: R_OWNER, name: R_NAME } = sandbox();
 const number = Number(opt("number", 15));
 const out = process.env.TMPDIR ?? "/tmp";
 const { createServer } = await import("vite");
@@ -124,7 +125,7 @@ const counter = await page.locator(".dv-viewed").innerText();
 check(`viewed counter updates (${counter})`, /^1 \//.test(counter.trim()));
 await shot("viewed");
 await page.waitForTimeout(1500);
-const state = execFileSync("gh", ["api", "graphql", "-f", `query={ repository(owner:"Lightning11wins", name:"gitgud-sandbox") { pullRequest(number:${number}) { files(first:100) { nodes { path viewerViewedState } } } } }`, "--jq", '.data.repository.pullRequest.files.nodes[] | select(.path == "src/generated/module_00.ts")'], { encoding: "utf8" });
+const state = execFileSync("gh", ["api", "graphql", "-f", `query={ repository(owner:"${R_OWNER}", name:"${R_NAME}") { pullRequest(number:${number}) { files(first:100) { nodes { path viewerViewedState } } } } }`, "--jq", '.data.repository.pullRequest.files.nodes[] | select(.path == "src/generated/module_00.ts")'], { encoding: "utf8" });
 console.log("github viewed state:", state.trim());
 await first.locator(".df-viewed input").click();
 await page.waitForTimeout(1500);
@@ -180,7 +181,7 @@ if (flag("write")) {
   await page.waitForTimeout(3000);
   check("file-level thread shows at the file top", (await inv.locator(".df-threads").count()) === 1);
   await shot("file-thread");
-  const pendingIds = execFileSync("gh", ["api", "graphql", "-f", `query={ repository(owner:"Lightning11wins", name:"gitgud-sandbox") { pullRequest(number:${number}) { reviews(states:PENDING, first:5) { nodes { id } } } } }`, "--jq", ".data.repository.pullRequest.reviews.nodes[].id"], { encoding: "utf8" }).split("\n").filter(Boolean);
+  const pendingIds = execFileSync("gh", ["api", "graphql", "-f", `query={ repository(owner:"${R_OWNER}", name:"${R_NAME}") { pullRequest(number:${number}) { reviews(states:PENDING, first:5) { nodes { id } } } } }`, "--jq", ".data.repository.pullRequest.reviews.nodes[].id"], { encoding: "utf8" }).split("\n").filter(Boolean);
   for (const id of pendingIds) execFileSync("gh", ["api", "graphql", "-f", `query=mutation { deletePullRequestReview(input: { pullRequestReviewId: "${id}" }) { clientMutationId } }`]);
   console.log(`discarded ${pendingIds.length} pending review(s)`);
 }

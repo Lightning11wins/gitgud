@@ -1,13 +1,14 @@
 // Review flows on sandbox PR 15: start a pending review with a line comment, reply, discard,
 // resolve and unresolve a thread, and toggle a reaction on a review comment. Checks GitHub state too.
-// Writes to Lightning11wins/gitgud-sandbox and restores what it changes.
+// Writes to the GITGUD_SANDBOX repo and restores what it changes.
 // Usage: PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers node scripts/review-flows.mjs [--dark]
 import { execFileSync } from "node:child_process";
 import { chromium } from "playwright";
+import { sandbox } from "./sandbox.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(`--${name}`);
-const R = "Lightning11wins/gitgud-sandbox";
+const { repo: R, owner: R_OWNER, name: R_NAME } = sandbox();
 const { createServer } = await import("vite");
 const server = await createServer({ server: { port: 0, host: "127.0.0.1" }, logLevel: "error" });
 await server.listen();
@@ -46,7 +47,7 @@ await page.evaluate(
 );
 page.on("dialog", (d) => d.accept());
 const check = (label, ok) => console.log(`${ok ? "PASS" : "FAIL"} ${label}`);
-const pend = () => execFileSync("gh", ["api", "graphql", "-f", `query={ repository(owner:"Lightning11wins", name:"gitgud-sandbox") { pullRequest(number:15) { reviews(states:PENDING, first:5) { nodes { id comments { totalCount } } } } } }`, "--jq", ".data.repository.pullRequest.reviews.nodes"], { encoding: "utf8" }).trim();
+const pend = () => execFileSync("gh", ["api", "graphql", "-f", `query={ repository(owner:"${R_OWNER}", name:"${R_NAME}") { pullRequest(number:15) { reviews(states:PENDING, first:5) { nodes { id comments { totalCount } } } } } }`, "--jq", ".data.repository.pullRequest.reviews.nodes"], { encoding: "utf8" }).trim();
 await page.goto(`${base}/${R}/pull/15/files`);
 await page.waitForSelector(".dk", { timeout: 60000 });
 await page.locator(".ft-filter").fill("src/inventory.ts");

@@ -17,7 +17,6 @@ Setup: `npx playwright install chromium`. If the default browser cache isn't wri
 | Script | Purpose | Writes to GitHub |
 |---|---|---|
 | `shot.mjs <path> [out.png]` | Screenshot a page; prints console errors and API request counts | No |
-| `compare-shots.mjs <outDir> [--cookie <file>]` | The same pages on github.com and in GitGud, light and dark, for design review. The cookie file holds a github.com `user_session` value | No (non-GET blocked) |
 | `audit-affordances.mjs` | Find elements that look clickable but do nothing, and in-app links that 404. Exits 1 on findings | No (blocked) |
 | `conversation-flows.mjs write <outDir>` | Issue flows: create, comment, edit, react, metadata, sub-issues, close/reopen | Creates and closes a new sandbox issue each run |
 | `conversation-flows.mjs perf <outDir>` | Cold and warm load timings for `PATHS` | No |
@@ -29,7 +28,7 @@ Setup: `npx playwright install chromium`. If the default browser cache isn't wri
 
 ## Sandbox repo
 
-Write tests only touch the private repo `Lightning11wins/gitgud-sandbox`. Public repos are read-only test data (for example `cli/cli` and `microsoft/vscode`). To make a new sandbox, create the branches `big-refactor`, `small-fix`, and `draft-work`, then run `scripts/seed-sandbox.sh`.
+Write tests only touch your own sandbox repo, named by `GITGUD_SANDBOX=owner/name` in the environment or in a `.env` file at the repo root (gitignored). Scripts that need it exit when it isn't set. Public repos are read-only test data (for example `cli/cli` and `microsoft/vscode`). To make a new sandbox, create the branches `big-refactor`, `small-fix`, and `draft-work`, then run `scripts/seed-sandbox.sh`.
 
 Fixtures the scripts expect:
 

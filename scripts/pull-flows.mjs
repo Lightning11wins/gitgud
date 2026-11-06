@@ -4,6 +4,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
+import { sandbox } from "./sandbox.mjs";
 
 const argv = process.argv.slice(2);
 const [scenario = "read", outDir = "flows"] = argv.filter((a) => !a.startsWith("--"));
@@ -97,7 +98,7 @@ try {
     await go(param("PR", "/cli/cli/pull/14957"));
     await shot("page", true);
   } else if (scenario === "sandbox") {
-    const pr = param("PR", "/Lightning11wins/gitgud-sandbox/pull/16");
+    const pr = param("PR", `/${sandbox().repo}/pull/16`);
     await go(pr);
     await click("button[aria-label='Request reviewers']");
     await shot("reviewer-menu");
@@ -110,7 +111,7 @@ try {
     await page.waitForTimeout(200);
     await shot("title-cancelled");
   } else if (scenario === "writes") {
-    const pr = param("PR", "/Lightning11wins/gitgud-sandbox/pull/16");
+    const pr = param("PR", `/${sandbox().repo}/pull/16`);
     await go(pr);
     await click(".pull-title-actions >> text=Edit");
     await page.fill(".pull-title-edit input", "Clarify guide section 3 (edited)");
@@ -125,7 +126,7 @@ try {
     await page.waitForTimeout(1500);
     await shot("ready-again", true);
   } else if (scenario === "merge") {
-    const pr = param("PR", "/Lightning11wins/gitgud-sandbox/pull/16");
+    const pr = param("PR", `/${sandbox().repo}/pull/16`);
     await go(pr);
     await click("button[aria-label='Select merge method']");
     await shot("method-menu");
@@ -144,17 +145,17 @@ try {
     await page.waitForTimeout(2000);
     await shot("branch-restored", true);
   } else if (scenario === "branch") {
-    await go(param("PR", "/Lightning11wins/gitgud-sandbox/pull/16"));
+    await go(param("PR", `/${sandbox().repo}/pull/16`));
     await click("text=Delete branch");
     await page.waitForSelector("text=Restore branch", { timeout: 15000 });
     await shot("branch-deleted");
-    console.log("branches after delete:", execFileSync("gh", ["api", "repos/Lightning11wins/gitgud-sandbox/branches", "-q", "[.[].name]|join(\",\")"], { encoding: "utf8" }).trim());
+    console.log("branches after delete:", execFileSync("gh", ["api", `repos/${sandbox().repo}/branches`, "-q", "[.[].name]|join(\",\")"], { encoding: "utf8" }).trim());
     await click("text=Restore branch");
     await page.waitForSelector("text=Delete branch", { timeout: 15000 });
     await shot("branch-restored");
-    console.log("branches after restore:", execFileSync("gh", ["api", "repos/Lightning11wins/gitgud-sandbox/branches", "-q", "[.[].name]|join(\",\")"], { encoding: "utf8" }).trim());
+    console.log("branches after restore:", execFileSync("gh", ["api", `repos/${sandbox().repo}/branches`, "-q", "[.[].name]|join(\",\")"], { encoding: "utf8" }).trim());
   } else if (scenario === "compare") {
-    await go(param("CMP", "/Lightning11wins/gitgud-sandbox/compare/main...unopened-branch"));
+    await go(param("CMP", `/${sandbox().repo}/compare/main...unopened-branch`));
     await shot("compare", true);
     if (process.env.CREATE) {
       await page.fill(".compare-title-input", "Add extra helper");

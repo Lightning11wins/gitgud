@@ -3,12 +3,12 @@
 // Scenarios:
 //   perf    PATHS="/a/b/issues/1,..." cold and warm loads with timings and API counts (read-only).
 //   write   creates an issue in the sandbox via the new-issue page, then exercises comment, edit, react,
-//           quote, delete, title, metadata, sub-issues, close/reopen, preview, autocomplete. Writes ONLY to SANDBOX.
+//           quote, delete, title, metadata, sub-issues, close/reopen, preview, autocomplete. Writes ONLY to GITGUD_SANDBOX.
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
+import { sandbox } from "./sandbox.mjs";
 
-const SANDBOX = "Lightning11wins/gitgud-sandbox";
 const argv = process.argv.slice(2);
 const [scenario = "perf", outDir = "flows"] = argv.filter((a) => !a.startsWith("--"));
 const dark = argv.includes("--dark");
@@ -92,7 +92,7 @@ async function timedLoad(path) {
 
 try {
   if (scenario === "perf") {
-    const paths = (process.env.PATHS ?? `/${SANDBOX}/issues/14,/microsoft/vscode/issues/93814`).split(",");
+    const paths = (process.env.PATHS ?? `/${sandbox().repo}/issues/14,/microsoft/vscode/issues/93814`).split(",");
     for (const p of paths) {
       await resetStats();
       console.log("cold", p, JSON.stringify(await timedLoad(p)));
@@ -128,7 +128,7 @@ try {
     // New issue: template chooser, then the bug template with a label preset. ISSUE=n reuses one instead.
     let number = Number(process.env.ISSUE ?? 0);
     if (!number) {
-    await page.goto(`${base}/${SANDBOX}/issues/new`);
+    await page.goto(`${base}/${sandbox().repo}/issues/new`);
     await settle();
     await shot("new-chooser");
     await page.locator(".template-list .box-row", { hasText: "Bug report" }).getByRole("button", { name: "Get started" }).click();
@@ -147,7 +147,7 @@ try {
     await page.waitForURL(/\/issues\/\d+$/, { timeout: 20000 });
     number = Number(page.url().split("/").pop());
     console.log("created issue", number);
-    } else await page.goto(`${base}/${SANDBOX}/issues/${number}`);
+    } else await page.goto(`${base}/${sandbox().repo}/issues/${number}`);
     await settle();
     await shot("issue-created");
     await check(async () => (await page.locator(".sidebar").innerText()).includes(viewer.login), "assignee applied on create");
@@ -255,7 +255,7 @@ try {
     await page.locator(".tl-form").getByRole("button", { name: /not planned/i }).click();
     await settle();
     await shot("closed-not-planned");
-    const ghState = () => JSON.parse(execFileSync("gh", ["api", `repos/${SANDBOX}/issues/${number}`, "-q", "{state, state_reason}"], { encoding: "utf8" }));
+    const ghState = () => JSON.parse(execFileSync("gh", ["api", `repos/${sandbox().repo}/issues/${number}`, "-q", "{state, state_reason}"], { encoding: "utf8" }));
     await check(async () => {
       const st = ghState();
       return st.state === "closed" && st.state_reason === "not_planned";
