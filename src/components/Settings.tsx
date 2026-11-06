@@ -50,9 +50,9 @@ export function Settings() {
       </section>
       <section className="box" style={{ padding: 16, marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Default repository tab</h3>
-        <div className="row">
+        <div className="row" style={{ gap: 16 }}>
           {REPO_TABS.map((t) => (
-            <label key={t.value} className="row" style={{ gap: 4 }}>
+            <label key={t.value} className="row" style={{ gap: 6 }}>
               <input type="radio" name="repo-tab" checked={prefs.repoTab === t.value} onChange={() => updateSettings({ repoTab: t.value })} />
               {t.label}
             </label>
