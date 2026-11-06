@@ -34,6 +34,38 @@ export interface IssueExtras {
   parent: IssueRef | null;
   closedByPullRequestsReferences: { totalCount: number; nodes: PullRef[] };
   participants: { totalCount: number; nodes: User[] };
+  issueFieldValues: { nodes: IssueFieldValue[] };
+  viewerCanSetFields: boolean | null;
+}
+
+export type IssueFieldDataType = "TEXT" | "SINGLE_SELECT" | "MULTI_SELECT" | "DATE" | "NUMBER";
+
+export interface IssueFieldOption {
+  id: string;
+  name: string;
+  color: string;
+  description?: string | null;
+}
+
+/** An organization's issue field, like Priority or Target date. */
+export interface IssueField {
+  id: string;
+  name: string;
+  dataType: IssueFieldDataType;
+  description: string | null;
+  /** Select fields only. */
+  options?: IssueFieldOption[];
+}
+
+/** An issue's value for one field: `value` for text, number, and date fields, `optionId` or `options` for selects. */
+export interface IssueFieldValue {
+  __typename: string;
+  field: { id: string } | null;
+  value?: string | number | null;
+  optionId?: string | null;
+  name?: string;
+  color?: string;
+  options?: IssueFieldOption[];
 }
 
 const ISSUE_REF_FIELDS = `id number title url state stateReason repository { nameWithOwner }`;
@@ -45,6 +77,17 @@ export const ISSUE_EXTRA_FIELDS = `
   parent { ${ISSUE_REF_FIELDS} }
   closedByPullRequestsReferences(first: 10) { totalCount nodes { id number title url state isDraft repository { nameWithOwner } } }
   participants(first: 10) { totalCount nodes { id ${ACTOR_FIELDS} name } }
+  viewerCanSetFields
+  issueFieldValues(first: 50) {
+    nodes {
+      __typename
+      ... on IssueFieldTextValue { field { ... on Node { id } } value }
+      ... on IssueFieldNumberValue { field { ... on Node { id } } value }
+      ... on IssueFieldDateValue { field { ... on Node { id } } value }
+      ... on IssueFieldSingleSelectValue { field { ... on Node { id } } optionId name color }
+      ... on IssueFieldMultiSelectValue { field { ... on Node { id } } options { id name color } }
+    }
+  }
 `;
 
 const LONG = 10 * 60_000;
@@ -120,6 +163,80 @@ export function useIssueTypes(owner: string, repo: string, enabled = true) {
       );
       return d.repository.issueTypes?.nodes ?? [];
     },
+  });
+}
+
+/** The repo's issue fields, and the fields pinned to each issue type (`""` for issues without a type), in pin order. */
+export interface RepoIssueFields {
+  fields: IssueField[];
+  pinned: Record<string, string[]>;
+}
+
+const FIELD_ID = `... on Node { id }`;
+
+export function useIssueFields(owner: string, repo: string, enabled = true) {
+  return useQuery({
+    queryKey: ["issue-fields", owner, repo],
+    enabled,
+    staleTime: LONG,
+    queryFn: async (): Promise<RepoIssueFields> => {
+      type Pins = { id: string }[];
+      const d = await gql<{
+        repository: {
+          issueFields: { nodes: IssueField[] } | null;
+          issueTypes: { nodes: { id: string; pinnedFields: Pins | null }[] } | null;
+          owner: { pinnedIssueFields?: { nodes: Pins } };
+        };
+      }>(
+        `query RepoIssueFields($owner: String!, $repo: String!) {
+          repository(owner: $owner, name: $repo) {
+            issueFields(first: 50) {
+              nodes {
+                ... on IssueFieldCommon { name dataType description }
+                ${FIELD_ID}
+                ... on IssueFieldSingleSelect { options { id name color description } }
+                ... on IssueFieldMultiSelect { options { id name color description } }
+              }
+            }
+            issueTypes(first: 50) { nodes { id pinnedFields { ${FIELD_ID} } } }
+            owner { ... on Organization { pinnedIssueFields(first: 50) { nodes { ${FIELD_ID} } } } }
+          }
+        }`,
+        { owner, repo },
+      );
+      const ids = (pins: Pins | null | undefined) => (pins ?? []).map((f) => f.id);
+      const pinned: Record<string, string[]> = { "": ids(d.repository.owner.pinnedIssueFields?.nodes) };
+      for (const t of d.repository.issueTypes?.nodes ?? []) pinned[t.id] = ids(t.pinnedFields);
+      return { fields: d.repository.issueFields?.nodes ?? [], pinned };
+    },
+  });
+}
+
+/**
+ * The fields GitHub shows for an issue: those pinned to its type, then any others with a value.
+ * When the token can't see any pins, every field.
+ */
+export function shownFields({ fields, pinned }: RepoIssueFields, typeId: string | undefined, values: IssueFieldValue[]): IssueField[] {
+  const byId = new Map(fields.map((f) => [f.id, f]));
+  const ids = Object.values(pinned).some((p) => p.length > 0) ? (pinned[typeId ?? ""] ?? []) : fields.map((f) => f.id);
+  const valued = values.flatMap((v) => (v.field && !ids.includes(v.field.id) ? [v.field.id] : []));
+  return [...ids, ...valued].flatMap((id) => byId.get(id) ?? []);
+}
+
+/** One field's new value; `delete` clears it. */
+export interface IssueFieldInput {
+  fieldId: string;
+  textValue?: string;
+  numberValue?: number;
+  dateValue?: string;
+  singleSelectOptionId?: string;
+  multiSelectOptionIds?: string[];
+  delete?: boolean;
+}
+
+export async function setIssueFieldValue(issueId: string, input: IssueFieldInput) {
+  await gql(`mutation SetIssueFieldValue($input: SetIssueFieldValueInput!) { setIssueFieldValue(input: $input) { issue { id } } }`, {
+    input: { issueId, issueFields: [input] },
   });
 }
 

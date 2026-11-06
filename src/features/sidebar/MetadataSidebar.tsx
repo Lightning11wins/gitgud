@@ -17,13 +17,20 @@ import {
   addSubIssue,
   findIssue,
   removeSubIssue,
+  setIssueFieldValue,
   setLocked,
+  shownFields,
   updateSubject,
   useAssignableUsers,
+  useIssueFields,
   useIssueTypes,
   useMilestones,
   useRepoLabels,
   type IssueExtras,
+  type IssueField,
+  type IssueFieldInput,
+  type IssueFieldOption,
+  type IssueFieldValue,
   type IssueRef,
   type PullRef,
   type SubjectUpdate,
@@ -147,6 +154,10 @@ export function MetadataSidebar({ subject, owner, repo, children }: MetadataSide
           </h3>
           {subject.issueType ? <IssueTypeChip type={subject.issueType} /> : <div className="muted sidebar-empty">No type</div>}
         </section>
+      )}
+
+      {kind === "issue" && extras.issueFieldValues && (
+        <IssueFields subject={extras as SubjectMeta & IssueExtras} owner={owner} repo={repo} onError={setError} />
       )}
 
       <section className="sidebar-section">
@@ -342,6 +353,163 @@ export function IssueTypeChip({ type }: { type: Pick<IssueType, "name" | "color"
       <span className="label-dot" style={{ background: TYPE_COLORS[type.color] ?? "var(--fg-muted)" }} />
       {type.name}
     </span>
+  );
+}
+
+const dateValueFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+const FIELD_PLACEHOLDER: Record<IssueField["dataType"], string> = {
+  SINGLE_SELECT: "Choose an option",
+  MULTI_SELECT: "Choose options",
+  DATE: "Choose a date",
+  NUMBER: "Enter a number",
+  TEXT: "Enter text",
+};
+
+function OptionChip({ option }: { option: Pick<IssueFieldOption, "name" | "color"> }) {
+  return (
+    <span className="row sidebar-field-option">
+      <span className="label-dot" style={{ background: TYPE_COLORS[option.color ?? ""] ?? "var(--fg-muted)" }} />
+      <span className="truncate">{option.name}</span>
+    </span>
+  );
+}
+
+function FieldValueView({ field, value }: { field: IssueField; value: IssueFieldValue }) {
+  switch (field.dataType) {
+    case "SINGLE_SELECT":
+      return <OptionChip option={{ name: value.name ?? "", color: value.color ?? "" }} />;
+    case "MULTI_SELECT":
+      return (
+        <span className="sidebar-field-options">
+          {value.options?.map((o) => <OptionChip key={o.id} option={o} />)}
+        </span>
+      );
+    case "DATE":
+      return <span className="truncate">{dateValueFmt.format(new Date(String(value.value).slice(0, 10)))}</span>;
+    default:
+      return <span className="truncate">{String(value.value ?? "")}</span>;
+  }
+}
+
+/** Optimistic value for `input`, or null when it clears the field. */
+function optimisticValue(field: IssueField, input: IssueFieldInput): IssueFieldValue | null {
+  if (input.delete) return null;
+  const base = { field: { id: field.id } };
+  const option = field.options?.find((o) => o.id === input.singleSelectOptionId);
+  if (option) return { ...base, __typename: "IssueFieldSingleSelectValue", optionId: option.id, name: option.name, color: option.color };
+  if (input.multiSelectOptionIds)
+    return { ...base, __typename: "IssueFieldMultiSelectValue", options: field.options?.filter((o) => input.multiSelectOptionIds!.includes(o.id)) };
+  return { ...base, __typename: "IssueFieldValue", value: input.textValue ?? input.dateValue ?? input.numberValue ?? null };
+}
+
+/** Organization issue fields, like Priority and Effort, pinned to the issue's type. */
+function IssueFields({ subject, owner, repo, onError }: { subject: SubjectMeta & IssueExtras; owner: string; repo: string; onError: (e: unknown) => void }) {
+  const repoFields = useIssueFields(owner, repo);
+  const [menu, setMenu] = useState<{ field: IssueField; anchor: HTMLElement } | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const values = subject.issueFieldValues.nodes;
+  if (!repoFields.data) return null;
+  const fields = shownFields(repoFields.data, subject.issueType?.id, values);
+  if (fields.length === 0) return null;
+  const editable = subject.viewerCanSetFields === true;
+  const valueOf = (f: IssueField) => values.find((v) => v.field?.id === f.id);
+
+  const set = (field: IssueField, input: IssueFieldInput) => {
+    onError(null);
+    const next = optimisticValue(field, input);
+    patchSubject("issue", owner, repo, subject.number, (s) => {
+      const rest = (s as SubjectMeta & IssueExtras).issueFieldValues.nodes.filter((v) => v.field?.id !== field.id);
+      return { issueFieldValues: { nodes: next ? [...rest, next] : rest } } as Partial<SubjectMeta>;
+    });
+    setIssueFieldValue(subject.id, input)
+      .catch(onError)
+      .finally(() => invalidateSubject("issue", owner, repo, subject.number));
+  };
+
+  const commitText = (field: IssueField, text: string) => {
+    setEditing(null);
+    const t = text.trim();
+    const old = valueOf(field)?.value;
+    if (t === String(old ?? "").slice(0, field.dataType === "DATE" ? 10 : undefined)) return;
+    if (!t) return set(field, { fieldId: field.id, delete: true });
+    if (field.dataType === "DATE") return set(field, { fieldId: field.id, dateValue: t });
+    if (field.dataType === "TEXT") return set(field, { fieldId: field.id, textValue: t });
+    const n = Number(t);
+    if (Number.isNaN(n)) return onError(new Error(`Failed to set ${field.name}: "${t}" is not a number`));
+    set(field, { fieldId: field.id, numberValue: n });
+  };
+
+  const isSelect = (f: IssueField) => f.dataType === "SINGLE_SELECT" || f.dataType === "MULTI_SELECT";
+
+  return (
+    <section className="sidebar-section">
+      <h3 className="sidebar-title">Fields</h3>
+      <div className="sidebar-fields">
+        {fields.map((f) => {
+          const value = valueOf(f);
+          const shown = value ? <FieldValueView field={f} value={value} /> : <span className="muted">{editable ? FIELD_PLACEHOLDER[f.dataType] : "None"}</span>;
+          return (
+            <div key={f.id} className="sidebar-field">
+              <span className="sidebar-field-name truncate" title={f.description ?? f.name}>
+                {f.name}
+              </span>
+              {!editable ? (
+                <span className="sidebar-field-value">{shown}</span>
+              ) : editing === f.id ? (
+                <input
+                  className="input sm sidebar-field-input"
+                  type={f.dataType === "DATE" ? "date" : f.dataType === "NUMBER" ? "number" : "text"}
+                  aria-label={f.name}
+                  autoFocus
+                  defaultValue={value ? String(value.value ?? "").slice(0, f.dataType === "DATE" ? 10 : undefined) : ""}
+                  onBlur={(e) => commitText(f, e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                    if (e.key === "Escape") setEditing(null);
+                  }}
+                />
+              ) : (
+                <button
+                  className="btn invisible sm sidebar-field-value"
+                  aria-label={`Edit ${f.name}`}
+                  onClick={(e) => (isSelect(f) ? setMenu(menu ? null : { field: f, anchor: e.currentTarget }) : setEditing(f.id))}
+                >
+                  {shown}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {menu && (
+        <SelectMenu<IssueFieldOption>
+          anchor={menu.anchor}
+          title={menu.field.name}
+          items={menu.field.options ?? []}
+          getKey={(o) => o.id}
+          getText={(o) => `${o.name} ${o.description ?? ""}`}
+          renderItem={(o) => (
+            <span className="sidebar-menu-label">
+              <OptionChip option={o} />
+              {o.description && <span className="muted truncate">{o.description}</span>}
+            </span>
+          )}
+          initial={(() => {
+            const v = valueOf(menu.field);
+            return v?.optionId ? [v.optionId] : (v?.options?.map((o) => o.id) ?? []);
+          })()}
+          multiple={menu.field.dataType === "MULTI_SELECT"}
+          onApply={(ids) => {
+            const fieldId = menu.field.id;
+            if (ids.length === 0) set(menu.field, { fieldId, delete: true });
+            else if (menu.field.dataType === "MULTI_SELECT") set(menu.field, { fieldId, multiSelectOptionIds: ids });
+            else set(menu.field, { fieldId, singleSelectOptionId: ids[0] });
+          }}
+          onClose={() => setMenu(null)}
+        />
+      )}
+    </section>
   );
 }
 

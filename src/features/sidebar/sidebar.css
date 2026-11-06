@@ -72,6 +72,46 @@
   font-size: 12px;
   font-weight: 500;
 }
+.sidebar-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar-field {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.sidebar-field-name {
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.sidebar-field-value {
+  justify-self: start;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 400;
+}
+.btn.sidebar-field-value {
+  margin-left: -8px;
+  color: var(--fg);
+}
+.sidebar-field-input {
+  width: 100%;
+}
+.sidebar-field-option {
+  gap: 6px;
+  min-width: 0;
+}
+.sidebar-field-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-width: 0;
+}
 .sidebar-progress {
   height: 6px;
   margin: 2px 0 8px;

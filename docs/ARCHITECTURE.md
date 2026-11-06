@@ -21,7 +21,7 @@ src/
     issue/      issue page, new issue page
     conversation/ timeline + comment rendering (issues and PR conversation tab)
     composer/   Composer (markdown editor)
-    sidebar/    labels / assignees / milestone / issue type / sub-issues sidebar
+    sidebar/    labels / assignees / milestone / issue type / issue fields / sub-issues sidebar
     pull/       PR page shell, header, tabs, merge box, commits, checks, compare/new PR
     diff/       Files changed: split diff, file tree, highlighting worker
     review/     review threads, pending review, submit review
@@ -75,13 +75,14 @@ server/serve.mjs  static server with CSP and compression
 - Selecting check runs in the list query slows it by about 1.5s, so list rows get their check counts from `CHECKS_QUERY`, the same search run alongside each page with the same cursor. Rows whose check runs the token can't read show no count.
 - Issue rows select `closedByPullRequestsReferences` in the list query itself; it adds about 8% to first rows, cheaper than a second search on issue-only pages.
 - GraphQL connections page serially at about 1.8s per 100 nodes regardless of fields selected. Owner pages refresh by fetching the first page and merging with the cache.
+- Issue fields (Priority, Effort, ...) show in the sidebar when pinned to the issue's type. Tokens without organization admin access see no pins (`pinnedFields` is empty, without an error), so `shownFields` in `features/sidebar/data.ts` then shows every field.
 - The first request from headless Chromium can fail CORS preflight behind some proxies; it's an environment problem, not an app bug.
 
 ## Shared contracts
 
 - `features/composer/Composer.tsx`: `Composer` props are the contract (draftKey, owner, repo, onSubmit, actions, ...). Drafts persist in IndexedDB.
 - `features/conversation/Timeline.tsx`: `Timeline({ owner, repo, number, kind: "issue" | "pull", subject })` renders the conversation (comments, events, and, for PRs, reviews with their threads) plus the bottom comment box.
-- `features/sidebar/MetadataSidebar.tsx`: `MetadataSidebar({ subject: SubjectMeta, owner, repo, children? })` renders and edits assignees, labels, milestone, issue type, and sub-issues. `children` is extra sections (e.g. reviewers for PRs). After edits it invalidates `keys.issue` or `keys.pull`.
+- `features/sidebar/MetadataSidebar.tsx`: `MetadataSidebar({ subject: SubjectMeta, owner, repo, children? })` renders and edits assignees, labels, milestone, issue type, issue fields, and sub-issues. `children` is extra sections (e.g. reviewers for PRs). After edits it invalidates `keys.issue` or `keys.pull`.
 - `features/review/threads.ts`: `useReviewThreads` / `fetchReviewThreads`: every review thread and comment for a PR (`keys.reviewThreads`).
 - `features/review/ReviewThread.tsx`: `ReviewThreadView({ thread, owner, repo, number })` renders one thread with reply, resolve, edit, delete, reactions.
 - `features/review/ReviewSubmit.tsx`: `ReviewSubmitButton({ owner, repo, number, pullId })`: the "Review changes" / "Finish your review" button and popover.
