@@ -24,6 +24,7 @@
   --danger-subtle: #ffebe9;
   --attention: #9a6700;
   --attention-subtle: #fff8c5;
+  --attention-bright: #e3b341;
   --done: #8250df;
   --done-emphasis: #8250df;
   --done-subtle: #fbefff;
@@ -76,6 +77,8 @@
     --danger-subtle: #f851491a;
     --attention: #d29922;
     --attention-subtle: #bb800926;
+  --attention-bright: #f2cc60;
+    --attention-bright: #f2cc60;
     --done: #ab7df8;
     --done-emphasis: #8957e5;
     --done-subtle: #ab7df826;
@@ -245,8 +248,17 @@ samp {
   justify-content: flex-end;
   gap: 4px;
 }
-.rate-limit-warning {
-  color: var(--attention);
+.api-meter rect {
+  fill: currentColor;
+}
+.api-meter .api-meter-track {
+  fill: var(--border);
+}
+.api-meter.attention svg {
+  color: var(--attention-bright);
+}
+.api-meter.danger svg {
+  color: var(--danger);
 }
 .app-header .brand {
   font-weight: 600;

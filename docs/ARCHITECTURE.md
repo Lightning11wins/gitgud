@@ -36,7 +36,7 @@ server/serve.mjs  static server with CSP and compression
 - REST (`rest`, `restAll`) is fine where GraphQL lacks something (PR files with patches, file contents, `/markdown`). `restAll` fetches pages in parallel.
 - For expensive queries, use `probeThenLoad` from `api/queryClient.ts`: a 1-point probe (e.g. `updatedAt`) skips the full reload when nothing changed.
 - `bodyHTML` / `body_html` is GitHub-rendered HTML. Render it only through `components/Markdown.tsx`, which sanitizes it with DOMPurify. Never use `dangerouslySetInnerHTML` elsewhere.
-- Every request is counted in `window.__gitgudApiStats`; Settings shows the rate limit, and the header warns when it runs low. Keep request counts low: no polling, and no fetching per item in a list.
+- Every request is counted in `window.__gitgudApiStats`; a header meter shows how much of each rate limit is used, turns yellow when one runs low and red when one runs out, and links to Settings for the numbers. Keep request counts low: no polling, and no fetching per item in a list.
 - A 401 from GitHub returns to the sign-in screen at the same URL. Signing in as the same user keeps the cache and drafts; another user starts clean.
 - Save drafts with `drafts.setSoon` (debounced); `drafts.clear` and sign-out cancel pending writes.
 

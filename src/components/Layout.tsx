@@ -1,4 +1,4 @@
-import { AlertIcon, CommentIcon, LinkExternalIcon, MoonIcon, SunIcon, DeviceDesktopIcon } from "@primer/octicons-react";
+import { CommentIcon, LinkExternalIcon, MoonIcon, SunIcon, DeviceDesktopIcon } from "@primer/octicons-react";
 import { useRef, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { rateLimits } from "@/api/rateLimit";
@@ -58,7 +58,7 @@ export function Layout() {
         </div>
         <JumpBox repo={repo} />
         <div className="app-header-end">
-          <RateLimitWarning />
+          <ApiMeter />
           {pathname !== "/" && pathname !== "/settings" && (
             <a className="btn invisible sm" href={toGitHubUrl(pathname + search)} target="_blank" rel="noopener noreferrer" title="Open this page on GitHub">
               <LinkExternalIcon /> GitHub
@@ -153,19 +153,40 @@ function JumpBox({ repo }: { repo: { owner: string; repo: string } | null }) {
   );
 }
 
-/** Appears only when a GitHub API rate limit is nearly used up. Settings shows the full numbers. */
-function RateLimitWarning() {
-  const { core, graphql } = useStore(rateLimits);
-  const low = [graphql && { name: "GraphQL", ...graphql }, core && { name: "REST", ...core }].find((r) => r && r.remaining < r.limit * 0.1);
-  if (!low) return null;
-  const reset = new Date(low.reset * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const METER_LIMITS = [
+  ["graphql", "GraphQL"],
+  ["core", "REST"],
+] as const;
+
+/** One bar per GitHub API rate limit, filled by the share used. Links to Settings for the numbers. */
+function ApiMeter() {
+  const limits = useStore(rateLimits);
+  const bars = METER_LIMITS.map(([key, name]) => {
+    const r = limits[key];
+    const left = r && r.limit ? r.remaining / r.limit : undefined;
+    const reset = r && new Date(r.reset * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    return { name, left, text: r ? `${name}: ${r.remaining.toLocaleString()} of ${r.limit.toLocaleString()} left until ${reset}` : `${name}: not used yet this session` };
+  });
+  const low = Math.min(...bars.map((b) => b.left ?? 1));
+  const tone = low <= 0 ? "danger" : low < 0.1 ? "attention" : undefined;
   return (
     <Link
       to="/settings"
-      className="btn invisible sm rate-limit-warning"
-      title={`GitHub ${low.name} API: ${low.remaining.toLocaleString()} of ${low.limit.toLocaleString()} requests left until ${reset}. Pages may stop refreshing until then.`}
+      className={`btn invisible sm icon api-meter${tone ? ` ${tone}` : ""}`}
+      title={`GitHub API requests left\n${bars.map((b) => b.text).join("\n")}`}
+      aria-label="GitHub API usage"
     >
-      <AlertIcon /> API limit low
+      <svg width={16} height={16} viewBox="0 0 16 16" aria-hidden="true">
+        {bars.map((b, i) => {
+          const h = Math.max(2, 12 * (1 - (b.left ?? 1)));
+          return (
+            <g key={b.name}>
+              <rect className="api-meter-track" x={4 + i * 5} y={2} width={3} height={12} rx={1} />
+              <rect x={4 + i * 5} y={14 - h} width={3} height={h} rx={1} />
+            </g>
+          );
+        })}
+      </svg>
     </Link>
   );
 }
