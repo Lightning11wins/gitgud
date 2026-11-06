@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { apiStats, rateLimits } from "@/api/rateLimit";
+import { apiStats } from "@/api/rateLimit";
 import { clearCache, storageUsage } from "@/api/queryClient";
 import { auth, signOut } from "@/auth/token";
 import { settings, updateSettings } from "@/lib/settings";
 import { useStore } from "@/lib/store";
 import { setTheme, themePref, type ThemePref } from "@/lib/theme";
 import { useTitle } from "@/lib/useTitle";
+import { ApiUsageBars } from "./ApiUsageBars";
 
 export function Settings() {
   useTitle("Settings");
   const theme = useStore(themePref);
   const { viewer } = useStore(auth);
-  const limits = useStore(rateLimits);
   const prefs = useStore(settings);
   const qc = useQueryClient();
   const [usage, setUsage] = useState<number>();
@@ -68,13 +68,7 @@ export function Settings() {
         <p className="muted">
           Requests this session: {apiStats.total} ({apiStats.graphql} GraphQL, {apiStats.rest} REST)
         </p>
-        <ul>
-          {Object.entries(limits).map(([k, v]) => (
-            <li key={k}>
-              {k}: {v.remaining} / {v.limit} left, resets {new Date(v.reset * 1000).toLocaleTimeString()}
-            </li>
-          ))}
-        </ul>
+        <ApiUsageBars />
         <label className="row" style={{ gap: 6, marginBottom: 8 }}>
           <input type="checkbox" checked={prefs.showApiMeter} onChange={(e) => updateSettings({ showApiMeter: e.target.checked })} />
           Show the usage meter in the header. It always shows when a limit runs low.
