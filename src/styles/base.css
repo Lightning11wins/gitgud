@@ -652,6 +652,20 @@ textarea.input {
   border-radius: 50%;
   animation: spin 0.9s linear infinite, spinner-in 0.3s ease-out both;
 }
+.spinner.idle {
+  visibility: hidden;
+  animation: none;
+}
+/* Stand-in for text that hasn't loaded; its hidden text sets the size. */
+.skeleton {
+  display: inline-block;
+  background: var(--neutral-muted);
+  color: transparent;
+  user-select: none;
+}
+.skeleton:not(.counter) {
+  border-radius: 4px;
+}
 @keyframes spinner-in {
   from {
     opacity: 0;

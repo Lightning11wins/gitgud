@@ -103,7 +103,13 @@ export function RepoPage({ kind }: { kind?: Kind }) {
           <span className="muted">{owner} /</span> <strong>{repo}</strong>
           {c?.isPrivate && <LockIcon size={16} className="muted" />}
         </h1>
-        {c?.description && <p className="muted repo-desc">{c.description}</p>}
+        {counts.isPending ? (
+          <p className="muted repo-desc">
+            <span className="skeleton" aria-hidden="true">A short description of this repository</span>
+          </p>
+        ) : (
+          c?.description && <p className="muted repo-desc">{c.description}</p>
+        )}
       </div>
 
       <nav className="tabs" aria-label="Repository lists">
@@ -111,7 +117,11 @@ export function RepoPage({ kind }: { kind?: Kind }) {
           <Link key={t.label} to={t.to} className={t.kind === kind ? "tab active" : "tab"}>
             {t.icon}
             {t.label}
-            {t.count !== undefined && <span className="counter">{t.count.toLocaleString()}</span>}
+            {t.count !== undefined ? (
+              <span className="counter">{t.count.toLocaleString()}</span>
+            ) : (
+              counts.isPending && <span className="counter skeleton" aria-hidden="true">000</span>
+            )}
           </Link>
         ))}
         <span className="grow" />
@@ -159,7 +169,11 @@ export function RepoPage({ kind }: { kind?: Kind }) {
               <button key={s} className="repo-toggle" data-selected={state === s} onClick={() => setQ(setState(q, s))}>
                 {s === "closed" ? <CheckIcon size={16} /> : kind === "pr" ? <GitPullRequestIcon size={16} /> : <IssueOpenedIcon size={16} />}
                 {s === "open" ? "Open" : "Closed"}
-                {stateCount(c, kind, s) !== undefined && <span className="muted">{stateCount(c, kind, s)?.toLocaleString()}</span>}
+                {stateCount(c, kind, s) !== undefined ? (
+                  <span className="muted">{stateCount(c, kind, s)?.toLocaleString()}</span>
+                ) : (
+                  counts.isPending && <span className="skeleton" aria-hidden="true">000</span>
+                )}
               </button>
             ))}
             <span className="grow" />

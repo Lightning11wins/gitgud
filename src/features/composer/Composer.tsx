@@ -364,6 +364,7 @@ export function Composer(props: ComposerProps) {
       {!hideSubmit && (
         <div className="composer-actions row">
           <span className="grow muted composer-hint">Markdown supported · Ctrl+Enter to submit</span>
+          {submitting && <Spinner size={12} label="Submitting" />}
           {onCancel && (
             <button className="btn" onClick={cancel} disabled={submitting}>
               Cancel
@@ -371,7 +372,6 @@ export function Composer(props: ComposerProps) {
           )}
           {actions?.({ value, submitting, run })}
           <button className="btn primary" disabled={!canSubmit} onClick={() => run(onSubmit)}>
-            {submitting && <Spinner size={12} label="Submitting" />}
             {submitLabel}
           </button>
         </div>
