@@ -18,6 +18,7 @@ Setup: `npx playwright install chromium`. If the default browser cache isn't wri
 |---|---|---|
 | `shot.mjs <path> [out.png]` | Screenshot a page; prints console errors and API request counts. An `out.pdf` prints the page instead | No |
 | `audit-affordances.mjs` | Find elements that look clickable but do nothing, and in-app links that 404. Exits 1 on findings | No (blocked) |
+| `audit-alignment.mjs` | Find icons and avatars that sit off-center from the text beside them. Exits 1 on findings | No (blocked) |
 | `conversation-flows.mjs write <outDir>` | Issue flows: create, comment, edit, react, metadata, sub-issues, close/reopen | Creates and closes a new sandbox issue each run |
 | `conversation-flows.mjs perf <outDir>` | Cold and warm load timings for `PATHS` | No |
 | `diff-flows.mjs [--write]` | Files changed: tree, expand context, Load diff, viewed, keys, line and range comments | Viewed state (restored); with `--write`, review comments, then discards the pending review |
