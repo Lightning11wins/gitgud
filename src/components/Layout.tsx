@@ -75,7 +75,6 @@ export function Layout() {
         <div className="app-header-start">
           <Link to="/" className="brand" title="Dashboard" aria-label="GitGud dashboard">
             <img src="/favicon.svg" width={24} height={24} alt="" />
-            <span className="app-header-label">GitGud</span>
           </Link>
           {owner && (
             <nav className="crumbs truncate">

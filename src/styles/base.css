@@ -278,12 +278,22 @@ samp {
 .app-header .crumbs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   font-size: 14px;
   min-width: 0;
 }
-.app-header .crumbs a {
+/* Crumbs are borderless buttons: padded so hover shows a background, not an underline. */
+.app-header .crumbs a,
+.app-header .crumbs [aria-current="page"] {
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  line-height: 20px;
   color: var(--fg);
+  white-space: nowrap;
+}
+.app-header .crumbs a:hover {
+  background: var(--neutral-muted);
+  text-decoration: none;
 }
 @media (max-width: 1012px) {
   .app-header .app-header-label {
