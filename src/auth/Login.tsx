@@ -60,7 +60,7 @@ export function Login() {
             <a href={TOKEN_URL} target="_blank" rel="noopener noreferrer">
               Create a classic token
             </a>{" "}
-            with <code>repo</code> and <code>read:org</code> scopes, or a fine-grained token with read/write access to
+            with <code>repo</code>, <code>read:org</code>, <code>read:project</code>, and <code>read:user</code> scopes, or a fine-grained token with read/write access to
             Contents, Issues, and Pull requests, plus read access to Actions, Commit statuses, and Metadata (and Members
             and Projects for organizations).
           </p>
