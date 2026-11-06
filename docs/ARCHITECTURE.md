@@ -55,12 +55,13 @@ server/serve.mjs  static server with CSP and compression
 
 ## Shared contracts
 
-- `features/composer/Composer.tsx` — `Composer` props are the contract (draftKey, owner, repo, onSubmit, actions, ...). Drafts persist in IndexedDB.
-- `features/conversation/Timeline.tsx` — `Timeline({ owner, repo, number, kind: "issue" | "pull" })` renders the conversation (comments, events, and, for PRs, reviews with their threads) plus the bottom comment box.
-- `features/sidebar/MetadataSidebar.tsx` — `MetadataSidebar({ subject: SubjectMeta, owner, repo, children? })` renders and edits assignees, labels, milestone, issue type, and sub-issues. `children` is extra sections (e.g. reviewers for PRs). After edits it invalidates `keys.issue` or `keys.pull`.
-- `features/review/threads.ts` — `useReviewThreads` / `fetchReviewThreads`: every review thread and comment for a PR (`keys.reviewThreads`).
-- `features/review/ReviewThread.tsx` — `ReviewThreadView({ thread, owner, repo, number })` renders one thread with reply, resolve, edit, delete, reactions.
-- `features/review/ReviewSubmit.tsx` — `ReviewSubmitButton({ owner, repo, number, pullId })`: the "Review changes" / "Finish your review" button and popover.
-- `features/review/pending.ts` — the viewer's pending review on GitHub (`keys.pendingReview`).
-- `features/diff/FilesChanged.tsx` — `FilesChanged({ owner, repo, number })` for a PR, and `CommitFiles({ owner, repo, sha })` for a single commit.
+- `features/composer/Composer.tsx`: `Composer` props are the contract (draftKey, owner, repo, onSubmit, actions, ...). Drafts persist in IndexedDB.
+- `features/conversation/Timeline.tsx`: `Timeline({ owner, repo, number, kind: "issue" | "pull", subject })` renders the conversation (comments, events, and, for PRs, reviews with their threads) plus the bottom comment box.
+- `features/sidebar/MetadataSidebar.tsx`: `MetadataSidebar({ subject: SubjectMeta, owner, repo, children? })` renders and edits assignees, labels, milestone, issue type, and sub-issues. `children` is extra sections (e.g. reviewers for PRs). After edits it invalidates `keys.issue` or `keys.pull`.
+- `features/review/threads.ts`: `useReviewThreads` / `fetchReviewThreads`: every review thread and comment for a PR (`keys.reviewThreads`).
+- `features/review/ReviewThread.tsx`: `ReviewThreadView({ thread, owner, repo, number })` renders one thread with reply, resolve, edit, delete, reactions.
+- `features/review/ReviewSubmit.tsx`: `ReviewSubmitButton({ owner, repo, number, pullId })`: the "Review changes" / "Finish your review" button and popover.
+- `features/review/pending.ts`: the viewer's pending review on GitHub (`keys.pendingReview`).
+- `features/diff/FilesChanged.tsx`: `FilesChanged({ owner, repo, number })` for a PR, `CommitFiles({ owner, repo, sha })` for a single commit, and `CompareFiles({ owner, repo, base, head })` for the new-PR page.
+- `api/prefetch.ts`: pages call `registerPrefetcher` at module load; list rows call `prefetchSubject` on hover.
 - `features/pull/PullPage.tsx` owns `/:owner/:repo/pull/:number/*` and fetches PR metadata into `keys.pull`.
