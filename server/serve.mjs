@@ -1,6 +1,9 @@
 // Static file server for the built app: SPA fallback, compression, and strict security headers.
-// Usage: node server/serve.mjs [--port 8080] [--host 127.0.0.1] [--dir dist]
-import { createServer } from "node:http";
+// Usage: node server/serve.mjs [--port 8080] [--host 127.0.0.1] [--dir dist] [--cert cert.pem --key key.pem]
+// With --cert and --key it serves HTTPS.
+import { readFileSync } from "node:fs";
+import { createServer as createHttpServer } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { brotliCompressSync, gzipSync } from "node:zlib";
@@ -11,6 +14,13 @@ const args = Object.fromEntries(
 const PORT = Number(args.port ?? process.env.PORT ?? 8080);
 const HOST = args.host ?? process.env.HOST ?? "127.0.0.1";
 const ROOT = resolve(args.dir ?? new URL("../dist", import.meta.url).pathname);
+const CERT = args.cert ?? process.env.TLS_CERT;
+const KEY = args.key ?? process.env.TLS_KEY;
+if (!CERT !== !KEY) {
+  console.error(`Failed to start: --cert and --key must be given together (cert: ${CERT ?? "none"}, key: ${KEY ?? "none"})`);
+  process.exit(1);
+}
+const TLS = CERT ? { cert: readFileSync(CERT), key: readFileSync(KEY) } : null;
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -49,6 +59,7 @@ const SECURITY_HEADERS = {
   "X-Frame-Options": "DENY",
   "Cross-Origin-Opener-Policy": "same-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  ...(TLS ? { "Strict-Transport-Security": "max-age=31536000" } : {}),
 };
 
 const cache = new Map();
@@ -81,7 +92,7 @@ async function resolveFile(urlPath) {
   return null;
 }
 
-createServer(async (req, res) => {
+async function handle(req, res) {
   try {
     const url = new URL(req.url ?? "/", "http://x");
     // Page navigations fall back to the SPA, including repo paths with dots like /vercel/next.js.
@@ -112,4 +123,7 @@ createServer(async (req, res) => {
   } catch (e) {
     res.writeHead(500, SECURITY_HEADERS).end(`Failed to serve ${req.url}: ${e.message}`);
   }
-}).listen(PORT, HOST, () => console.log(`gitgud serving ${ROOT} on http://${HOST}:${PORT}`));
+}
+
+const server = TLS ? createHttpsServer(TLS, handle) : createHttpServer(handle);
+server.listen(PORT, HOST, () => console.log(`gitgud serving ${ROOT} on ${TLS ? "https" : "http"}://${HOST}:${PORT}`));
