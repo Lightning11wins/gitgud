@@ -13,6 +13,10 @@
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
+.issue-title-edit-btn {
+  margin-left: 4px;
+  vertical-align: middle;
+}
 .issue-title-edit {
   margin-bottom: 8px;
 }

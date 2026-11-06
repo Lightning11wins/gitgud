@@ -1,3 +1,4 @@
+import { PencilIcon } from "@primer/octicons-react";
 import { useEffect, useRef, useState } from "react";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { RelativeTime } from "@/components/RelativeTime";
@@ -38,13 +39,13 @@ export function PullHeader({ pull, owner, repo }: Props) {
           <div className="pull-title-row">
             <h1 className="pull-title">
               <span className="pull-title-text"><TitleText text={pull.title} /></span> <span className="muted pull-number">#{pull.number}</span>
-            </h1>
-            <div className="pull-title-actions">
               {pull.viewerCanUpdate && (
-                <button className="btn sm" onClick={() => setEditing(true)}>
-                  Edit
+                <button className="btn invisible sm icon pull-title-edit-btn" aria-label="Edit title" title="Edit title" onClick={() => setEditing(true)}>
+                  <PencilIcon />
                 </button>
               )}
+            </h1>
+            <div className="pull-title-actions">
               {pull.state === "OPEN" && <ReviewSubmitButton owner={owner} repo={repo} number={pull.number} pullId={pull.id} />}
             </div>
           </div>

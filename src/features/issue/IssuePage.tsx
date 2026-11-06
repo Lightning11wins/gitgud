@@ -1,3 +1,4 @@
+import { PencilIcon } from "@primer/octicons-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { gql, isNotFound } from "@/api/client";
@@ -115,18 +116,20 @@ function IssueHeader({ issue, owner, repo }: { issue: IssueMeta; owner: string; 
           <div className="row issue-title-row">
             <h1 className="issue-title grow">
               <bdi><TitleText text={issue.title} /></bdi> <span className="muted">#{issue.number}</span>
+              {issue.viewerCanUpdate && (
+                <button
+                  className="btn invisible sm icon issue-title-edit-btn"
+                  aria-label="Edit title"
+                  title="Edit title"
+                  onClick={() => {
+                    setDraft(issue.title);
+                    setEditing(true);
+                  }}
+                >
+                  <PencilIcon />
+                </button>
+              )}
             </h1>
-            {issue.viewerCanUpdate && (
-              <button
-                className="btn sm"
-                onClick={() => {
-                  setDraft(issue.title);
-                  setEditing(true);
-                }}
-              >
-                Edit
-              </button>
-            )}
           </div>
         )}
         {error != null && <ErrorBanner error={error} />}
