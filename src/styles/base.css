@@ -30,6 +30,7 @@
   --done-subtle: #fbefff;
   --neutral-emphasis: #59636e;
   --neutral-muted: #818b981f;
+  --neutral-hover: #818b9833;
   --diff-add-bg: #dafbe1;
   --diff-add-line-bg: #e6ffec;
   --diff-add-word-bg: #abf2bc;
@@ -84,6 +85,7 @@
     --done-subtle: #ab7df826;
     --neutral-emphasis: #656c76;
     --neutral-muted: #656c7633;
+    --neutral-hover: #656c764d;
     --diff-add-bg: #2ea04326;
     --diff-add-line-bg: #2ea04326;
     --diff-add-word-bg: #2ea04366;
@@ -132,6 +134,7 @@
   --done-subtle: #ab7df826;
   --neutral-emphasis: #656c76;
   --neutral-muted: #656c7633;
+  --neutral-hover: #656c764d;
   --diff-add-bg: #2ea04326;
   --diff-add-line-bg: #2ea04326;
   --diff-add-word-bg: #2ea04366;
@@ -291,8 +294,22 @@ samp {
   color: var(--fg);
   white-space: nowrap;
 }
+.app-header .crumb-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg-muted);
+}
+.app-header .crumb-menu:hover,
+.app-header .crumb-menu[aria-expanded="true"],
 .app-header .crumbs a:hover {
-  background: var(--neutral-muted);
+  background: var(--neutral-hover);
   text-decoration: none;
 }
 @media (max-width: 1012px) {

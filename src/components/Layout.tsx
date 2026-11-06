@@ -10,6 +10,7 @@ import { useStore } from "@/lib/store";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
 import { Popover } from "./Popover";
+import { RepoSwitcher } from "./RepoSwitcher";
 
 /** owner/repo from the current path, when the path is inside a repo. */
 export function useRepoFromPath(): { owner: string; repo: string } | null {
@@ -88,6 +89,7 @@ export function Layout() {
                   <Crumb to={`/${repo.owner}/${repo.repo}`} current={pathname} bold>
                     {repo.repo}
                   </Crumb>
+                  <RepoSwitcher owner={repo.owner} repo={repo.repo} />
                 </>
               )}
               {list && (

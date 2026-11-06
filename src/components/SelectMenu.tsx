@@ -25,11 +25,13 @@ export interface SelectMenuProps<T> {
   filterable?: boolean;
   /** Shown when there are no items to match. */
   emptyText?: string;
+  /** Filter input placeholder. Defaults to "Filter". */
+  placeholder?: string;
 }
 
 /** GitHub-style filterable picker used for labels, assignees, reviewers, milestones, etc. */
 export function SelectMenu<T>(props: SelectMenuProps<T>) {
-  const { anchor, title, items, getKey, getText, renderItem, initial, multiple, onApply, onClose, onFilterChange, footer, filterable = true, emptyText = "No matches" } = props;
+  const { anchor, title, items, getKey, getText, renderItem, initial, multiple, onApply, onClose, onFilterChange, footer, filterable = true, emptyText = "No matches", placeholder = "Filter" } = props;
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState(() => new Set(initial));
   const [active, setActive] = useState(0);
@@ -109,7 +111,7 @@ export function SelectMenu<T>(props: SelectMenuProps<T>) {
           <input
             ref={inputRef}
             className="input sm"
-            placeholder="Filter"
+            placeholder={placeholder}
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);
