@@ -87,8 +87,14 @@ function BranchSummary({ pull, owner, repo, compact }: Props & { compact?: boole
     <span className="pull-branch-summary">
       <strong>{merged ? (pull.mergedBy?.login ?? author) : author}</strong> {merged ? "merged" : "wants to merge"} {plural(pull.commits.totalCount, "commit")} into{" "}
       <BranchName name={pull.baseRefName} href={`https://github.com/${owner}/${repo}/tree/${pull.baseRefName}`} /> from{" "}
-      <BranchName name={pull.headRefName} owner={headLabel} href={headHref} />
-      {!compact && <CopyButton text={pull.headRefName} label="Copy head branch name" />}
+      {compact ? (
+        <BranchName name={pull.headRefName} owner={headLabel} href={headHref} />
+      ) : (
+        <span className="pull-head-ref">
+          <BranchName name={pull.headRefName} owner={headLabel} href={headHref} />
+          <CopyButton text={pull.headRefName} label="Copy head branch name" />
+        </span>
+      )}
       {merged && pull.mergedAt && !compact && (
         <span className="muted">
           {" "}

@@ -26,7 +26,13 @@
 }
 .issue-subtitle {
   flex-wrap: wrap;
+  align-items: baseline;
   font-size: 14px;
+}
+/* Stays beside the state badge, wrapping inside itself, while it has 12em. */
+.issue-subtitle > :last-child {
+  flex: 1 1 12em;
+  min-width: 0;
 }
 .issue-author {
   color: var(--fg-muted);
