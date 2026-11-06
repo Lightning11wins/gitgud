@@ -30,13 +30,17 @@ server/serve.mjs  static server with CSP and compression
 
 ## Data and caching
 
-- All server data goes through TanStack Query. `queryClient` persists every query to IndexedDB per query, so pages render instantly from cache, then revalidate on mount and on window focus.
+- All server data goes through TanStack Query. `queryClient` persists every query to IndexedDB per query, so pages render instantly from cache, then revalidate on mount and on window focus. Data under 10 seconds old counts as fresh, so a page opened right after a prefetch doesn't refetch it.
 - Use the shared query keys in `api/keys.ts`. After a mutation, update the cache optimistically with `queryClient.setQueryData` where it's cheap, then `invalidateQueries` on the affected keys.
 - Prefer GraphQL (`gql`) for reads: one request fetches what REST needs several for. Use `gqlAll` to follow connections to the end. Never show a "load more" button; fetch everything.
 - REST (`rest`, `restAll`) is fine where GraphQL lacks something (PR files with patches, file contents, `/markdown`). `restAll` fetches pages in parallel.
 - For expensive queries, use `probeThenLoad` from `api/queryClient.ts`: a 1-point probe (e.g. `updatedAt`) skips the full reload when nothing changed.
 - `bodyHTML` / `body_html` is GitHub-rendered HTML. Render it only through `components/Markdown.tsx`, which sanitizes it with DOMPurify. Never use `dangerouslySetInnerHTML` elsewhere.
-- Every request is counted in `window.__gitgudApiStats`; a header meter shows how much of each rate limit is used, turns yellow when one runs low and red when one runs out, and links to Settings for the numbers. A setting hides the meter until a limit runs low. Keep request counts low: no polling, and no fetching per item in a list.
+- Every request is counted in `window.__gitgudApiStats`; a header meter shows how much of each rate limit is used, turns yellow when one runs low and red when one runs out, and links to Settings for the numbers. A setting hides the meter until a limit runs low. Keep request counts low: no polling, and no request per item in a list. To load several items, batch them as aliases in one GraphQL request (see `fetchIssuesBatch`).
+- Each issue and PR is cached in several queries (list rows, its page's metadata). `api/subjects.ts` copies the newest version of each into the others as queries update, keeping their fetch times.
+- At startup, `readRecent` in `api/queryClient.ts` loads the most recent list queries from IndexedDB before any page asks for them, so lists and seeded pages are ready on first render.
+- Show what's cached while the rest loads. A kind list (Issues, Pull requests) borrows rows from the mixed list, and the mixed list merges both kind lists (`StandIn` in `features/repo/searchList.ts`). An issue or PR page shows its header from a cached list row (`SubjectSeed`) until its metadata arrives.
+- Reserve space for content that loads late (skeletons, `Spinner show`, `Timeline commentCount`), so nothing below it moves. `lib/clickGuard.ts` drops a click on a control that slid under a still pointer within the last 600ms.
 - `api/warmUp.ts` starts the REST and GraphQL rate limit windows: it reads `/rate_limit` (free) at load and at each reset, and sends one request to any limit with no window running. A setting turns it off.
 - A 401 from GitHub returns to the sign-in screen at the same URL. Signing in as the same user keeps the cache and drafts; another user starts clean.
 - Save drafts with `drafts.setSoon` (debounced); `drafts.clear` and sign-out cancel pending writes.
@@ -83,5 +87,6 @@ server/serve.mjs  static server with CSP and compression
 - `features/review/ReviewSubmit.tsx`: `ReviewSubmitButton({ owner, repo, number, pullId })`: the "Review changes" / "Finish your review" button and popover.
 - `features/review/pending.ts`: the viewer's pending review on GitHub (`keys.pendingReview`).
 - `features/diff/FilesChanged.tsx`: `FilesChanged({ owner, repo, number })` for a PR, `CommitFiles({ owner, repo, sha })` for a single commit, and `CompareFiles({ owner, repo, base, head })` for the new-PR page.
-- `api/prefetch.ts`: pages call `registerPrefetcher` at module load; list rows call `prefetchSubject` on hover.
+- `api/prefetch.ts`: speculative loads. Pages register what to load for an issue or PR (`registerPrefetcher`) or an in-app path (`registerPathPrefetcher`) at module load. `installLinkPrefetch` prefetches any link hovered or focused for 150ms, or pressed; other controls use `intentHandlers`. `speculate` skips repeats within a minute and runs loads in lanes: presses at once, hovers two at a time, background warming one at a time. It stops while any rate limit has under 20% left or the setting is off.
+- `features/repo/warmRows.ts`: after a list loads, fetches the top rows' metadata in one batched request per kind.
 - `features/pull/PullPage.tsx` owns `/:owner/:repo/pull/:number/*` and fetches PR metadata into `keys.pull`.
