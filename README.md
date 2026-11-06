@@ -58,7 +58,7 @@ A reverse proxy like Caddy or nginx also works. The server sets a strict Content
 
 ## Tokens
 
-A classic token with `repo` and `read:org` scopes covers everything. A fine-grained token works with read/write access to Contents, Issues, and Pull requests, plus read access to Metadata, Actions, and Commit statuses; check runs may be missing, since fine-grained tokens can't be granted the Checks permission. `gh auth token` prints the GitHub CLI's token.
+A classic token with `repo`, `read:org`, and `read:project` scopes covers everything; without `read:project`, timelines leave out project events. A fine-grained token works with read/write access to Contents, Issues, and Pull requests, plus read access to Metadata, Actions, and Commit statuses; check runs may be missing, since fine-grained tokens can't be granted the Checks permission. `gh auth token` prints the GitHub CLI's token.
 
 Signing out erases the token, cache, and drafts from the browser.
 

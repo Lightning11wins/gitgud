@@ -1,9 +1,9 @@
 import { hashKey, useQuery, type Query } from "@tanstack/react-query";
-import { gql, type PageInfo } from "@/api/client";
+import { GitHubError, gql, type PageInfo } from "@/api/client";
 import { keys } from "@/api/keys";
 import { persistQueryData, probeThenLoad, queryClient } from "@/api/queryClient";
 import type { SubjectKind } from "@/api/prefetch";
-import { ISSUE_ITEM_TYPES, ISSUE_TIMELINE_QUERY, PULL_ITEM_TYPES, PULL_TIMELINE_QUERY, SUBJECT_STAMP_QUERY } from "./queries";
+import * as q from "./queries";
 import { createMerger, FULL_RELOAD_MS, reloadDue, resumed, type TimelineCounts } from "./timelineMerge";
 import type { TimelineData, TimelineItem } from "./types";
 /** A subject meta query fetched this recently counts as a fresh probe. */
@@ -41,15 +41,42 @@ interface Subject {
   signal?: AbortSignal;
 }
 
-async function fetchPage({ kind, owner, repo, number, signal }: Subject, after: string | null, skip: number, withTotal: boolean): Promise<PageResult> {
+/** False once GitHub refuses project events for lacking the read:project scope (classic tokens). */
+let projectsReadable = true;
+
+function isProjectScopeError(e: unknown): boolean {
+  return e instanceof GitHubError && e.message.includes("read:project");
+}
+
+async function fetchPage(subject: Subject, after: string | null, skip: number, withTotal: boolean): Promise<PageResult> {
+  try {
+    return await fetchPageWith(subject, after, skip, withTotal, projectsReadable);
+  } catch (e) {
+    if (!projectsReadable || !isProjectScopeError(e)) throw e;
+    projectsReadable = false;
+    return fetchPageWith(subject, after, skip, withTotal, false);
+  }
+}
+
+async function fetchPageWith(
+  { kind, owner, repo, number, signal }: Subject,
+  after: string | null,
+  skip: number,
+  withTotal: boolean,
+  projects: boolean,
+): Promise<PageResult> {
   signal?.throwIfAborted();
   const vars = { owner, repo, number, after, skip: skip || null, withTotal };
   let holder: TimelineHolder;
   if (kind === "issue") {
-    const d = await gql<{ repository: { issue: TimelineHolder } }>(ISSUE_TIMELINE_QUERY, { ...vars, types: ISSUE_ITEM_TYPES }, { signal });
+    const query = projects ? q.ISSUE_TIMELINE_QUERY : q.ISSUE_TIMELINE_QUERY_NO_PROJECTS;
+    const types = projects ? q.ISSUE_ITEM_TYPES : q.ISSUE_ITEM_TYPES_NO_PROJECTS;
+    const d = await gql<{ repository: { issue: TimelineHolder } }>(query, { ...vars, types }, { signal });
     holder = d.repository.issue;
   } else {
-    const d = await gql<{ repository: { pullRequest: TimelineHolder } }>(PULL_TIMELINE_QUERY, { ...vars, types: PULL_ITEM_TYPES }, { signal });
+    const query = projects ? q.PULL_TIMELINE_QUERY : q.PULL_TIMELINE_QUERY_NO_PROJECTS;
+    const types = projects ? q.PULL_ITEM_TYPES : q.PULL_ITEM_TYPES_NO_PROJECTS;
+    const d = await gql<{ repository: { pullRequest: TimelineHolder } }>(query, { ...vars, types }, { signal });
     holder = d.repository.pullRequest;
   }
   if (!holder) throw new Error(`Failed to load the timeline: ${owner}/${repo}#${number} is not ${kind === "issue" ? "an issue" : "a pull request"}`);
@@ -186,7 +213,7 @@ async function subjectStamp({ kind, owner, repo, number, signal }: Subject): Pro
     const { data, dataUpdatedAt } = query.state as { data?: { updatedAt?: string }; dataUpdatedAt: number };
     if (data?.updatedAt && dataUpdatedAt > Date.now() - META_FRESH_MS) return data.updatedAt;
   }
-  const d = await gql<{ repository: { issueOrPullRequest: { updatedAt: string } | null } }>(SUBJECT_STAMP_QUERY, { owner, repo, number }, { signal });
+  const d = await gql<{ repository: { issueOrPullRequest: { updatedAt: string } | null } }>(q.SUBJECT_STAMP_QUERY, { owner, repo, number }, { signal });
   return d.repository.issueOrPullRequest?.updatedAt ?? "";
 }
 

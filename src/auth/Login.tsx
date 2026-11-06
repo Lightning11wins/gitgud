@@ -3,7 +3,7 @@ import { useStore } from "@/lib/store";
 import { auth, signIn } from "./token";
 
 const TOKEN_URL =
-  "https://github.com/settings/tokens/new?description=gitgud&scopes=repo,read:org,read:user,user:email";
+  "https://github.com/settings/tokens/new?description=gitgud&scopes=repo,read:org,read:user,user:email,read:project";
 
 export function Login() {
   const { rejected } = useStore(auth);

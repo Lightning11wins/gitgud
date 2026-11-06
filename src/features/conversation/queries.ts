@@ -25,9 +25,6 @@ const SIMPLE_EVENTS = [
   "UnpinnedEvent",
   "ConvertedToDiscussionEvent",
   "ConvertedNoteToIssueEvent",
-  "AddedToProjectV2Event",
-  "RemovedFromProjectV2Event",
-  "ProjectV2ItemStatusChangedEvent",
   "IssueCommentPinnedEvent",
   "IssueCommentUnpinnedEvent",
   "BlockedByAddedEvent",
@@ -36,6 +33,10 @@ const SIMPLE_EVENTS = [
   "BlockingRemovedEvent",
   "UserBlockedEvent",
 ];
+
+/** Project events. Classic tokens need the read:project scope to query them. */
+const PROJECT_EVENTS = ["AddedToProjectV2Event", "RemovedFromProjectV2Event", "ProjectV2ItemStatusChangedEvent"];
+const PROJECT_ITEM_TYPES = ["ADDED_TO_PROJECT_V2_EVENT", "REMOVED_FROM_PROJECT_V2_EVENT", "PROJECT_V2_ITEM_STATUS_CHANGED_EVENT"];
 
 const SIMPLE_PULL_EVENTS = [
   "ReadyForReviewEvent",
@@ -83,6 +84,7 @@ const COMMON_ITEMS = `
   ... on TransferredEvent { ${ACTOR} fromRepository { nameWithOwner } }
   ... on CommentDeletedEvent { ${ACTOR} deletedCommentAuthor { login } }
   ${SIMPLE_EVENTS.map((t) => `... on ${t} { ${ACTOR} }`).join("\n  ")}`;
+const PROJECT_ITEMS = PROJECT_EVENTS.map((t) => `... on ${t} { ${ACTOR} }`).join("\n  ");
 
 const PULL_ITEMS = `
   ... on PullRequestReview {
@@ -109,11 +111,10 @@ const PULL_ITEMS = `
   ... on PullRequestCommitCommentThread { path commit { abbreviatedOid url } comments { totalCount } }
   ${SIMPLE_PULL_EVENTS.map((t) => `... on ${t} { ${ACTOR} }`).join("\n  ")}`;
 
-/** Timeline item types shown on issues. Mentions, subscriptions, and classic project events are noise. */
-export const ISSUE_ITEM_TYPES = [
+/** Timeline item types shown on issues, except project events. Mentions, subscriptions, and classic project events are noise. */
+const BASE_ISSUE_ITEM_TYPES = [
   "ISSUE_COMMENT",
   "CROSS_REFERENCED_EVENT",
-  "ADDED_TO_PROJECT_V2_EVENT",
   "ASSIGNED_EVENT",
   "CLOSED_EVENT",
   "COMMENT_DELETED_EVENT",
@@ -127,9 +128,7 @@ export const ISSUE_ITEM_TYPES = [
   "MARKED_AS_DUPLICATE_EVENT",
   "MILESTONED_EVENT",
   "PINNED_EVENT",
-  "PROJECT_V2_ITEM_STATUS_CHANGED_EVENT",
   "REFERENCED_EVENT",
-  "REMOVED_FROM_PROJECT_V2_EVENT",
   "RENAMED_TITLE_EVENT",
   "REOPENED_EVENT",
   "TRANSFERRED_EVENT",
@@ -154,8 +153,8 @@ export const ISSUE_ITEM_TYPES = [
   "BLOCKING_REMOVED_EVENT",
 ];
 
-export const PULL_ITEM_TYPES = [
-  ...ISSUE_ITEM_TYPES,
+const BASE_PULL_ITEM_TYPES = [
+  ...BASE_ISSUE_ITEM_TYPES,
   "PULL_REQUEST_COMMIT",
   "PULL_REQUEST_COMMIT_COMMENT_THREAD",
   "PULL_REQUEST_REVIEW",
@@ -189,27 +188,37 @@ const TOTAL = `total: timelineItems(first: 0, itemTypes: $types) @include(if: $w
 /** Count of the item types GitHub can insert before the cursor; see `MOVABLE_TYPENAMES` in timelineMerge.ts. */
 const movable = (types: string) => `movable: timelineItems(first: 0, itemTypes: [${types}]) @include(if: $withTotal) { filteredCount }`;
 
-export const ISSUE_TIMELINE_QUERY = `
+export const ISSUE_ITEM_TYPES = [...BASE_ISSUE_ITEM_TYPES, ...PROJECT_ITEM_TYPES];
+export const PULL_ITEM_TYPES = [...BASE_PULL_ITEM_TYPES, ...PROJECT_ITEM_TYPES];
+export const ISSUE_ITEM_TYPES_NO_PROJECTS = BASE_ISSUE_ITEM_TYPES;
+export const PULL_ITEM_TYPES_NO_PROJECTS = BASE_PULL_ITEM_TYPES;
+
+const issueTimelineQuery = (projects: boolean) => `
   query IssueTimeline($owner: String!, $repo: String!, $number: Int!, $after: String, $skip: Int, $withTotal: Boolean!, $types: [IssueTimelineItemsItemType!]) {
     repository(owner: $owner, name: $repo) {
       issue(number: $number) {
-        timelineItems(first: 100, after: $after, skip: $skip, itemTypes: $types) { ${PAGE} nodes { ${COMMON_ITEMS} } }
+        timelineItems(first: 100, after: $after, skip: $skip, itemTypes: $types) { ${PAGE} nodes { ${COMMON_ITEMS} ${projects ? PROJECT_ITEMS : ""} } }
         ${TOTAL}
         ${movable("REFERENCED_EVENT")}
       }
     }
   }`;
 
-export const PULL_TIMELINE_QUERY = `
+const pullTimelineQuery = (projects: boolean) => `
   query PullTimeline($owner: String!, $repo: String!, $number: Int!, $after: String, $skip: Int, $withTotal: Boolean!, $types: [PullRequestTimelineItemsItemType!]) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
-        timelineItems(first: 100, after: $after, skip: $skip, itemTypes: $types) { ${PAGE} nodes { ${COMMON_ITEMS} ${PULL_ITEMS} } }
+        timelineItems(first: 100, after: $after, skip: $skip, itemTypes: $types) { ${PAGE} nodes { ${COMMON_ITEMS} ${projects ? PROJECT_ITEMS : ""} ${PULL_ITEMS} } }
         ${TOTAL}
         ${movable("PULL_REQUEST_COMMIT, PULL_REQUEST_COMMIT_COMMENT_THREAD, REFERENCED_EVENT")}
       }
     }
   }`;
+
+export const ISSUE_TIMELINE_QUERY = issueTimelineQuery(true);
+export const PULL_TIMELINE_QUERY = pullTimelineQuery(true);
+export const ISSUE_TIMELINE_QUERY_NO_PROJECTS = issueTimelineQuery(false);
+export const PULL_TIMELINE_QUERY_NO_PROJECTS = pullTimelineQuery(false);
 
 export const SUBJECT_STAMP_QUERY = `
   query SubjectStamp($owner: String!, $repo: String!, $number: Int!) {
