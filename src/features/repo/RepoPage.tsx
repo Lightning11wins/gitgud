@@ -207,10 +207,9 @@ export function RepoPage({ kind }: { kind?: Kind }) {
                 )}
               </button>
             ))}
-            <span className="grow" />
-            <ListFilters owner={owner} repo={repo} kind={kind} q={q} setQ={setQ} sort={sort} items={list.data?.items} />
           </>
         }
+        actions={<ListFilters owner={owner} repo={repo} kind={kind} q={q} setQ={setQ} sort={sort} items={list.data?.items} />}
       />
     </div>
   );

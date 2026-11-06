@@ -2,8 +2,29 @@
   overflow: clip;
 }
 .lr-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
   min-height: 40px;
   padding: 4px 16px;
+  container-type: inline-size;
+}
+.lr-header-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 28px;
+}
+/* Narrow headers put the actions on their own row, spread edge to edge. */
+@container (max-width: 790px) {
+  .lr-actions {
+    flex-basis: 100%;
+    min-width: 0;
+    margin: 0 -4px;
+  }
+  .lr-header .lr-actions > * {
+    justify-content: space-between;
+  }
 }
 .lr-state {
   padding: 8px;

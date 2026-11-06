@@ -47,9 +47,6 @@
 .repo-toggle:hover {
   color: var(--fg);
 }
-.repo .lr-header > .row {
-  flex-wrap: wrap;
-}
 .rf {
   display: flex;
   flex-wrap: wrap;

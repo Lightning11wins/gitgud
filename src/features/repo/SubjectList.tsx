@@ -28,13 +28,15 @@ export interface SubjectListProps {
   showUpdated?: boolean;
   /** Rendered when a finished search has no results. */
   empty: ReactNode;
-  /** Header content (toggles, sort); the list renders under it inside the same box. */
+  /** Header content (toggles, counts); the list renders under it inside the same box. */
   header?: ReactNode;
+  /** Header controls on the right (filters, sort). They get their own row when the header is narrow. */
+  actions?: ReactNode;
 }
 
 /** Virtualized, auto-paging list of issues and PRs with j/k/Enter keyboard navigation. */
 export function SubjectList(props: SubjectListProps) {
-  const { data, checks, isPending, isFetching, error, moreError, loadingMore, onRetry, loadMore, showRepo, showUpdated, empty, header } = props;
+  const { data, checks, isPending, isFetching, error, moreError, loadingMore, onRetry, loadMore, showRepo, showUpdated, empty, header, actions } = props;
   const items = data?.items ?? [];
   const navigate = useNavigate();
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -151,9 +153,12 @@ export function SubjectList(props: SubjectListProps) {
 
   return (
     <div className="box lr-box">
-      <div className="box-header lr-header row">
-        <div className="row grow">{header}</div>
-        <Spinner label="Checking for updates" show={isFetching && !isPending} />
+      <div className="box-header lr-header">
+        <div className="row lr-header-main">
+          {header}
+          <Spinner label="Checking for updates" show={isFetching && !isPending} />
+        </div>
+        {actions && <div className="lr-actions">{actions}</div>}
       </div>
       {!!error && !!data && (
         <div className="lr-state">
