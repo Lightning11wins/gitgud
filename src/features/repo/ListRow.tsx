@@ -31,17 +31,22 @@ function checkIcon(state: string) {
 }
 
 /** Review decision and checks, as " · Review required · ✓ 6/6". */
-function PullStatus({ item, checks }: { item: ListItem; checks?: CheckSummary | null }) {
+function ReviewStatus({ item }: { item: ListItem }) {
   const review = item.reviewDecision ? REVIEW[item.reviewDecision] : undefined;
+  if (!review) return null;
+  return (
+    <>
+      {" · "}
+      <span style={{ color: review.color }}>{review.text}</span>
+    </>
+  );
+}
+
+/** Ends the meta line, since check counts load after the row and must not push the rest. */
+function ChecksStatus({ item, checks }: { item: ListItem; checks?: CheckSummary | null }) {
   const ci = checks?.total ? checkIcon(checks.state) : null;
   return (
     <>
-      {review && (
-        <>
-          {" · "}
-          <span style={{ color: review.color }}>{review.text}</span>
-        </>
-      )}
       {checks && ci && (
         <>
           {" · "}
@@ -114,13 +119,14 @@ export const ListRow = memo(function ListRow({ item, checks, showRepo, active, s
           #{item.number} <RelativeTime date={item.createdAt} prefix="opened" />
           {item.author && ` by ${item.author.login}`}
           {item.isDraft && " · Draft"}
-          {isPr && <PullStatus item={item} checks={checks} />}
+          {isPr && <ReviewStatus item={item} />}
           {showUpdated && (
             <>
               {" · "}
               <RelativeTime date={item.updatedAt} prefix="updated" />
             </>
           )}
+          {isPr && <ChecksStatus item={item} checks={checks} />}
         </div>
       </div>
       <div className="lr-side">
