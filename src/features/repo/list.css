@@ -86,12 +86,14 @@
 .lr-comments {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 3px;
   width: 44px;
   font-size: 12px;
 }
 .lr-assignees {
   display: inline-flex;
+  justify-content: flex-end;
   width: 52px;
   gap: 0;
 }

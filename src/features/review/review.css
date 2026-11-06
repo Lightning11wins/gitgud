@@ -31,11 +31,26 @@
   color: var(--attention);
   border-color: var(--attention);
 }
-.rt-resolved-by {
+.rt-summary {
+  flex: 1 1 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-size: 12px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+.rt-summary > :not(.rt-snippet) {
+  flex-shrink: 0;
+}
+.rt-snippet {
+  min-width: 0;
+}
+.rt-resolved {
+  flex-shrink: 0;
+  color: var(--fg-muted);
+  border-color: var(--border);
 }
 
 /* Diff hunk snippet */

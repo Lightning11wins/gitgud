@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchAtLeast, getQualifier, kindSubset, setQualifier, type ListData, type ListItem } from "./searchList";
+import { fetchAtLeast, getQualifier, kindSubset, setQualifier, summarizeChecks, type ListData, type ListItem } from "./searchList";
 
 const item = (id: string) => ({ id }) as ListItem;
 
@@ -74,5 +74,20 @@ describe("qualifiers", () => {
   it("leaves kind tokens out of issue types", () => {
     expect(getQualifier("type:issue type:Bug", "type")).toEqual(["Bug"]);
     expect(setQualifier("type:issue type:Bug", "type", ["Feature request"])).toBe(`type:issue type:"Feature request"`);
+  });
+});
+
+describe("summarizeChecks", () => {
+  it("counts each check once, by its newest run", () => {
+    const nodes = [
+      { name: "build", conclusion: "FAILURE", databaseId: 1 },
+      { name: "lint", conclusion: "SUCCESS", databaseId: 2 },
+      { name: "build", conclusion: "SUCCESS", databaseId: 3 },
+      { name: "test", conclusion: null, databaseId: 4 },
+      { context: "ci/status", state: "SUCCESS", createdAt: "2024-01-02T00:00:00Z" },
+      { context: "ci/status", state: "FAILURE", createdAt: "2024-01-01T00:00:00Z" },
+      null,
+    ];
+    expect(summarizeChecks({ state: "PENDING", contexts: { nodes } })).toEqual({ state: "PENDING", passed: 3, total: 4 });
   });
 });

@@ -38,9 +38,6 @@
 .tl-item.review {
   contain-intrinsic-size: auto 240px;
 }
-.tl-item.event + .tl-item.event {
-  margin-top: -4px;
-}
 
 /* Comments */
 .comment-box {
@@ -168,6 +165,17 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.tl-link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.tl-link-btn:hover {
+  text-decoration: underline;
 }
 .tl-event-line .issue-label {
   vertical-align: middle;

@@ -109,16 +109,10 @@ export const ReviewThreadView = memo(function ReviewThreadView({ thread, owner, 
             </Link>
           )}
           {thread.isOutdated && <span className="label rt-outdated">Outdated</span>}
-          <span className="grow" />
+          {thread.isResolved ? <ThreadSummary first={first} count={thread.comments.totalCount} snippet={!expanded} /> : <span className="grow" />}
           {thread.isResolved && (
-            <span className="rt-resolved-by muted">
-              {thread.resolvedBy ? (
-                <>
-                  <strong>{thread.resolvedBy.login}</strong> marked this conversation as resolved.
-                </>
-              ) : (
-                "Resolved"
-              )}
+            <span className="label rt-resolved" title={thread.resolvedBy ? `Resolved by ${thread.resolvedBy.login}` : undefined}>
+              Resolved
             </span>
           )}
         </div>
@@ -142,6 +136,27 @@ export const ReviewThreadView = memo(function ReviewThreadView({ thread, owner, 
     </div>
   );
 });
+
+/** Markdown source as one line, without code fences and backticks. */
+function plainSnippet(body: string): string {
+  return body.replace(/```\w*/g, " ").replace(/`/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** First author, comment count, and, when collapsed, the start of the first comment. */
+function ThreadSummary({ first, count, snippet }: { first: ReviewComment; count: number; snippet: boolean }) {
+  const login = first.author?.login ?? "ghost";
+  return (
+    <span className="rt-summary">
+      <Avatar src={first.author?.avatarUrl} login={login} size={16} />
+      <strong>{login}</strong>
+      <span className="muted">
+        {" · "}
+        {count} {count === 1 ? "comment" : "comments"}
+      </span>
+      {snippet && <span className="rt-snippet muted truncate">{plainSnippet(first.body)}</span>}
+    </span>
+  );
+}
 
 interface ReplyBoxProps {
   thread: ReviewThread;

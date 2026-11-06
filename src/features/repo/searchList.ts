@@ -31,25 +31,29 @@ export interface CheckSummary {
   total: number;
 }
 
-interface StateCount {
-  state: string;
-  count: number;
-}
+/** A check run or a commit status, as the list query selects them. */
+type RawContext = { name: string; conclusion: string | null; databaseId: number } | { context: string; state: string; createdAt: string };
 
 type RawItem = ListItem & {
-  statusCheckRollup?: {
-    state: string;
-    contexts: { checkRunCount: number; checkRunCountsByState: StateCount[]; statusContextCount: number; statusContextCountsByState: StateCount[] };
-  } | null;
+  statusCheckRollup?: { state: string; contexts: { nodes: (RawContext | null)[] } } | null;
 };
 
 const PASSED = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
 
-function summarizeChecks(rollup: RawItem["statusCheckRollup"]): CheckSummary | null {
+/** Counts each check name once, by its newest run, as github.com does for re-runs and duplicate workflow runs. */
+export function summarizeChecks(rollup: RawItem["statusCheckRollup"]): CheckSummary | null {
   if (!rollup) return null;
-  const c = rollup.contexts;
-  const passed = [...c.checkRunCountsByState, ...c.statusContextCountsByState].reduce((n, s) => n + (PASSED.has(s.state) ? s.count : 0), 0);
-  return { state: rollup.state, passed, total: c.checkRunCount + c.statusContextCount };
+  // Check run ids and status times both grow with each new run.
+  const newest = new Map<string, { order: number | string; result: string | null }>();
+  for (const c of rollup.contexts.nodes) {
+    if (!c) continue;
+    const run = "context" in c ? { key: `status:${c.context}`, order: c.createdAt, result: c.state } : { key: `run:${c.name}`, order: c.databaseId, result: c.conclusion };
+    const seen = newest.get(run.key);
+    if (!seen || run.order > seen.order) newest.set(run.key, run);
+  }
+  let passed = 0;
+  for (const { result } of newest.values()) if (result && PASSED.has(result)) passed++;
+  return { state: rollup.state, passed, total: newest.size };
 }
 
 function toItem({ statusCheckRollup, ...item }: RawItem): ListItem {
@@ -84,9 +88,8 @@ query SearchList($q: String!, $first: Int!, $after: String) {
         ${COMMON} isDraft reviewDecision totalCommentsCount
         statusCheckRollup {
           state
-          contexts(first: 0) {
-            checkRunCount checkRunCountsByState { state count }
-            statusContextCount statusContextCountsByState { state count }
+          contexts(first: 100) {
+            nodes { ... on CheckRun { name conclusion databaseId } ... on StatusContext { context state createdAt } }
           }
         }
       }

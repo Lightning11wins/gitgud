@@ -114,17 +114,17 @@ export const ListRow = memo(function ListRow({ item, showRepo, active, showUpdat
         </div>
       </div>
       <div className="lr-side">
+        <span className="lr-assignees">
+          {item.assignees.nodes.slice(0, 3).map((a) => (
+            <Avatar key={a.login} src={a.avatarUrl} login={a.login} size={20} />
+          ))}
+        </span>
         <span className="lr-comments muted" title={`${comments} comments`}>
           {comments > 0 && (
             <>
               <CommentIcon size={14} /> {comments}
             </>
           )}
-        </span>
-        <span className="lr-assignees">
-          {item.assignees.nodes.slice(0, 3).map((a) => (
-            <Avatar key={a.login} src={a.avatarUrl} login={a.login} size={20} />
-          ))}
         </span>
       </div>
     </div>

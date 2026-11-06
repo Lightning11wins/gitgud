@@ -440,13 +440,13 @@ export const ReferenceGroup = memo(function ReferenceGroup({ events }: { events:
       </span>
       <div className="tl-event-body">
         <div className="tl-event-line">
-          {events.length} commits in other repositories referenced this{" "}
+          {events.length} commits in other repositories referenced this
           {last.createdAt && (
             <span className="muted">
-              <RelativeTime date={last.createdAt} />
+              , most recently <RelativeTime date={last.createdAt} />
             </span>
           )}{" "}
-          <button className="btn invisible xs" onClick={() => setOpen(!open)} aria-expanded={open}>
+          <button className="tl-link-btn" onClick={() => setOpen(!open)} aria-expanded={open}>
             {open ? "Hide" : "Show all"}
           </button>
         </div>
