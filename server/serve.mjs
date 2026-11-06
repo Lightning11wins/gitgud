@@ -127,3 +127,14 @@ async function handle(req, res) {
 
 const server = TLS ? createHttpsServer(TLS, handle) : createHttpServer(handle);
 server.listen(PORT, HOST, () => console.log(`GitGud serving ${ROOT} on ${TLS ? "https" : "http"}://${HOST}:${PORT}`));
+
+// On SIGTERM (systemd stop, shutdown) or Ctrl+C, finish in-flight responses, then exit.
+// Keep-alive connections would hold close() open, so force an exit after a few seconds.
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.once(signal, () => {
+    console.log(`GitGud stopping on ${signal}`);
+    server.close(() => process.exit(0));
+    server.closeIdleConnections();
+    setTimeout(() => process.exit(0), 5000).unref();
+  });
+}
