@@ -3,6 +3,13 @@ import { memo, useMemo, type MouseEvent } from "react";
 import { useNavigate } from "react-router";
 import { toAppPath } from "@/lib/githubUrl";
 
+DOMPurify.addHook("uponSanitizeElement", (node, data) => {
+  if (data.tagName !== "input") return;
+  const el = node as Element;
+  if (el.getAttribute("type") !== "checkbox" || !el.classList.contains("task-list-item-checkbox")) el.remove();
+  else el.setAttribute("disabled", "");
+});
+
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   if (node.tagName === "A" && node.getAttribute("href")) {
     node.setAttribute("rel", "noopener noreferrer");
@@ -17,16 +24,13 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
 const PURIFY_CONFIG = {
   ADD_TAGS: ["g-emoji", "details", "summary", "video", "markdown-accessiblity-table", "relative-time"],
   ADD_ATTR: ["alias", "fallback-src", "target", "open", "data-snippet-clipboard-copy-content", "controls", "playsinline", "muted"],
-  FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select"],
+  FORBID_TAGS: ["style", "form", "button", "textarea", "select"],
   ALLOW_DATA_ATTR: false,
 };
 
+/** Sanitizes GitHub-rendered HTML. Only disabled task-list checkboxes survive as inputs. */
 export function sanitizeHtml(html: string): string {
-  // Task-list checkboxes are re-allowed as disabled inputs below.
-  const withBoxes = html.replace(/<input\b[^>]*class="task-list-item-checkbox"[^>]*>/g, (tag) =>
-    tag.includes("checked") ? "☑︎ " : "☐︎ ",
-  );
-  return DOMPurify.sanitize(withBoxes, PURIFY_CONFIG) as string;
+  return DOMPurify.sanitize(html, PURIFY_CONFIG) as string;
 }
 
 /** Renders GitHub-produced HTML (bodyHTML / body_html), sanitized, with in-app link routing. */

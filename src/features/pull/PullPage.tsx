@@ -7,6 +7,7 @@ import { Spinner } from "@/components/Spinner";
 import { Timeline } from "@/features/conversation/Timeline";
 import { FilesChanged } from "@/features/diff/FilesChanged";
 import { MetadataSidebar } from "@/features/sidebar/MetadataSidebar";
+import { HotkeysActive } from "@/lib/hotkeys";
 import { prefetchCommits, usePull } from "./api";
 import { ChecksTab } from "./ChecksTab";
 import { CommitView } from "./CommitView";
@@ -72,7 +73,7 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
   const panel = (t: Tab, node: ReactNode) =>
     KEPT_TABS.includes(t) && (visited.has(t) || (tab === t && !sha)) ? (
       <div key={t} hidden={tab !== t || !!sha}>
-        {node}
+        <HotkeysActive.Provider value={tab === t && !sha}>{node}</HotkeysActive.Provider>
       </div>
     ) : null;
 
@@ -101,8 +102,14 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
         "conversation",
         <div className="pull-conversation">
           <div className="pull-main">
-            <Timeline owner={owner} repo={repo} number={number} kind="pull" subject={pull} />
-            <MergeBox pull={pull} owner={owner} repo={repo} fetchedFresh={q.isFetchedAfterMount && !q.isFetching} refetch={q.refetch} />
+            <Timeline
+              owner={owner}
+              repo={repo}
+              number={number}
+              kind="pull"
+              subject={pull}
+              beforeComposer={<MergeBox pull={pull} owner={owner} repo={repo} fetchedFresh={q.isFetchedAfterMount && !q.isFetching} refetch={q.refetch} />}
+            />
           </div>
           <MetadataSidebar subject={pull} owner={owner} repo={repo}>
             <Reviewers pull={pull} owner={owner} repo={repo} />

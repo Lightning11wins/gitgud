@@ -1,4 +1,7 @@
-import { useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useRef } from "react";
+
+/** False inside UI that stays mounted while hidden (e.g. inactive PR tabs), disabling its hotkeys. */
+export const HotkeysActive = createContext(true);
 
 function isTyping(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -11,6 +14,7 @@ function isTyping(target: EventTarget | null): boolean {
  * or when a modifier other than shift is held. Pass `enabled: false` to unbind temporarily.
  */
 export function useHotkey(key: string, handler: (e: KeyboardEvent) => void, enabled = true) {
+  enabled = useContext(HotkeysActive) && enabled;
   const ref = useRef(handler);
   ref.current = handler;
   useEffect(() => {

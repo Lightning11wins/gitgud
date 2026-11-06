@@ -24,7 +24,7 @@ export function Layout() {
   const repo = useRepoFromPath();
   const [help, setHelp] = useState(false);
   useHotkey("?", () => setHelp(true));
-  const wide = /\/pull\/\d+\/(files|commits\/[0-9a-f]+)/.test(pathname) || pathname.includes("/compare");
+  const wide = /\/pull\/(\d+\/(files|commits\/[0-9a-f]+)|new\/)/.test(pathname) || pathname.includes("/compare");
 
   return (
     <>

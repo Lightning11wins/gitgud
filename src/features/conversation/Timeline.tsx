@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { keys } from "@/api/keys";
 import { canWrite, type ReactionContent, type ReviewThread, type SubjectMeta } from "@/api/types";
@@ -33,6 +33,8 @@ export interface TimelineProps {
   kind: "issue" | "pull";
   /** Header data; the body renders as the first comment. */
   subject: SubjectMeta;
+  /** Rendered between the timeline and the comment box, e.g. the PR merge box. */
+  beforeComposer?: ReactNode;
 }
 
 /** Rows rendered in the first frame; the rest stream in over the next frames. */
@@ -40,7 +42,7 @@ const FIRST_ROWS = 60;
 const ROWS_PER_FRAME = 120;
 
 /** The conversation: body, every timeline item, and the comment box. */
-export function Timeline({ owner, repo, number, kind, subject }: TimelineProps) {
+export function Timeline({ owner, repo, number, kind, subject, beforeComposer }: TimelineProps) {
   const timeline = useTimeline(kind, owner, repo, number);
   const threadsQuery = useQuery({
     queryKey: keys.reviewThreads(owner, repo, number),
@@ -120,6 +122,7 @@ export function Timeline({ owner, repo, number, kind, subject }: TimelineProps) 
       )}
       {timeline.error && <ErrorBanner error={timeline.error} action={<button className="btn sm" onClick={() => timeline.refetch()}>Retry</button>} />}
       </div>
+      {beforeComposer}
       <CommentForm kind={kind} owner={owner} repo={repo} number={number} subject={subject} handle={composer} locked={subject.locked && !canWrite(subject.repository.viewerPermission)} />
     </div>
   );
