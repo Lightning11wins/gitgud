@@ -7,6 +7,7 @@ import { ReviewThreadView } from "@/features/review/ReviewThread";
 import { BotBadge } from "./BotBadge";
 import { CommentCard } from "./CommentCard";
 import type { TimelineActions } from "./TimelineRow";
+import { reviewAnchor } from "./rows";
 import type { ReviewItem as Review } from "./types";
 
 const STATE: Record<Review["state"], { verb: string; tone: string; Icon: typeof CheckIcon }> = {
@@ -25,7 +26,7 @@ export const ReviewItemView = memo(function ReviewItemView({ review, threads, ac
   const hasBody = review.body.trim().length > 0;
   return (
     <div className="tl-review">
-      <div className="tl-event">
+      <div className="tl-event" id={hasBody ? undefined : reviewAnchor(review)}>
         <span className={`tl-badge ${s.tone}`}>
           <s.Icon size={14} />
         </span>
@@ -52,7 +53,7 @@ export const ReviewItemView = memo(function ReviewItemView({ review, threads, ac
               repo={repo}
               draftKey={`${owner}/${repo}#${number}:edit:${review.id}`}
               githubUrl={actions.githubUrl}
-              anchor={`pullrequestreview-${review.url.split("pullrequestreview-")[1] ?? review.id}`}
+              anchor={reviewAnchor(review)}
               isSubjectAuthor={review.author?.login === actions.subjectAuthor}
               onSave={(body) => actions.saveReview(review.id, body)}
               onReact={(content, add) => actions.react(review.id, content, add)}
@@ -61,7 +62,7 @@ export const ReviewItemView = memo(function ReviewItemView({ review, threads, ac
           )}
           {threads?.map((t) => (
             <div key={t.id} className="tl-review-thread">
-              <ReviewThreadView thread={t} owner={owner} repo={repo} number={number} showHunk />
+              <ReviewThreadView thread={t} owner={owner} repo={repo} number={number} showHunk anchorPrefix="discussion_r" />
             </div>
           ))}
         </div>

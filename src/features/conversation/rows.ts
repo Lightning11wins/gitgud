@@ -1,4 +1,5 @@
 // Timeline rows built from items, kept free of components so they can be unit tested.
+import type { ReviewThread } from "@/api/types";
 import type { CommitItem, EventItem, IssueCommentItem, ReviewItem, TimelineItem } from "./types";
 
 export type Row =
@@ -96,10 +97,40 @@ export function rowItems(row: Row): TimelineItem[] {
   }
 }
 
-/** True when `row` renders the target of `#issuecomment-<databaseId>` or `#event-<id>`. */
-export function rowHasAnchor(row: Row, anchor: string): boolean {
+/** DOM id of a review: its `#pullrequestreview-<id>` anchor on github.com. */
+export const reviewAnchor = (review: ReviewItem) => `pullrequestreview-${review.url.split("pullrequestreview-")[1] ?? review.id}`;
+
+/** Review threads by the review of their first comment, whose timeline row shows them. */
+export function groupThreads(threads: ReviewThread[] | undefined): Map<string, ReviewThread[]> {
+  const map = new Map<string, ReviewThread[]>();
+  for (const t of threads ?? []) {
+    const reviewId = t.comments.nodes[0]?.pullRequestReview?.id;
+    if (!reviewId) continue;
+    const list = map.get(reviewId);
+    if (list) list.push(t);
+    else map.set(reviewId, [t]);
+  }
+  return map;
+}
+
+/** Id of the review whose row shows the `#discussion_r<databaseId>` comment, including replies from later reviews. */
+export function discussionReview(threads: ReviewThread[] | undefined, anchor: string): string | undefined {
+  const m = /^discussion_r(\d+)$/.exec(anchor);
+  if (!m) return undefined;
+  const thread = threads?.find((t) => t.comments.nodes.some((c) => c.databaseId === Number(m[1])));
+  return thread?.comments.nodes[0]?.pullRequestReview?.id;
+}
+
+/**
+ * True when `row` renders the target of `#issuecomment-<databaseId>`, `#event-<id>`, `#pullrequestreview-<id>`,
+ * or `#discussion_r<databaseId>`. The last needs the id {@link discussionReview} returns.
+ */
+export function rowHasAnchor(row: Row, anchor: string, discussionReviewId?: string): boolean {
   const comment = /^issuecomment-(\d+)$/.exec(anchor);
+  if (comment) return rowItems(row).some((it) => (it as IssueCommentItem).databaseId === Number(comment[1]));
   const event = /^event-(.+)$/.exec(anchor);
-  if (!comment && !event) return false;
-  return rowItems(row).some((it) => (comment ? (it as IssueCommentItem).databaseId === Number(comment[1]) : it.id === event![1]));
+  if (event) return rowItems(row).some((it) => it.id === event[1]);
+  if (anchor.startsWith("pullrequestreview-")) return rowItems(row).some((it) => it.__typename === "PullRequestReview" && reviewAnchor(it as ReviewItem) === anchor);
+  if (anchor.startsWith("discussion_r")) return !!discussionReviewId && rowItems(row).some((it) => it.id === discussionReviewId);
+  return false;
 }

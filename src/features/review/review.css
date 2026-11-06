@@ -103,6 +103,10 @@
 .rt-comment.deleting {
   opacity: 0.5;
 }
+.rt-comment.targeted {
+  background: var(--accent-subtle);
+  scroll-margin-top: calc(var(--header-h) + 60px);
+}
 .rt-comment-head {
   display: flex;
   align-items: center;

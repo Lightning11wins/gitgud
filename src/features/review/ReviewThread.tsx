@@ -1,6 +1,6 @@
 import { ChevronDownIcon, ChevronRightIcon, KebabHorizontalIcon } from "@primer/octicons-react";
 import { memo, useCallback, useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { gql } from "@/api/client";
 import { ACTOR_FIELDS, REVIEW_COMMENT_FIELDS, type ReactionGroup, type ReviewComment, type ReviewThread } from "@/api/types";
 import { Avatar } from "@/components/Avatar";
@@ -27,6 +27,8 @@ export interface ReviewThreadViewProps {
   showHunk?: boolean;
   /** Enables "Start a review" on replies when the viewer has no pending review. */
   pullId?: string;
+  /** DOM id prefix of comments: github.com uses `r` on Files changed and `discussion_r` in the conversation. */
+  anchorPrefix?: string;
 }
 
 const REPLY = `
@@ -60,12 +62,14 @@ const ASSOCIATION: Record<string, string> = {
 };
 
 /** One review thread: optional hunk, comments, reply box, and resolve toggle. */
-export const ReviewThreadView = memo(function ReviewThreadView({ thread, owner, repo, number, showHunk, pullId }: ReviewThreadViewProps) {
-  // Null follows the resolved state; a click pins it open or closed.
+export const ReviewThreadView = memo(function ReviewThreadView({ thread, owner, repo, number, showHunk, pullId, anchorPrefix = "r" }: ReviewThreadViewProps) {
+  // Null follows the resolved state and the URL hash; a click pins it open or closed.
   const [open, setOpen] = useState<boolean | null>(null);
   const [resolving, setResolving] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const expanded = open ?? !thread.isResolved;
+  const { hash } = useLocation();
+  const targeted = thread.comments.nodes.some((c) => hash === `#${anchorPrefix}${c.databaseId}`);
+  const expanded = open ?? (targeted || !thread.isResolved);
   const first = thread.comments.nodes[0];
   if (!first) return null;
   const pr = { owner, repo, number };
@@ -124,7 +128,7 @@ export const ReviewThreadView = memo(function ReviewThreadView({ thread, owner, 
             <DiffHunk hunk={first.diffHunk} startLine={thread.originalStartLine} startSide={thread.startDiffSide} />
           )}
           {thread.comments.nodes.map((c) => (
-            <ThreadComment key={c.id} comment={c} threadId={thread.id} owner={owner} repo={repo} number={number} />
+            <ThreadComment key={c.id} comment={c} anchor={`${anchorPrefix}${c.databaseId}`} threadId={thread.id} owner={owner} repo={repo} number={number} />
           ))}
           {error != null && <ErrorBanner error={error} />}
           {thread.viewerCanReply ? (
@@ -226,13 +230,15 @@ function ReplyBox({ thread, owner, repo, number, pullId, resolveButton }: ReplyB
 
 interface ThreadCommentProps {
   comment: ReviewComment;
+  /** DOM id, e.g. `discussion_r123`, so github.com anchors work. */
+  anchor: string;
   threadId: string;
   owner: string;
   repo: string;
   number: number;
 }
 
-const ThreadComment = memo(function ThreadComment({ comment, threadId, owner, repo, number }: ThreadCommentProps) {
+const ThreadComment = memo(function ThreadComment({ comment, anchor, threadId, owner, repo, number }: ThreadCommentProps) {
   const [editing, setEditing] = useState(false);
   const [showMinimized, setShowMinimized] = useState(false);
   const [menu, setMenu] = useState<HTMLElement | null>(null);
@@ -278,7 +284,7 @@ const ThreadComment = memo(function ThreadComment({ comment, threadId, owner, re
   const login = comment.author?.login ?? "ghost";
 
   return (
-    <div className={`rt-comment${deleting ? " deleting" : ""}`} id={`r${comment.databaseId}`}>
+    <div className={`rt-comment${deleting ? " deleting" : ""}`} id={anchor}>
       <div className="rt-comment-head">
         <Avatar src={comment.author?.avatarUrl} login={login} size={20} />
         <a className="rt-author" href={comment.author?.url ?? undefined} target="_blank" rel="noopener noreferrer">

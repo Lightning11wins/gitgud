@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildRows, EVENT_GROUP_MS, rowHasAnchor, type Row } from "./rows";
+import type { ReviewThread } from "@/api/types";
+import { buildRows, discussionReview, EVENT_GROUP_MS, groupThreads, rowHasAnchor, type Row } from "./rows";
 import type { TimelineItem } from "./types";
 
 const T0 = Date.parse("2026-07-27T12:00:00Z");
@@ -7,6 +8,11 @@ const at = (ms: number) => new Date(T0 + ms).toISOString();
 const event = (id: string, __typename: string, login = "octocat", ms = 0) =>
   ({ __typename, id, actor: { login, avatarUrl: "", url: "" }, createdAt: at(ms) }) as TimelineItem;
 const comment = (id: string, databaseId: number) => ({ __typename: "IssueComment", id, databaseId, createdAt: at(0) }) as unknown as TimelineItem;
+const review = (id: string, n: number) =>
+  ({ __typename: "PullRequestReview", id, state: "COMMENTED", url: `https://github.com/o/r/pull/1#pullrequestreview-${n}`, createdAt: at(0) }) as unknown as TimelineItem;
+/** A thread whose comments are `[databaseId, reviewId]` pairs. */
+const thread = (id: string, comments: [number, string][]) =>
+  ({ id, comments: { totalCount: comments.length, nodes: comments.map(([databaseId, reviewId]) => ({ databaseId, pullRequestReview: { id: reviewId, state: "COMMENTED" } })) } }) as unknown as ReviewThread;
 
 const shape = (rows: Row[]) =>
   rows.map((r) => (r.type === "events" ? r.events.map((e) => e.id) : r.type === "item" ? r.item.id : r.type));
@@ -63,5 +69,31 @@ describe("rowHasAnchor", () => {
     expect(rowHasAnchor(group, "event-c")).toBe(false);
     expect(rowHasAnchor(c, "issuecomment-42")).toBe(true);
     expect(rowHasAnchor(c, "pullrequestreview-42")).toBe(false);
+  });
+
+  it("finds reviews by the number in their url", () => {
+    const [r] = buildRows([review("R1", 7)]);
+    expect(rowHasAnchor(r, "pullrequestreview-7")).toBe(true);
+    expect(rowHasAnchor(r, "pullrequestreview-8")).toBe(false);
+    expect(rowHasAnchor(r, "issuecomment-7")).toBe(false);
+  });
+
+  it("finds review comments in the row of their thread's first review, replies included", () => {
+    const threads = [thread("t1", [[100, "R1"], [101, "R2"]]), thread("t2", [[200, "R2"]])];
+    const [r1, r2] = buildRows([review("R1", 1), review("R2", 2)]);
+    expect(discussionReview(threads, "discussion_r101")).toBe("R1");
+    expect(discussionReview(threads, "discussion_r200")).toBe("R2");
+    expect(discussionReview(threads, "discussion_r999")).toBeUndefined();
+    expect(discussionReview(threads, "issuecomment-100")).toBeUndefined();
+    expect(rowHasAnchor(r1, "discussion_r101", "R1")).toBe(true);
+    expect(rowHasAnchor(r2, "discussion_r101", "R1")).toBe(false);
+    expect(rowHasAnchor(r1, "discussion_r101")).toBe(false);
+  });
+});
+
+describe("groupThreads", () => {
+  it("groups threads under the review of their first comment", () => {
+    const groups = groupThreads([thread("t1", [[1, "R1"], [2, "R2"]]), thread("t2", [[3, "R2"]]), thread("t3", [])]);
+    expect([...groups].map(([id, ts]) => [id, ts.map((t) => t.id)])).toEqual([["R1", ["t1"]], ["R2", ["t2"]]]);
   });
 });

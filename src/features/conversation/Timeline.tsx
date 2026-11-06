@@ -22,7 +22,7 @@ import {
   updateSubjectBody,
 } from "./mutations";
 import { patchTimelineItem, updateTimeline, useTimeline } from "./timeline";
-import { buildRows, rowHasAnchor, type Row } from "./rows";
+import { buildRows, discussionReview, groupThreads, rowHasAnchor, type Row } from "./rows";
 import { TimelineRow, type TimelineActions } from "./TimelineRow";
 import type { CommentLike, IssueCommentItem, TimelineItem } from "./types";
 import "./conversation.css";
@@ -106,7 +106,7 @@ export function Timeline({ owner, repo, number, kind, subject, beforeComposer, c
     return () => cancelAnimationFrame(id);
   }, [limit, rows.length]);
 
-  useScrollToHash(rows, setLimit);
+  useScrollToHash(rows, threadsQuery.data, limit, setLimit);
   useHotkey("r", () => composer.current?.focus());
   useHotkey("j", () => moveFocus(1));
   useHotkey("k", () => moveFocus(-1));
@@ -134,18 +134,6 @@ export function Timeline({ owner, repo, number, kind, subject, beforeComposer, c
       <CommentForm kind={kind} owner={owner} repo={repo} number={number} subject={subject} handle={composer} locked={subject.locked && !canWrite(subject.repository.viewerPermission)} />
     </div>
   );
-}
-
-function groupThreads(threads: ReviewThread[] | undefined): Map<string, ReviewThread[]> {
-  const map = new Map<string, ReviewThread[]>();
-  for (const t of threads ?? []) {
-    const reviewId = t.comments.nodes[0]?.pullRequestReview?.id;
-    if (!reviewId) continue;
-    const list = map.get(reviewId);
-    if (list) list.push(t);
-    else map.set(reviewId, [t]);
-  }
-  return map;
 }
 
 /** The issue/PR description as the first comment. */
@@ -198,15 +186,16 @@ const SubjectBody = memo(function SubjectBody({ subject, kind, owner, repo, numb
   );
 });
 
-/** Scrolls to `#issuecomment-123` and `#event-<id>` anchors once the target row has rendered. */
-function useScrollToHash(rows: Row[], setLimit: (fn: (l: number) => number) => void) {
+/** Scrolls to the anchors {@link rowHasAnchor} knows once the target row has rendered. `limit` retries as rows stream in. */
+function useScrollToHash(rows: Row[], threads: ReviewThread[] | undefined, limit: number, setLimit: (fn: (l: number) => number) => void) {
   const { hash } = useLocation();
   const done = useRef("");
   const cancelScroll = useRef<() => void>(undefined);
   useEffect(() => {
     if (!hash || done.current === hash) return;
     const id = decodeURIComponent(hash.slice(1));
-    const index = rows.findIndex((r) => rowHasAnchor(r, id));
+    const reviewId = discussionReview(threads, id);
+    const index = rows.findIndex((r) => rowHasAnchor(r, id, reviewId));
     if (index >= 0) setLimit((l) => Math.max(l, index + 1));
     const el = document.getElementById(id);
     if (!el) return;
@@ -215,7 +204,7 @@ function useScrollToHash(rows: Row[], setLimit: (fn: (l: number) => number) => v
     el.classList.add("targeted");
     cancelScroll.current?.();
     cancelScroll.current = scrollUntilSettled(el);
-  }, [hash, rows, setLimit]);
+  }, [hash, rows, threads, limit, setLimit]);
 }
 
 /** Scrolls `el` into view, then again while rows near it render and shift it, until it holds still for a few frames. */
