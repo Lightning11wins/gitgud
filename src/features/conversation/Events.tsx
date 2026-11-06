@@ -8,6 +8,7 @@ import {
   GitBranchIcon,
   GitCommitIcon,
   GitMergeIcon,
+  GitPullRequestClosedIcon,
   GitPullRequestDraftIcon,
   GitPullRequestIcon,
   IssueClosedIcon,
@@ -66,10 +67,14 @@ function ActorName({ a }: { a: { login: string; avatarUrl?: string; url?: string
   );
 }
 
+/** DOM id of an event row; its timestamp links here. */
+export const eventAnchor = (id: string) => `event-${id}`;
+
 /** `single` keeps the line to one row; its `.shrink` children take the ellipsis. */
 function Row({ icon: I, tone, children, item, block, single }: { icon: Icon; tone?: string; children: ReactNode; item: EventItem; block?: ReactNode; single?: boolean }) {
+  const anchor = eventAnchor(item.id);
   return (
-    <div className="tl-event">
+    <div className="tl-event" id={anchor}>
       <span className={`tl-badge ${tone ?? ""}`}>
         <I size={14} />
       </span>
@@ -77,10 +82,12 @@ function Row({ icon: I, tone, children, item, block, single }: { icon: Icon; ton
         <div className={single ? "tl-event-line single" : "tl-event-line"}>
           {item.actor !== undefined && <ActorName a={item.actor} />} {children}
           {item.createdAt && (
-            <span className="muted">
+            <>
               {" "}
-              <RelativeTime date={item.createdAt} />
-            </span>
+              <Link className="tl-event-time" to={{ hash: `#${anchor}` }}>
+                <RelativeTime date={item.createdAt} />
+              </Link>
+            </>
           )}
         </div>
         {block}
@@ -105,7 +112,7 @@ function humanize(typename: string) {
 const CLOSE_REASON: Record<string, string> = { COMPLETED: "as completed", NOT_PLANNED: "as not planned", DUPLICATE: "as a duplicate" };
 
 /** One-line timeline event. Unknown types fall back to a generic row. */
-export const EventRow = memo(function EventRow({ item, repo }: { item: EventItem; repo: string }) {
+export const EventRow = memo(function EventRow({ item, repo, pull }: { item: EventItem; repo: string; pull?: boolean }) {
   const e = item;
   switch (e.__typename) {
     case "LabeledEvent":
@@ -144,6 +151,13 @@ export const EventRow = memo(function EventRow({ item, repo }: { item: EventItem
         </Row>
       );
     case "ClosedEvent": {
+      if (pull) {
+        return (
+          <Row icon={GitPullRequestClosedIcon} tone="danger-solid" item={e}>
+            closed this
+          </Row>
+        );
+      }
       const notPlanned = e.stateReason === "NOT_PLANNED" || e.stateReason === "DUPLICATE";
       return (
         <Row icon={notPlanned ? SkipIcon : IssueClosedIcon} tone={notPlanned ? "neutral" : "done"} item={e}>

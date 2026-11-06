@@ -84,7 +84,7 @@ function Section(props: { tone: Tone; icon?: ReactNode; title: ReactNode; detail
 
 function Toggle({ open, onClick, labels }: { open: boolean; onClick: () => void; labels: [string, string] }) {
   return (
-    <button className="btn invisible sm" onClick={onClick} aria-expanded={open}>
+    <button className="btn invisible sm merge-toggle" onClick={onClick} aria-expanded={open}>
       {open ? labels[1] : labels[0]}
     </button>
   );
@@ -157,7 +157,7 @@ function ReviewSection({ pull }: { pull: PullMeta }) {
 }
 
 function ChecksSection({ pull, owner, repo }: { pull: PullMeta; owner: string; repo: string }) {
-  const [open, setOpen] = useState(false);
+  const [toggled, setToggled] = useState<boolean | null>(null);
   const checksPath = `/${owner}/${repo}/pull/${pull.number}/checks`;
   if (pull.checksForbidden)
     return (
@@ -189,6 +189,7 @@ function ChecksSection({ pull, owner, repo }: { pull: PullMeta; owner: string; r
   if (!rollup || rollup.contexts.length === 0)
     return hidden ? <Section tone="muted" icon={<AlertIcon />} title="Checks hidden" detail={hidden} /> : null;
   const s = summarize(rollup.contexts, !!hidden);
+  const open = toggled ?? s.outcome === "failure";
   return (
     <Section
       tone={s.outcome === "failure" ? "danger" : s.outcome !== "success" ? "attention" : hidden ? "muted" : "success"}
@@ -203,7 +204,7 @@ function ChecksSection({ pull, owner, repo }: { pull: PullMeta; owner: string; r
           s.detail
         )
       }
-      aside={<Toggle open={open} onClick={() => setOpen(!open)} labels={["Show all checks", "Hide all checks"]} />}
+      aside={<Toggle open={open} onClick={() => setToggled(!open)} labels={["Show all checks", "Hide all checks"]} />}
     >
       {open && (
         <div className="merge-section-list merge-checks">

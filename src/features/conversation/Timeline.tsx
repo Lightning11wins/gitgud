@@ -111,7 +111,7 @@ export function Timeline({ owner, repo, number, kind, subject, beforeComposer }:
   return (
     <div className="timeline">
       <div className="tl-list">
-      <SubjectBody subject={subject} kind={kind} owner={owner} repo={repo} number={number} />
+      <SubjectBody subject={subject} kind={kind} owner={owner} repo={repo} number={number} onQuote={actions.quote} />
       {shown.map((row) => (
         <TimelineRow key={row.key} row={row} actions={actions} threads={row.type === "item" ? threadsByReview.get(row.item.id) : undefined} />
       ))}
@@ -141,7 +141,7 @@ function groupThreads(threads: ReviewThread[] | undefined): Map<string, ReviewTh
 }
 
 /** The issue/PR description as the first comment. */
-const SubjectBody = memo(function SubjectBody({ subject, kind, owner, repo, number }: { subject: SubjectMeta; kind: "issue" | "pull"; owner: string; repo: string; number: number }) {
+const SubjectBody = memo(function SubjectBody({ subject, kind, owner, repo, number, onQuote }: { subject: SubjectMeta; kind: "issue" | "pull"; owner: string; repo: string; number: number; onQuote: (text: string) => void }) {
   const comment = useMemo<CommentLike>(
     () => ({
       id: subject.id,
@@ -150,17 +150,18 @@ const SubjectBody = memo(function SubjectBody({ subject, kind, owner, repo, numb
       body: subject.body,
       bodyHTML: subject.bodyHTML,
       createdAt: subject.createdAt,
+      lastEditedAt: subject.lastEditedAt,
       url: subject.url,
       viewerCanUpdate: subject.viewerCanUpdate,
       viewerCanReact: true,
       reactionGroups: subject.reactionGroups,
     }),
-    [subject.id, subject.author, subject.authorAssociation, subject.body, subject.bodyHTML, subject.createdAt, subject.url, subject.viewerCanUpdate, subject.reactionGroups],
+    [subject.id, subject.author, subject.authorAssociation, subject.body, subject.bodyHTML, subject.createdAt, subject.lastEditedAt, subject.url, subject.viewerCanUpdate, subject.reactionGroups],
   );
   const onSave = useCallback(
     async (body: string) => {
       const r = await updateSubjectBody(kind, subject.id, body);
-      patchSubject(kind, owner, repo, number, () => ({ body: r.body, bodyHTML: r.bodyHTML }));
+      patchSubject(kind, owner, repo, number, () => ({ body: r.body, bodyHTML: r.bodyHTML, lastEditedAt: r.lastEditedAt ?? null }));
     },
     [kind, subject.id, owner, repo, number],
   );
@@ -183,31 +184,56 @@ const SubjectBody = memo(function SubjectBody({ subject, kind, owner, repo, numb
         verb="opened this"
         onSave={onSave}
         onReact={onReact}
+        onQuote={onQuote}
       />
     </div>
   );
 });
 
-/** Scrolls to `#issuecomment-123` style anchors once the target row has rendered. */
+/** Scrolls to `#issuecomment-123` and `#event-<id>` anchors once the target row has rendered. */
 function useScrollToHash(rows: Row[], setLimit: (fn: (l: number) => number) => void) {
   const { hash } = useLocation();
   const done = useRef("");
+  const cancelScroll = useRef<() => void>(undefined);
   useEffect(() => {
     if (!hash || done.current === hash) return;
     const id = decodeURIComponent(hash.slice(1));
-    const m = /^issuecomment-(\d+)$/.exec(id);
-    if (m) {
-      const index = rows.findIndex((r) => r.type === "item" && (r.item as IssueCommentItem).databaseId === Number(m[1]));
+    const comment = /^issuecomment-(\d+)$/.exec(id);
+    const event = /^event-(.+)$/.exec(id);
+    if (comment || event) {
+      const index = rows.findIndex(
+        (r) => r.type === "item" && (comment ? (r.item as IssueCommentItem).databaseId === Number(comment[1]) : r.item.id === event![1]),
+      );
       if (index >= 0) setLimit((l) => Math.max(l, index + 1));
     }
     const el = document.getElementById(id);
     if (!el) return;
     done.current = hash;
-    requestAnimationFrame(() => {
-      el.scrollIntoView({ block: "start" });
-      el.classList.add("targeted");
-    });
+    document.querySelector(".timeline .targeted")?.classList.remove("targeted");
+    el.classList.add("targeted");
+    cancelScroll.current?.();
+    cancelScroll.current = scrollUntilSettled(el);
   }, [hash, rows, setLimit]);
+}
+
+/** Scrolls `el` into view, then again while rows near it render and shift it, until it holds still for a few frames. */
+function scrollUntilSettled(el: HTMLElement) {
+  let expected: number | null = null;
+  let still = 0;
+  let frames = 0;
+  let id = 0;
+  const step = () => {
+    const top = el.getBoundingClientRect().top;
+    if (expected !== null && Math.abs(top - expected) < 1) still++;
+    else {
+      still = 0;
+      el.scrollIntoView({ block: "start" });
+      expected = el.getBoundingClientRect().top;
+    }
+    if (still < 3 && ++frames < 60) id = requestAnimationFrame(step);
+  };
+  id = requestAnimationFrame(step);
+  return () => cancelAnimationFrame(id);
 }
 
 /** j/k: moves a highlight between comments and scrolls to it. */

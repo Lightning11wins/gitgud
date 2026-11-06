@@ -127,12 +127,16 @@ export function RepoPage({ kind }: { kind?: Kind }) {
 
       <div className="repo-toolbar">
         <FilterInput value={q} onApply={(next) => setQ(next || DEFAULT_Q)} placeholder="is:open" />
-        <Link className="btn" to={`/${slug}/compare`}>
-          New pull request
-        </Link>
-        <Link className="btn primary" to={`/${slug}/issues/new`}>
-          New issue
-        </Link>
+        {kind !== "issue" && (
+          <Link className={kind === "pr" ? "btn primary" : "btn"} to={`/${slug}/compare`}>
+            New pull request
+          </Link>
+        )}
+        {kind !== "pr" && (
+          <Link className="btn primary" to={`/${slug}/issues/new`}>
+            New issue
+          </Link>
+        )}
       </div>
 
       {counts.error && !c && <ErrorBanner error={counts.error} action={<button className="btn sm" onClick={() => void counts.refetch()}>Retry</button>} />}

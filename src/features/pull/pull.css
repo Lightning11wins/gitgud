@@ -276,6 +276,10 @@ span.pull-branch {
 .merge-section-detail {
   font-size: 12px;
 }
+.btn.invisible.merge-toggle,
+.btn.invisible.merge-toggle:hover:not(:disabled) {
+  color: var(--accent);
+}
 .merge-section-list {
   margin: 10px -16px -12px;
   border-top: 1px solid var(--border-muted);

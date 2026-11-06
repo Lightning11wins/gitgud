@@ -272,6 +272,17 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
   }, [ft, rt, rightSide]);
 
   const { lmap, rmap, unplaced, fileThreads } = useMemo(() => placeThreads(threads, rows), [threads, rows]);
+  // Added and deleted files have lines on one side only and show it as one full-width column.
+  const one = useMemo(() => {
+    let l = false;
+    let r = false;
+    for (const row of rows) {
+      if (row.r !== "l") continue;
+      l ||= !!row.L;
+      r ||= !!row.R;
+    }
+    return l === r ? undefined : l ? "L" : "R";
+  }, [rows]);
 
   const onExpand = useCallback(
     async (gap: number, dir: "up" | "down" | "all") => {
@@ -473,6 +484,7 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
               rtok={rtok}
               lmap={lmap}
               rmap={rmap}
+              one={one}
               pull={pull}
               sel={chunkRange}
               form={chunkRange && sel?.open ? form : null}
@@ -533,6 +545,8 @@ interface ChunkProps {
   rtok: SideTok | null;
   lmap: Map<number, ReviewThread[]>;
   rmap: Map<number, ReviewThread[]>;
+  /** The only side shown, for files with lines on one side. */
+  one?: "L" | "R";
   pull?: PullContext;
   sel?: { side: "L" | "R"; start: number; end: number } | null;
   form: ReactNode;
@@ -542,7 +556,7 @@ interface ChunkProps {
 const KIND_CLASS = ["ctx", "del", "add"] as const;
 
 /** Up to CHUNK_ROWS rows in one grid; mounted when near the viewport or when the page is idle. */
-const Chunk = memo(function Chunk({ rows, blocks, ltok, rtok, lmap, rmap, pull, sel, form, onExpand }: ChunkProps) {
+const Chunk = memo(function Chunk({ rows, blocks, ltok, rtok, lmap, rmap, one, pull, sel, form, onExpand }: ChunkProps) {
   const ref = useRef<HTMLDivElement>(null);
   const mounted = useScheduled(ref, true, rows.length);
   const colored = useScheduled(ref, mounted && !!(ltok || rtok), rows.length);
@@ -550,6 +564,8 @@ const Chunk = memo(function Chunk({ rows, blocks, ltok, rtok, lmap, rmap, pull, 
   const starts = blocks ? blocks.split(",").map(Number) : [];
   const L = colored ? ltok : null;
   const R = colored ? rtok : null;
+  const showL = one !== "R";
+  const showR = one !== "L";
   const out: ReactNode[] = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -565,31 +581,32 @@ const Chunk = memo(function Chunk({ rows, blocks, ltok, rtok, lmap, rmap, pull, 
     let lTok = L && row.L && row.c ? lookup(L, row.L.n) : null;
     if (!lTok && row.L?.k === CTX && row.R && R) lTok = lookup(R, row.R.n);
     const rTok = R && row.R ? lookup(R, row.R.n) : null;
-    out.push(
-      <NumCell key={`${key}a`} cell={row.L} side="L" c={c} sel={lSel} blk={starts.includes(i)} />,
-      <CodeCell key={`${key}b`} cell={row.L} tok={lTok} sel={lSel} />,
-      <NumCell key={`${key}c`} cell={row.R} side="R" c={c} sel={rSel} />,
-      <CodeCell key={`${key}d`} cell={row.R} tok={rTok} sel={rSel} />,
-    );
+    const blk = starts.includes(i);
+    if (showL) out.push(<NumCell key={`${key}a`} cell={row.L} side="L" c={c} sel={lSel} blk={blk} />, <CodeCell key={`${key}b`} cell={row.L} tok={lTok} sel={lSel} />);
+    if (showR) out.push(<NumCell key={`${key}c`} cell={row.R} side="R" c={c} sel={rSel} blk={blk && !showL} />, <CodeCell key={`${key}d`} cell={row.R} tok={rTok} sel={rSel} />);
     const lt = row.L && lmap.get(row.L.n);
     const rt = row.R && rmap.get(row.R.n);
     const fl = form && sel?.side === "L" && row.L?.n === sel.end && row.c;
     const fr = form && sel?.side === "R" && row.R?.n === sel.end && row.c;
     if (lt || rt || fl || fr) {
-      out.push(
-        <div key={`${key}t`} className="dt">
-          {lt && pull && lt.map((t) => <ReviewThreadView key={t.id} thread={t} owner={pull.owner} repo={pull.repo} number={pull.number} pullId={pull.pullId} />)}
-          {fl && form}
-        </div>,
-        <div key={`${key}u`} className="dt">
-          {rt && pull && rt.map((t) => <ReviewThreadView key={t.id} thread={t} owner={pull.owner} repo={pull.repo} number={pull.number} pullId={pull.pullId} />)}
-          {fr && form}
-        </div>,
-      );
+      if (showL)
+        out.push(
+          <div key={`${key}t`} className="dt">
+            {lt && pull && lt.map((t) => <ReviewThreadView key={t.id} thread={t} owner={pull.owner} repo={pull.repo} number={pull.number} pullId={pull.pullId} />)}
+            {fl && form}
+          </div>,
+        );
+      if (showR)
+        out.push(
+          <div key={`${key}u`} className="dt">
+            {rt && pull && rt.map((t) => <ReviewThreadView key={t.id} thread={t} owner={pull.owner} repo={pull.repo} number={pull.number} pullId={pull.pullId} />)}
+            {fr && form}
+          </div>,
+        );
     }
   }
   return (
-    <div ref={ref} className="dk" data-blocks={blocks || undefined} style={{ containIntrinsicSize: `auto ${rows.length * ROW_H}px` }}>
+    <div ref={ref} className={one ? "dk one" : "dk"} data-blocks={blocks || undefined} style={{ containIntrinsicSize: `auto ${rows.length * ROW_H}px` }}>
       {out}
     </div>
   );
@@ -605,16 +622,23 @@ function NumCell({ cell, side, c, sel, blk }: { cell?: Cell; side: "L" | "R"; c:
   return <div className={`dn ${KIND_CLASS[cell.k]}${sel ? " sel" : ""}`} data-n={cell.n} data-s={side} data-c={c ? "" : undefined} data-blk={blk ? "" : undefined} />;
 }
 
+/** Indentation and the first word, which wrap together so indentation never fills a row alone. */
+const LEAD = /^[ \t]+[^ \t]+/;
+
 function CodeCell({ cell, tok, sel }: { cell?: Cell; tok: { tokens: Tokens; i: number } | null; sel: boolean }) {
   if (!cell) return <div className="dc empty" />;
   const ranges = cell.k !== CTX ? wordRanges(cell) : null;
-  return <div className={`dc ${KIND_CLASS[cell.k]}${sel ? " sel" : ""}`}>{codeNodes(cell.t, tok, ranges)}</div>;
+  const lead = LEAD.exec(cell.t)?.[0].length ?? 0;
+  return <div className={`dc ${KIND_CLASS[cell.k]}${sel ? " sel" : ""}`}>{codeNodes(cell.t, tok, ranges, lead)}</div>;
 }
 
-function codeNodes(text: string, tok: { tokens: Tokens; i: number } | null, ranges: [number, number][] | null): ReactNode {
-  if (!tok && !ranges?.length) return text;
+function codeNodes(text: string, tok: { tokens: Tokens; i: number } | null, ranges: [number, number][] | null, lead: number): ReactNode {
+  if (!tok && !ranges?.length) {
+    return lead ? [<span key="i" className="di">{text.slice(0, lead)}</span>, text.slice(lead)] : text;
+  }
   const out: ReactNode[] = [];
   let ri = 0;
+  let leadNodes = 0;
   const emit = (s: number, e: number, cls: number) => {
     while (s < e) {
       while (ranges && ri < ranges.length && ranges[ri][1] <= s) ri++;
@@ -627,10 +651,12 @@ function codeNodes(text: string, tok: { tokens: Tokens; i: number } | null, rang
           end = Math.min(e, r[1]);
         } else end = Math.min(e, r[0]);
       }
+      if (s < lead) end = Math.min(end, lead);
       const t = text.slice(s, end);
       const c = cls ? (marked ? `hl-${cls} wd` : `hl-${cls}`) : marked ? "wd" : "";
       out.push(c ? <span key={s} className={c}>{t}</span> : t);
       s = end;
+      if (s === lead) leadNodes = out.length;
     }
   };
   let pos = 0;
@@ -643,7 +669,7 @@ function codeNodes(text: string, tok: { tokens: Tokens; i: number } | null, rang
     }
   }
   if (pos < text.length) emit(pos, text.length, 0);
-  return out;
+  return lead ? [<span key="i" className="di">{out.slice(0, leadNodes)}</span>, ...out.slice(leadNodes)] : out;
 }
 
 function HunkRow({ row, onExpand }: { row: Extract<Row, { r: "h" }>; onExpand: (gap: number, dir: "up" | "down" | "all") => void }) {

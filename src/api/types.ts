@@ -67,6 +67,7 @@ export interface SubjectMeta {
   authorAssociation: string;
   body: string;
   bodyHTML: string;
+  lastEditedAt: string | null;
   viewerCanUpdate: boolean;
   viewerDidAuthor: boolean;
   locked: boolean;
@@ -89,7 +90,7 @@ export const ACTOR_FIELDS = `login avatarUrl(size: 80) url`;
 
 /** Selection set valid on both Issue and PullRequest, producing {@link SubjectMeta}. */
 export const SUBJECT_META_FIELDS = `
-  __typename id number title url state createdAt updatedAt body bodyHTML
+  __typename id number title url state createdAt updatedAt body bodyHTML lastEditedAt
   viewerCanUpdate viewerDidAuthor locked
   author { ${ACTOR_FIELDS} } authorAssociation
   labels(first: 100) { nodes { id name color description } }

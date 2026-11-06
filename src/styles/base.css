@@ -248,6 +248,13 @@ samp {
   justify-content: flex-end;
   gap: 4px;
 }
+.api-meter-static {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
 .api-meter rect {
   fill: currentColor;
 }
@@ -277,6 +284,14 @@ samp {
 }
 .app-header .crumbs a {
   color: var(--fg);
+}
+@media (max-width: 1012px) {
+  .app-header .app-header-label {
+    display: none;
+  }
+  .app-header .jump-box {
+    width: 220px;
+  }
 }
 .app-main {
   max-width: 1280px;

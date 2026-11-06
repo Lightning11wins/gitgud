@@ -1,5 +1,5 @@
 import { CommentIcon, LinkExternalIcon, MoonIcon, SunIcon, DeviceDesktopIcon } from "@primer/octicons-react";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { rateLimits } from "@/api/rateLimit";
 import { auth, signOut } from "@/auth/token";
@@ -19,6 +19,42 @@ export function useRepoFromPath(): { owner: string; repo: string } | null {
   return { owner, repo };
 }
 
+const LIST_QUERY_KEY = "gitgud:list-queries";
+
+/** Last search string of each repo's issue and PR lists, keyed by `owner/repo:issues` or `owner/repo:pulls`. */
+function readListQueries(): Record<string, string> {
+  try {
+    return JSON.parse(sessionStorage.getItem(LIST_QUERY_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+/** Remembers the list query on repo list pages. The All tab's query applies to both lists. */
+function useRememberListQuery(segments: string[], search: string) {
+  const [owner, repo, list, extra] = segments;
+  useEffect(() => {
+    if (!owner || !repo || extra !== undefined || (list !== undefined && list !== "issues" && list !== "pulls")) return;
+    const saved = readListQueries();
+    for (const l of list ? [list] : ["issues", "pulls"]) saved[`${owner}/${repo}:${l}`] = search;
+    try {
+      sessionStorage.setItem(LIST_QUERY_KEY, JSON.stringify(saved));
+    } catch {
+      // Storage can be full or blocked; the crumb then links to the unfiltered list.
+    }
+  }, [owner, repo, list, extra, search]);
+}
+
+/** The list crumb on issue and PR pages, linking back with the last query used for that list. */
+function listCrumb(segments: string[]): { to: string; label: string } | null {
+  const [owner, repo, kind, num] = segments;
+  if (!/^\d+$/.test(num ?? "")) return null;
+  const list = kind === "issues" ? "issues" : kind === "pull" ? "pulls" : null;
+  if (!list) return null;
+  const search = readListQueries()[`${owner}/${repo}:${list}`] ?? "";
+  return { to: `/${owner}/${repo}/${list}${search}`, label: list === "issues" ? "Issues" : "Pull requests" };
+}
+
 /** Repo that the Feedback button files issues in, as owner/repo. */
 const FEEDBACK_REPO = import.meta.env.VITE_FEEDBACK_REPO || "Lightning11wins/gitgud";
 
@@ -29,15 +65,17 @@ export function Layout() {
   const owner = repo?.owner ?? (segments.length === 1 && segments[0] !== "settings" ? segments[0] : null);
   const [help, setHelp] = useState(false);
   useHotkey("?", () => setHelp(true));
+  useRememberListQuery(repo ? segments : [], search);
+  const list = repo && listCrumb(segments);
   const wide = /\/pull\/(\d+\/(files|commits\/[0-9a-f]+)|new\/)/.test(pathname) || pathname.includes("/compare");
 
   return (
     <>
       <header className="app-header">
         <div className="app-header-start">
-          <Link to="/" className="brand" title="Dashboard">
+          <Link to="/" className="brand" title="Dashboard" aria-label="GitGud dashboard">
             <img src="/favicon.svg" width={24} height={24} alt="" />
-            GitGud
+            <span className="app-header-label">GitGud</span>
           </Link>
           {owner && (
             <nav className="crumbs truncate">
@@ -53,6 +91,14 @@ export function Layout() {
                   </Crumb>
                 </>
               )}
+              {list && (
+                <>
+                  <span className="muted">/</span>
+                  <Crumb to={list.to} current={pathname}>
+                    {list.label}
+                  </Crumb>
+                </>
+              )}
             </nav>
           )}
         </div>
@@ -60,16 +106,17 @@ export function Layout() {
         <div className="app-header-end">
           <ApiMeter />
           {pathname !== "/" && pathname !== "/settings" && (
-            <a className="btn invisible sm" href={toGitHubUrl(pathname + search)} target="_blank" rel="noopener noreferrer" title="Open this page on GitHub">
-              <LinkExternalIcon /> GitHub
+            <a className="btn invisible sm" href={toGitHubUrl(pathname + search)} target="_blank" rel="noopener noreferrer" title="Open this page on GitHub" aria-label="Open this page on GitHub">
+              <LinkExternalIcon /> <span className="app-header-label">GitHub</span>
             </a>
           )}
           <Link
             className="btn invisible sm"
             to={`/${FEEDBACK_REPO}/issues/new?title=${encodeURIComponent("Feedback: ")}`}
             title={`Send feedback about GitGud (opens a new issue in ${FEEDBACK_REPO})`}
+            aria-label="Send feedback"
           >
-            <CommentIcon /> Feedback
+            <CommentIcon /> <span className="app-header-label">Feedback</span>
           </Link>
           <ThemeButton />
           <UserMenu />
@@ -158,9 +205,10 @@ const METER_LIMITS = [
   ["core", "REST"],
 ] as const;
 
-/** One bar per GitHub API rate limit, filled by the share used. Links to Settings for the numbers. */
+/** One bar per GitHub API rate limit, filled by the share used. Links to Settings for the numbers, except on Settings. */
 function ApiMeter() {
   const limits = useStore(rateLimits);
+  const onSettings = useLocation().pathname === "/settings";
   const bars = METER_LIMITS.map(([key, name]) => {
     const r = limits[key];
     const left = r && r.limit ? r.remaining / r.limit : undefined;
@@ -169,24 +217,31 @@ function ApiMeter() {
   });
   const low = Math.min(...bars.map((b) => b.left ?? 1));
   const tone = low <= 0 ? "danger" : low < 0.1 ? "attention" : undefined;
-  return (
-    <Link
-      to="/settings"
-      className={`btn invisible sm icon api-meter${tone ? ` ${tone}` : ""}`}
-      title={`GitHub API requests left\n${bars.map((b) => b.text).join("\n")}`}
-      aria-label="GitHub API usage"
-    >
-      <svg width={20} height={16} viewBox="0 0 20 16" aria-hidden="true">
-        {bars.map((b, i) => {
-          const w = Math.max(2, 18 * (1 - (b.left ?? 1)));
-          return (
-            <g key={b.name}>
-              <rect className="api-meter-track" x={1} y={4.5 + i * 4} width={18} height={3} rx={1.5} />
-              <rect x={1} y={4.5 + i * 4} width={w} height={3} rx={1.5} />
-            </g>
-          );
-        })}
-      </svg>
+  const props = {
+    className: `${onSettings ? "api-meter-static" : "btn invisible sm icon"} api-meter${tone ? ` ${tone}` : ""}`,
+    title: `GitHub API requests left\n${bars.map((b) => b.text).join("\n")}`,
+    "aria-label": "GitHub API usage",
+  };
+  const svg = (
+    <svg width={20} height={16} viewBox="0 0 20 16" aria-hidden="true">
+      {bars.map((b, i) => {
+        const w = Math.max(2, 18 * (1 - (b.left ?? 1)));
+        return (
+          <g key={b.name}>
+            <rect className="api-meter-track" x={1} y={4.5 + i * 4} width={18} height={3} rx={1.5} />
+            <rect x={1} y={4.5 + i * 4} width={w} height={3} rx={1.5} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+  return onSettings ? (
+    <span role="img" {...props}>
+      {svg}
+    </span>
+  ) : (
+    <Link to="/settings" {...props}>
+      {svg}
     </Link>
   );
 }

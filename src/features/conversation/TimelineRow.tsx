@@ -34,6 +34,7 @@ const isCrossRepoRef = (it: TimelineItem) => it.__typename === "ReferencedEvent"
 export function buildRows(items: TimelineItem[], prev: Row[] = []): Row[] {
   const prevRows = new Map(prev.map((r) => [r.key, r]));
   const rows: Row[] = [];
+  let merged = false;
   for (const item of items) {
     const last = rows[rows.length - 1];
     if (item.__typename === "PullRequestCommit") {
@@ -48,6 +49,9 @@ export function buildRows(items: TimelineItem[], prev: Row[] = []): Row[] {
       continue;
     }
     if (item.__typename === "PullRequestReview" && (item as ReviewItem).state === "PENDING") continue;
+    // GitHub hides the ClosedEvent that comes with a merge.
+    if (item.__typename === "MergedEvent") merged = true;
+    else if (merged && item.__typename === "ClosedEvent") continue;
     rows.push({ key: item.id, type: "item", item });
   }
   // Keep unchanged rows identical so their memoized components skip rendering.
@@ -114,7 +118,7 @@ export const TimelineRow = memo(function TimelineRow({ row, actions, threads }: 
   }
   return (
     <div className="tl-item event">
-      <EventRow item={item as EventItem} repo={`${actions.owner}/${actions.repo}`} />
+      <EventRow item={item as EventItem} repo={`${actions.owner}/${actions.repo}`} pull={actions.kind === "pull"} />
     </div>
   );
 });

@@ -108,6 +108,14 @@
   padding: 4px 0;
   font-size: 13px;
   color: var(--fg-muted);
+  scroll-margin-top: calc(var(--header-h) + 60px);
+}
+.tl-event.targeted {
+  border-radius: var(--radius);
+  background: var(--accent-subtle);
+}
+.tl-event-time {
+  color: inherit;
 }
 .tl-badge {
   position: relative;

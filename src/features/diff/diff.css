@@ -300,6 +300,9 @@
   font-size: 12px;
   line-height: 20px;
 }
+.dk.one {
+  grid-template-columns: var(--nw) minmax(0, 1fr);
+}
 .dn {
   position: relative;
   min-height: 20px;
@@ -342,6 +345,10 @@
   overflow-wrap: anywhere;
   tab-size: 4;
   color: var(--fg);
+}
+/* Wrapping inside the first word keeps it on the indentation's row. */
+.dc .di {
+  word-break: break-all;
 }
 .dc.del::before,
 .dc.add::before {

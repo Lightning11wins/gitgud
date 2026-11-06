@@ -153,7 +153,7 @@ function ThreadSummary({ first, count, snippet }: { first: ReviewComment; count:
         {" · "}
         {count} {count === 1 ? "comment" : "comments"}
       </span>
-      {snippet && <span className="rt-snippet muted truncate">{plainSnippet(first.body)}</span>}
+      {snippet && <span className="muted">{plainSnippet(first.body)}</span>}
     </span>
   );
 }

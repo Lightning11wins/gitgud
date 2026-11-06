@@ -34,18 +34,14 @@
 .rt-summary {
   flex: 1 1 0;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  gap: 6px;
   min-width: 0;
   font-size: 12px;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.rt-summary > :not(.rt-snippet) {
-  flex-shrink: 0;
-}
-.rt-snippet {
-  min-width: 0;
+.rt-summary > * {
+  margin-right: 6px;
+  vertical-align: middle;
 }
 .rt-resolved {
   flex-shrink: 0;

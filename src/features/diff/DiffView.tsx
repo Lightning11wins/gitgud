@@ -27,6 +27,9 @@ export interface DiffViewProps {
 
 const EMPTY: ReviewThread[] = [];
 const TREE_WIDTH_KEY = "gitgud-tree-width";
+const TREE_SHOWN_KEY = "gitgud-tree-shown";
+/** Viewports narrower than this hide the file tree until the user shows it. */
+const WIDE_QUERY = "(min-width: 1280px)";
 
 function readTreeWidth(): number {
   try {
@@ -34,6 +37,28 @@ function readTreeWidth(): number {
   } catch {
     return 300;
   }
+}
+
+/** The user's last explicit tree toggle, or null if they never toggled it. */
+function readTreeShown(): boolean | null {
+  try {
+    const v = localStorage.getItem(TREE_SHOWN_KEY);
+    return v === null ? null : v === "1";
+  } catch {
+    return null;
+  }
+}
+
+function useWide(): boolean {
+  const [wide, setWide] = useState(() => matchMedia(WIDE_QUERY).matches);
+  useEffect(() => {
+    const mq = matchMedia(WIDE_QUERY);
+    const on = () => setWide(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return wide;
 }
 
 /** Bottom of the app and PR headers that stick above the diff. */
@@ -51,7 +76,9 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
   const ordered = useMemo(() => treeOrder(root), [root]);
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string | null>(null);
-  const [showTree, setShowTree] = useState(true);
+  const [treeShown, setTreeShown] = useState(readTreeShown);
+  const wide = useWide();
+  const showTree = treeShown ?? wide;
   const [treeWidth, setTreeWidth] = useState(readTreeWidth);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -239,6 +266,15 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
     window.addEventListener("pointerup", up);
   };
 
+  const toggleTree = (shown: boolean) => {
+    setTreeShown(shown);
+    try {
+      localStorage.setItem(TREE_SHOWN_KEY, shown ? "1" : "0");
+    } catch {
+      // Storage blocked; the choice lasts for this session.
+    }
+  };
+
   const allCollapsed = ordered.length > 0 && ordered.every((f) => isCollapsed(f.filename));
   const setAll = (collapsed: boolean) => setOverrides(Object.fromEntries(ordered.map((f) => [f.filename, collapsed])));
 
@@ -246,7 +282,7 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
     <div className="dv" ref={rootRef} style={{ "--tree-w": `${treeWidth}px` } as CSSProperties}>
       {notice && <div className="flash warn" style={{ marginBottom: 8 }}>{notice}</div>}
       <div className="dv-toolbar">
-        <button className="btn invisible sm icon" onClick={() => setShowTree((s) => !s)} title={showTree ? "Hide file tree" : "Show file tree"} aria-label={showTree ? "Hide file tree" : "Show file tree"}>
+        <button className="btn invisible sm icon" onClick={() => toggleTree(!showTree)} title={showTree ? "Hide file tree" : "Show file tree"} aria-label={showTree ? "Hide file tree" : "Show file tree"}>
           {showTree ? <SidebarExpandIcon /> : <SidebarCollapseIcon />}
         </button>
         <span>
