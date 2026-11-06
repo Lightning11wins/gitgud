@@ -1,9 +1,11 @@
 import {
   BookmarkIcon,
+  CheckIcon,
   CommentDiscussionIcon,
   CrossReferenceIcon,
   DotFillIcon,
   DuplicateIcon,
+  EllipsisIcon,
   EyeIcon,
   GitBranchIcon,
   GitCommitIcon,
@@ -29,15 +31,20 @@ import {
   TrashIcon,
   UnlockIcon,
   XCircleIcon,
+  XIcon,
   type Icon,
 } from "@primer/octicons-react";
-import { Fragment, memo, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Fragment, memo, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Avatar } from "@/components/Avatar";
 import { IssueLabel } from "@/components/IssueLabel";
 import { RelativeTime } from "@/components/RelativeTime";
 import { StateBadge, StateIcon } from "@/components/StateBadge";
 import { TitleText } from "@/components/TitleText";
+import { commitsQueryOptions, type PullCommit } from "@/features/pull/api";
+import { OutcomeIcon, rollupOutcome } from "@/features/pull/checks";
+import { SignatureLabel } from "@/features/pull/CommitsTab";
 import { BotBadge } from "./BotBadge";
 import { eventGroup } from "./rows";
 import type { CommitItem, EventItem, SubjectRef } from "./types";
@@ -542,36 +549,71 @@ export const ReferenceGroup = memo(function ReferenceGroup({ events }: { events:
   );
 });
 
-/** Consecutive commits collapsed into one row. */
-export const CommitGroup = memo(function CommitGroup({ commits, pullPath }: { commits: CommitItem[]; pullPath: string }) {
-  const first = commits[0].commit;
-  const login = first.author?.user?.login ?? first.author?.name ?? "someone";
+/** One commit on the timeline. `detail` comes from the Commits tab's list, which has bodies, checks, and signatures. */
+const TimelineCommit = memo(function TimelineCommit({ item, detail, to }: { item: CommitItem; detail: PullCommit | undefined; to: string }) {
+  const [open, setOpen] = useState(false);
+  const c = item.commit;
+  const login = c.author?.user?.login ?? c.author?.name ?? undefined;
+  const outcome = rollupOutcome(detail?.statusCheckRollup?.state);
   return (
-    <div className="tl-event">
-      <span className="tl-badge">
-        <GitCommitIcon size={14} />
+    <div className="tl-commit">
+      <span className="tl-commit-node">
+        <GitCommitIcon size={16} />
       </span>
-      <div className="tl-event-body">
-        <div className="tl-event-line">
-          {first.author?.avatarUrl && <Avatar src={first.author.avatarUrl} size={16} login={login} />} <strong>{login}</strong> added {commits.length} commit
-          {commits.length === 1 ? "" : "s"}{" "}
-          <span className="muted">
-            <RelativeTime date={first.committedDate} />
+      <div className="tl-commit-main">
+        <div className="tl-commit-line">
+          {c.author?.avatarUrl && <Avatar src={c.author.avatarUrl} size={16} login={login} />}
+          <Link to={to} className="tl-commit-msg truncate" title={c.messageHeadline}>
+            {c.messageHeadline}
+          </Link>
+          {detail?.messageBody && (
+            <button className="btn xs icon commit-expand" aria-expanded={open} aria-label="Show commit message body" onClick={() => setOpen(!open)}>
+              <EllipsisIcon size={12} />
+            </button>
+          )}
+          <span className="tl-commit-end">
+            <SignatureLabel signature={detail?.signature} />
+            {outcome === "success" ? (
+              <CheckIcon size={14} className="check-icon success" aria-label="Checks passed" />
+            ) : outcome === "failure" ? (
+              <XIcon size={14} className="check-icon failure" aria-label="Checks failed" />
+            ) : (
+              outcome && <OutcomeIcon outcome={outcome} size={14} />
+            )}
+            <Link to={to} className="mono tl-commit-sha">
+              {c.abbreviatedOid}
+            </Link>
           </span>
         </div>
-        <ul className="tl-commits">
-          {commits.map((c) => (
-            <li key={c.id} className="row">
-              <Link to={`${pullPath}/commits/${c.commit.oid}`} className="tl-commit-msg truncate">
-                {c.commit.messageHeadline}
-              </Link>
-              <a className="mono muted tl-commit-sha" href={c.commit.url} target="_blank" rel="noopener noreferrer">
-                {c.commit.abbreviatedOid}
-              </a>
-            </li>
-          ))}
-        </ul>
+        {open && detail && <pre className="commit-body">{detail.messageBody}</pre>}
       </div>
     </div>
+  );
+});
+
+/** Consecutive commits: a summary line, then one row per commit along the timeline. */
+export const CommitGroup = memo(function CommitGroup({ commits, owner, repo, number }: { commits: CommitItem[]; owner: string; repo: string; number: number }) {
+  const q = useQuery(commitsQueryOptions(owner, repo, number));
+  const byOid = useMemo(() => new Map(q.data?.commits.map((c) => [c.oid, c])), [q.data]);
+  const first = commits[0].commit;
+  const login = first.author?.user?.login ?? first.author?.name ?? "someone";
+  const base = `/${owner}/${repo}/pull/${number}/commits/`;
+  return (
+    <>
+      <div className="tl-event">
+        <span className="tl-badge">
+          <GitCommitIcon size={14} />
+        </span>
+        <div className="tl-event-body">
+          <div className="tl-event-line">
+            {first.author?.avatarUrl && <Avatar src={first.author.avatarUrl} size={16} login={login} />} <strong className="event-actor">{login}</strong> added{" "}
+            {commits.length} commit{commits.length === 1 ? "" : "s"} <RelativeTime date={first.committedDate} />
+          </div>
+        </div>
+      </div>
+      {commits.map((c) => (
+        <TimelineCommit key={c.id} item={c} detail={byOid.get(c.commit.oid)} to={base + c.commit.oid} />
+      ))}
+    </>
   );
 });

@@ -234,11 +234,63 @@
   padding: 2px 0;
   gap: 12px;
 }
+.tl-commit {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+/* The node sits on the timeline line; its stubs run along it. */
+.tl-commit-node {
+  flex-shrink: 0;
+  width: 26px;
+  height: 24px;
+  margin-left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-subtle);
+}
+.tl-commit-node svg {
+  transform: rotate(90deg);
+  background: var(--bg);
+}
+.tl-commit-main {
+  flex: 1;
+  min-width: 0;
+}
+.tl-commit-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+}
 .tl-commit-msg {
-  color: var(--fg);
+  min-width: 0;
+  color: var(--fg-muted);
+}
+.tl-commit-msg:hover {
+  color: var(--accent);
+}
+.tl-commit-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 8px;
 }
 .tl-commit-sha {
-  flex: none;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.tl-commit .commit-expand {
+  color: var(--fg-muted);
+}
+.tl-commit .commit-body {
+  margin-top: 0;
+  margin-bottom: 6px;
 }
 
 /* Reviews */

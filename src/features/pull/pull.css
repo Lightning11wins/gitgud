@@ -442,6 +442,20 @@ span.pull-branch {
 .commit-sha a {
   color: var(--fg-muted);
 }
+.signature-label {
+  flex-shrink: 0;
+  height: 18px;
+  padding: 0 6px;
+  line-height: 16px;
+}
+.signature-label.verified {
+  color: var(--success);
+  border-color: var(--success);
+}
+.signature-label.unverified {
+  color: var(--attention);
+  border-color: var(--attention);
+}
 .commit-body {
   margin: 6px 0 2px;
   padding: 8px;

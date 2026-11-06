@@ -311,6 +311,8 @@ export interface PullCommit {
   parents: { nodes: { oid: string; abbreviatedOid: string }[] };
   authors: { nodes: { name: string | null; email: string | null; user: Actor | null }[] };
   statusCheckRollup?: { state: RollupState } | null;
+  /** Null for unsigned commits; missing from lists cached before it was fetched. */
+  signature?: { isValid: boolean } | null;
 }
 
 export interface PullCommits {
@@ -323,7 +325,7 @@ export const commitsQuery = (withStatus: boolean) => `query PullCommits($owner: 
   repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
     headRefOid
     commits(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { commit {
-      oid abbreviatedOid messageHeadline messageBody committedDate authoredDate url
+      oid abbreviatedOid messageHeadline messageBody committedDate authoredDate url signature { isValid }
       parents(first: 2) { nodes { oid abbreviatedOid } }
       authors(first: 3) { nodes { name email user { ${ACTOR_FIELDS} } } }
       ${withStatus ? "statusCheckRollup { state }" : ""}

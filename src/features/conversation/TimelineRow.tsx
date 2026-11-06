@@ -28,7 +28,7 @@ export const TimelineRow = memo(function TimelineRow({ row, actions, threads }: 
   if (row.type === "commits") {
     return (
       <div className="tl-item event">
-        <CommitGroup commits={row.commits} pullPath={`/${actions.owner}/${actions.repo}/pull/${actions.number}`} />
+        <CommitGroup commits={row.commits} owner={actions.owner} repo={actions.repo} number={actions.number} />
       </div>
     );
   }

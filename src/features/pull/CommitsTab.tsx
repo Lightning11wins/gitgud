@@ -26,6 +26,16 @@ export function CommitAuthors({ commit }: { commit: Pick<PullCommit, "authors"> 
   );
 }
 
+/** GitHub's Verified or Unverified label; nothing for unsigned commits. */
+export function SignatureLabel({ signature }: { signature: PullCommit["signature"] }) {
+  if (!signature) return null;
+  return signature.isValid ? (
+    <span className="label signature-label verified" title="This commit has a verified signature">Verified</span>
+  ) : (
+    <span className="label signature-label unverified" title="This commit's signature could not be verified">Unverified</span>
+  );
+}
+
 export const CommitRow = memo(function CommitRow({ commit, to }: { commit: PullCommit; to?: string }) {
   const [open, setOpen] = useState(false);
   const outcome = rollupOutcome(commit.statusCheckRollup?.state);
@@ -57,6 +67,7 @@ export const CommitRow = memo(function CommitRow({ commit, to }: { commit: PullC
             {outcome && <OutcomeIcon outcome={outcome} size={14} />}
           </div>
         </div>
+        <SignatureLabel signature={commit.signature} />
         <span className="commit-sha">
           <CopyButton text={commit.oid} label="Copy full SHA" />
           {to ? (
