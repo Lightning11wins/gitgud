@@ -567,7 +567,7 @@ const TimelineCommit = memo(function TimelineCommit({ item, detail, to }: { item
             {c.messageHeadline}
           </Link>
           {detail?.messageBody && (
-            <button className="btn xs icon commit-expand" aria-expanded={open} aria-label="Show commit message body" onClick={() => setOpen(!open)}>
+            <button className="btn invisible xs icon commit-expand" aria-expanded={open} aria-label="Show commit message body" onClick={() => setOpen(!open)}>
               <EllipsisIcon size={12} />
             </button>
           )}
