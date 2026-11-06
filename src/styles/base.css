@@ -786,7 +786,7 @@ kbd {
   .tabs::-webkit-scrollbar {
     display: none;
   }
-  .tabs > * {
+  .tabs > :not(.grow) {
     flex: none;
     white-space: nowrap;
   }
