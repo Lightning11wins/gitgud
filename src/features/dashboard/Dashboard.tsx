@@ -51,7 +51,7 @@ export function Dashboard() {
         ))}
       </nav>
       <section className="dash-main">
-        <FilterInput value={q} onApply={(next) => setQ(next || DEFAULT_Q)} placeholder="Search issues and pull requests" />
+        <FilterInput value={q === DEFAULT_Q ? "" : q} onApply={(next) => setQ(next || DEFAULT_Q)} placeholder={DEFAULT_Q} />
         <SubjectList
           data={list.data}
           checks={list.checks}
