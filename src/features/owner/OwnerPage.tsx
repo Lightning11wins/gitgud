@@ -13,6 +13,8 @@ import { useTitle } from "@/lib/useTitle";
 import "./owner.css";
 
 const ROW_HEIGHT = 48;
+// About a screen of rows on each side, so fast scrolling rarely outruns rendering.
+const OVERSCAN = 20;
 const VISIBILITY = { PUBLIC: "Public", PRIVATE: "Private", INTERNAL: "Internal" } as const;
 
 export function OwnerPage() {
@@ -36,7 +38,7 @@ export function OwnerPage() {
     const top = (bodyRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
     if (Math.abs(top - margin) > 0.5) setMargin(top);
   });
-  const virtualizer = useWindowVirtualizer({ count: repos.length, estimateSize: () => ROW_HEIGHT, overscan: 8, scrollMargin: margin });
+  const virtualizer = useWindowVirtualizer({ count: repos.length, estimateSize: () => ROW_HEIGHT, overscan: OVERSCAN, scrollMargin: margin });
   const printing = usePrinting();
 
   const info = data?.owner;

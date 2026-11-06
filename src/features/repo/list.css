@@ -41,6 +41,8 @@
 }
 .lr-body {
   position: relative;
+  /* Row dividers under the rows, so a fast scroll that outruns rendering shows empty rows instead of a blank gap. Period matches ROW_HEIGHT. */
+  background: repeating-linear-gradient(var(--border-muted) 0 1px, transparent 1px 56px);
 }
 .list-row,
 .lr-more {

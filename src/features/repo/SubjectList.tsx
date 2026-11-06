@@ -11,6 +11,8 @@ import type { ListChecks, ListData } from "./searchList";
 import "./list.css";
 
 const LOAD_AHEAD = 20;
+// About a screen of rows on each side, so fast scrolling rarely outruns rendering.
+const OVERSCAN = 20;
 
 export interface SubjectListProps {
   data: ListData | undefined;
@@ -51,7 +53,7 @@ export function SubjectList(props: SubjectListProps) {
 
   const hasMore = !!data?.hasNextPage;
   const count = items.length + (hasMore ? 1 : 0);
-  const virtualizer = useWindowVirtualizer({ count, estimateSize: () => ROW_HEIGHT, overscan: 8, scrollMargin: margin });
+  const virtualizer = useWindowVirtualizer({ count, estimateSize: () => ROW_HEIGHT, overscan: OVERSCAN, scrollMargin: margin });
   const virtualItems = virtualizer.getVirtualItems();
   const lastIndex = virtualItems.length ? virtualItems[virtualItems.length - 1].index : 0;
 
