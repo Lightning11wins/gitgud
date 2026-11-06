@@ -134,7 +134,6 @@ for (const signal of ["SIGTERM", "SIGINT"]) {
   process.once(signal, () => {
     console.log(`GitGud stopping on ${signal}`);
     server.close(() => process.exit(0));
-    server.closeIdleConnections();
     setTimeout(() => process.exit(0), 5000).unref();
   });
 }
