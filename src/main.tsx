@@ -8,6 +8,7 @@ import { installLinkPrefetch } from "./api/prefetch";
 import { startWarmUp } from "./api/warmUp";
 import { readRecent } from "./api/queryClient";
 import { getToken, loadAuth } from "./auth/token";
+import { installClickGuard } from "./lib/clickGuard";
 
 const recent = readRecent();
 void loadAuth().then(async () => {
@@ -15,6 +16,7 @@ void loadAuth().then(async () => {
 });
 startWarmUp();
 installLinkPrefetch();
+installClickGuard();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
