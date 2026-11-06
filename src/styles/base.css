@@ -430,6 +430,10 @@ textarea.input {
 .btn.xs.icon {
   width: 22px;
 }
+/* Match the hover and focus shape to round content like an avatar. */
+.btn.icon:has(> .avatar:only-child) {
+  border-radius: 50%;
+}
 .btn-group {
   display: inline-flex;
 }
