@@ -178,7 +178,7 @@ export function CommentCard(props: CommentCardProps) {
         </div>
       ) : (
         <div className="comment-body" ref={bodyRef}>
-          <Markdown html={c.bodyHTML} />
+          <Markdown html={c.bodyHTML} nodeId={c.id} />
         </div>
       )}
       {error != null && <ErrorBanner error={error} />}

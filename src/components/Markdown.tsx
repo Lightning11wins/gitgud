@@ -1,11 +1,13 @@
 import DOMPurify from "dompurify";
 import { CheckIcon, CopyIcon } from "@primer/octicons-react";
-import { memo, useLayoutEffect, useMemo, useRef, type MouseEvent, type ReactElement } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { useNavigate } from "react-router";
+import { freshBodyHtml } from "@/api/bodyHtml";
 import { copyText } from "@/lib/clipboard";
 import { toAppPath } from "@/lib/githubUrl";
+import { attachmentUrl, isSignedMedia, signedExpiry } from "@/lib/signedMedia";
 
 DOMPurify.addHook("uponSanitizeElement", (node, data) => {
   if (data.tagName !== "input") return;
@@ -16,6 +18,8 @@ DOMPurify.addHook("uponSanitizeElement", (node, data) => {
 
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   if (node.tagName === "A" && node.getAttribute("href")) {
+    const permanent = attachmentUrl(node.getAttribute("href")!);
+    if (permanent) node.setAttribute("href", permanent);
     node.setAttribute("rel", "noopener noreferrer");
     if (!node.getAttribute("href")!.startsWith("#")) node.setAttribute("target", "_blank");
   }
@@ -84,14 +88,42 @@ function copyBlock(btn: HTMLElement) {
   );
 }
 
+const isMedia = (el: EventTarget | null): el is HTMLImageElement | HTMLVideoElement => el instanceof HTMLImageElement || el instanceof HTMLVideoElement;
+
+/** Margin before a signed link expires within which it counts as expired. */
+const EXPIRY_MARGIN_MS = 10_000;
+
+interface MarkdownProps {
+  html: string;
+  className?: string;
+  /** Node id of the comment, issue, or PR whose `bodyHTML` this is. Lets expired attachment links refresh. */
+  nodeId?: string;
+}
+
 /** Renders GitHub-produced HTML (bodyHTML / body_html), sanitized, with in-app link routing. */
-export const Markdown = memo(function Markdown({ html, className }: { html: string; className?: string }) {
-  const clean = useMemo(() => sanitizeHtml(html), [html]);
+export const Markdown = memo(function Markdown({ html, className, nodeId }: MarkdownProps) {
+  const [fresh, setFresh] = useState<{ stale: string; html: string }>();
+  const shown = fresh?.stale === html ? fresh.html : html;
+  const clean = useMemo(() => sanitizeHtml(shown), [shown]);
   const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (ref.current) addCopyButtons(ref.current);
   }, [clean]);
+  // Signed attachment links expire minutes after GitHub renders them, so cached HTML needs a fresh copy.
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root || !nodeId) return;
+    const refresh = () => freshBodyHtml(nodeId).then((h) => h && h !== shown && setFresh({ stale: html, html: h }));
+    const soon = Date.now() + EXPIRY_MARGIN_MS;
+    const media = root.querySelectorAll<HTMLImageElement | HTMLVideoElement>("img, video");
+    if ([...media].some((m) => isSignedMedia(m.src) && signedExpiry(m.src) < soon)) refresh();
+    const onError = (e: Event) => {
+      if (isMedia(e.target) && isSignedMedia(e.target.src)) refresh();
+    };
+    root.addEventListener("error", onError, true);
+    return () => root.removeEventListener("error", onError, true);
+  }, [clean, html, shown, nodeId]);
   const onClick = (e: MouseEvent<HTMLDivElement>) => {
     const copy = (e.target as HTMLElement).closest<HTMLElement>(".code-copy");
     if (copy) return copyBlock(copy);

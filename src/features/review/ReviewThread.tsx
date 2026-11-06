@@ -362,7 +362,7 @@ const ThreadComment = memo(function ThreadComment({ comment, anchor, threadId, o
         </div>
       ) : (
         <>
-          <Markdown html={comment.bodyHTML} className="rt-body" />
+          <Markdown html={comment.bodyHTML} className="rt-body" nodeId={comment.id} />
           <ReactionBar groups={reactions.groups} canReact={comment.viewerCanReact} onToggle={reactions.toggle} error={reactions.error} />
         </>
       )}
