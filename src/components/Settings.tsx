@@ -39,9 +39,9 @@ export function Settings() {
       <h2>Settings</h2>
       <section className="box" style={{ padding: 16, marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Theme</h3>
-        <div className="row">
+        <div className="row" style={{ gap: 16 }}>
           {(["system", "light", "dark"] as ThemePref[]).map((t) => (
-            <label key={t} className="row" style={{ gap: 4 }}>
+            <label key={t} className="row" style={{ gap: 6 }}>
               <input type="radio" name="theme" checked={theme === t} onChange={() => setTheme(t)} />
               {t[0].toUpperCase() + t.slice(1)}
             </label>

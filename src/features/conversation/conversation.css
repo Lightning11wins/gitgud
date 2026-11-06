@@ -58,7 +58,7 @@
 }
 .comment-header {
   min-height: 36px;
-  padding: 4px 8px 4px 12px;
+  padding: 4px 8px 4px 16px;
   background: var(--bg-muted);
   border-bottom: 1px solid var(--border);
   border-radius: var(--radius) var(--radius) 0 0;

@@ -205,7 +205,7 @@
   cursor: pointer;
 }
 .review-submit-option input {
-  margin-top: 3px;
+  margin-top: 4px;
 }
 .review-submit-option.disabled {
   cursor: not-allowed;

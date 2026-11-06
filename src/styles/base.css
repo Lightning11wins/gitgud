@@ -187,6 +187,10 @@ textarea {
   color: inherit;
 }
 
+:where(input[type="checkbox"], input[type="radio"]) {
+  margin: 0;
+}
+
 code,
 kbd,
 pre,
@@ -422,6 +426,9 @@ textarea.input {
 }
 .btn.sm.icon {
   width: 28px;
+}
+.btn.xs.icon {
+  width: 22px;
 }
 .btn-group {
   display: inline-flex;

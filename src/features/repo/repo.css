@@ -30,15 +30,19 @@
   display: flex;
   gap: 8px;
 }
+/* Icons and text line up with the list rows' state icons and titles. */
 .repo-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 4px;
+  gap: 8px;
+  padding: 2px 0;
   border: none;
   background: none;
   cursor: pointer;
   color: var(--fg-muted);
+}
+.repo-toggle + .repo-toggle {
+  margin-left: 8px;
 }
 .repo-toggle[data-selected="true"] {
   color: var(--fg);
@@ -47,10 +51,12 @@
 .repo-toggle:hover {
   color: var(--fg);
 }
+/* The last caret lines up with the rows' right edge. */
 .rf {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  margin-right: -8px;
 }
 .rf-btn {
   gap: 4px;

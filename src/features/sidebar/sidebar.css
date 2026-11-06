@@ -33,6 +33,9 @@
   flex-direction: column;
   gap: 4px;
 }
+.sidebar-list > li {
+  min-height: 22px;
+}
 .sidebar-user {
   color: var(--fg);
   font-weight: 600;
@@ -156,9 +159,10 @@
   gap: 2px;
   border-bottom: none;
 }
-.sidebar-action {
+/* Icons line up with the section text; the hover background extends left of it. */
+.btn.sidebar-action {
+  margin-left: -8px;
   color: var(--fg);
-  padding-left: 0;
 }
 .link-button {
   padding: 0;

@@ -136,23 +136,23 @@ export function Reviewers({ pull, owner, repo }: Props) {
   };
 
   return (
-    <section className="pull-sidebar-section">
-      <div className="pull-sidebar-heading row">
+    <section className="sidebar-section">
+      <h3 className="sidebar-title row">
         <span className="grow">Reviewers</span>
         {editable && (
           <button className="btn invisible xs icon" aria-label="Request reviewers" title="Request reviewers" onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
             <GearIcon />
           </button>
         )}
-      </div>
+      </h3>
       {rows.length === 0 ? (
-        <div className="muted pull-sidebar-empty">No reviews</div>
+        <div className="muted sidebar-empty">No reviews</div>
       ) : (
-        <ul className="pull-reviewer-list">
+        <ul className="sidebar-list">
           {rows.map((row) => (
             <li key={row.key} className="row" title={row.requested ? "Awaiting requested review" : STATE_TITLE[row.state ?? ""]}>
               {row.isTeam && !row.avatarUrl ? <PeopleIcon size={20} /> : <Avatar src={row.avatarUrl} size={20} login={row.name} />}
-              <a className="grow truncate pull-reviewer-name" href={row.url} target="_blank" rel="noopener noreferrer">
+              <a className="grow truncate sidebar-user" href={row.url} target="_blank" rel="noopener noreferrer">
                 {row.name}
               </a>
               {editable && !row.requested && row.id && (

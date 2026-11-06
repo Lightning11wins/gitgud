@@ -70,7 +70,9 @@
   box-shadow: inset 2px 0 0 var(--accent);
 }
 .lr-icon {
-  padding-top: 2px;
+  display: flex;
+  align-items: center;
+  height: 22px;
 }
 .lr-main {
   flex: 1 1 auto;
@@ -163,7 +165,6 @@
 }
 .lr-checks svg {
   margin-right: 2px;
-  vertical-align: -1px;
 }
 
 .lr-filter {

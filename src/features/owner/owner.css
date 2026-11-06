@@ -65,7 +65,7 @@
 }
 .owner-icon {
   flex: none;
-  margin-top: 3px;
+  margin-top: 2px;
 }
 .owner-main {
   flex: 1 1 auto;
@@ -105,11 +105,14 @@
   height: 20px;
   font-size: 12px;
 }
+/* A fixed width keeps the language dots in one column. */
 .owner-lang {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  width: 110px;
   white-space: nowrap;
+  overflow: hidden;
 }
 .owner-lang-dot {
   width: 10px;

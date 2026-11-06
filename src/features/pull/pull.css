@@ -156,35 +156,10 @@ span.pull-branch {
 }
 
 /* Sidebar reviewers */
-.pull-sidebar-section {
-  padding-bottom: 12px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--border-muted);
-  font-size: 12px;
-}
-.pull-sidebar-heading {
-  font-weight: 600;
-  color: var(--fg-muted);
-  margin-bottom: 4px;
-}
-.pull-sidebar-empty {
-  font-size: 12px;
-}
-.pull-reviewer-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.pull-reviewer-list li {
-  gap: 6px;
-  min-height: 26px;
-}
-.pull-reviewer-name {
-  color: var(--fg);
-  font-weight: 600;
-}
+/* State icons center under the 22px gear button above them. */
 .review-state {
   flex-shrink: 0;
+  margin: 0 3px;
 }
 .review-state.pending {
   color: var(--attention);
@@ -383,6 +358,11 @@ span.pull-branch {
 .check-details {
   flex-shrink: 0;
   font-size: 12px;
+}
+.checks-gh-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .checks-summary {
   margin-bottom: 12px;

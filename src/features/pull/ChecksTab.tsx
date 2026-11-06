@@ -33,7 +33,7 @@ export function ChecksTab({ pull, owner, repo }: Props) {
       .sort((a, b) => order(a.summary.outcome) - order(b.summary.outcome) || a.name.localeCompare(b.name));
   }, [all]);
   const ghLink = (
-    <a href={`${pull.url}/checks`} target="_blank" rel="noopener noreferrer">
+    <a className="checks-gh-link" href={`${pull.url}/checks`} target="_blank" rel="noopener noreferrer">
       View checks on GitHub <LinkExternalIcon size={12} />
     </a>
   );

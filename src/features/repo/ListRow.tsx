@@ -50,7 +50,7 @@ function ChecksStatus({ item, checks }: { item: ListItem; checks?: CheckSummary 
         <>
           {" · "}
           <Link className="lr-checks" to={`${itemPath(item)}/checks`} title={`${checks.passed} of ${checks.total} checks passed`}>
-            <ci.Icon size={12} fill={ci.color} />
+            <ci.Icon size={12} fill={ci.color} verticalAlign="middle" />
             {checks.passed}/{checks.total}
           </Link>
         </>
