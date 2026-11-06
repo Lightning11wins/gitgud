@@ -469,3 +469,14 @@
     display: none;
   }
 }
+@media print {
+  .dv-tree {
+    display: none;
+  }
+  /* Skipped content prints blank. */
+  .df-body,
+  .dk,
+  .dk-ph {
+    content-visibility: visible;
+  }
+}

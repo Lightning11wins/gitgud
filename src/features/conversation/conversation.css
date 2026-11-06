@@ -1,13 +1,15 @@
 :root {
   --tl-badge-bg: #eff2f5;
 }
-@media (prefers-color-scheme: dark) {
+@media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --tl-badge-bg: #212830;
   }
 }
-:root[data-theme="dark"] {
-  --tl-badge-bg: #212830;
+@media screen {
+  :root[data-theme="dark"] {
+    --tl-badge-bg: #212830;
+  }
 }
 
 .timeline {
@@ -273,4 +275,13 @@
 }
 .done-icon {
   color: var(--done);
+}
+@media print {
+  /* Skipped content prints blank. */
+  .tl-item {
+    content-visibility: visible;
+  }
+  .tl-form {
+    display: none;
+  }
 }

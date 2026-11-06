@@ -101,3 +101,13 @@
     padding: 8px 16px;
   }
 }
+@media print {
+  .issue-layout > .sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+  .issue-sticky {
+    display: none;
+  }
+}

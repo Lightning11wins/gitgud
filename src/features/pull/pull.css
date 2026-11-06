@@ -551,3 +551,8 @@ span.pull-branch {
     overflow-x: auto;
   }
 }
+@media print {
+  .pull-sticky {
+    display: none;
+  }
+}

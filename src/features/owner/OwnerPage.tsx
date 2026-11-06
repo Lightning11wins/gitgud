@@ -7,6 +7,7 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 import { RelativeTime } from "@/components/RelativeTime";
 import { Spinner } from "@/components/Spinner";
 import { useOwner, type OwnerRepo } from "./ownerData";
+import { usePrinting } from "@/lib/usePrinting";
 import { useTitle } from "@/lib/useTitle";
 import "./owner.css";
 
@@ -35,6 +36,7 @@ export function OwnerPage() {
     if (Math.abs(top - margin) > 0.5) setMargin(top);
   });
   const virtualizer = useWindowVirtualizer({ count: repos.length, estimateSize: () => ROW_HEIGHT, overscan: 8, scrollMargin: margin });
+  const printing = usePrinting();
 
   const info = data?.owner;
   const about = info?.description ?? info?.bio;
@@ -94,6 +96,12 @@ export function OwnerPage() {
         <div ref={bodyRef}>
           {data && !repos.length && !loading ? (
             <div className="blankslate">{deferred ? "No repositories match this filter." : "No repositories."}</div>
+          ) : printing ? (
+            <div className="owner-body">
+              {repos.map((repo) => (
+                <RepoRow key={repo.name} owner={info?.login ?? login} repo={repo} />
+              ))}
+            </div>
           ) : (
             <div className="owner-body" style={{ height: virtualizer.getTotalSize() }}>
               {virtualizer.getVirtualItems().map((v) => (
@@ -112,7 +120,7 @@ export function OwnerPage() {
   );
 }
 
-const RepoRow = memo(function RepoRow({ owner, repo, style }: { owner: string; repo: OwnerRepo; style: CSSProperties }) {
+const RepoRow = memo(function RepoRow({ owner, repo, style }: { owner: string; repo: OwnerRepo; style?: CSSProperties }) {
   const Icon = repo.isFork ? RepoForkedIcon : RepoIcon;
   return (
     <div className="owner-row" style={style}>

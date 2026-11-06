@@ -171,3 +171,9 @@
     display: none;
   }
 }
+@media print {
+  /* Printing renders every row unvirtualized, so rows flow normally. */
+  .list-row {
+    position: static;
+  }
+}

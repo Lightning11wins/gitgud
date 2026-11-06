@@ -1,5 +1,6 @@
 // Opens an app path in headless Chromium, signed in with the gh CLI token, and saves a screenshot.
 // Usage: node scripts/shot.mjs <path> [out.png] [--width 1400] [--height 900] [--dark] [--full]
+// An out path ending in .pdf prints the page to PDF instead, as the browser's print dialog would.
 // Starts its own Vite dev server unless BASE is set. Prints console errors, failed requests, and API stats.
 import { execFileSync } from "node:child_process";
 import { chromium } from "playwright";
@@ -61,7 +62,8 @@ await page.goto(base + path);
 await page.waitForLoadState("networkidle", { timeout: 60000 }).catch(() => console.log("networkidle timeout"));
 await page.waitForTimeout(Number(opt("wait", 300)));
 console.log(`loaded in ${Date.now() - t0}ms`);
-await page.screenshot({ path: out, fullPage: flag("full") });
+if (out.endsWith(".pdf")) await page.pdf({ path: out, format: "Letter", margin: { top: "0.4in", bottom: "0.4in", left: "0.4in", right: "0.4in" } });
+else await page.screenshot({ path: out, fullPage: flag("full") });
 const stats = await page.evaluate(() => {
   const s = globalThis.__gitgudApiStats;
   return s && { total: s.total, rest: s.rest, graphql: s.graphql, byName: s.byName };

@@ -5,6 +5,7 @@ import { SearchIcon } from "@primer/octicons-react";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { Spinner } from "@/components/Spinner";
 import { useHotkey } from "@/lib/hotkeys";
+import { usePrinting } from "@/lib/usePrinting";
 import { ListRow, ROW_HEIGHT, itemPath } from "./ListRow";
 import type { ListChecks, ListData } from "./searchList";
 import "./list.css";
@@ -39,6 +40,7 @@ export function SubjectList(props: SubjectListProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [margin, setMargin] = useState(0);
   const [active, setActive] = useState(-1);
+  const printing = usePrinting();
 
   useLayoutEffect(() => {
     const top = (bodyRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
@@ -106,6 +108,14 @@ export function SubjectList(props: SubjectListProps) {
       <div className="blankslate lr-empty">
         <SearchIcon size={24} />
         {empty}
+      </div>
+    );
+  } else if (printing) {
+    body = (
+      <div className="lr-body">
+        {items.map((item, i) => (
+          <ListRow key={item.id} item={item} checks={checks?.[item.id]} showRepo={showRepo} showUpdated={showUpdated} active={i === active} />
+        ))}
       </div>
     );
   } else {
