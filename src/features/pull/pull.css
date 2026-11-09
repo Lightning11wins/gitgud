@@ -170,6 +170,17 @@ span.pull-branch {
 .review-state.changes {
   color: var(--danger);
 }
+/* Text aligns with the avatars; the hover box extends past them. */
+.btn.pull-reviewers-toggle {
+  display: flex;
+  width: calc(100% + 6px);
+  margin: 8px 0 0 -6px;
+  padding: 0 3px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-align: left;
+}
 .pull-sidebar-note {
   margin-top: 6px;
   font-size: 12px;

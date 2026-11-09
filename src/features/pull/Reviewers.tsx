@@ -1,4 +1,4 @@
-import { CheckIcon, CommentIcon, DotFillIcon, FileDiffIcon, GearIcon, PeopleIcon, SyncIcon } from "@primer/octicons-react";
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon, CommentIcon, DotFillIcon, FileDiffIcon, GearIcon, PeopleIcon, SyncIcon } from "@primer/octicons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
@@ -35,6 +35,8 @@ interface Row {
   /** User id or team id for re-requesting. */
   id?: string;
   isTeam: boolean;
+  /** The reviewer lacks write access, so their review doesn't count toward merging. */
+  readOnly: boolean;
 }
 
 function reviewerKey(r: Reviewer): string {
@@ -46,7 +48,7 @@ function buildRows(pull: PullMeta): Row[] {
   for (const review of pull.latestReviews.nodes) {
     const a = review.author;
     if (!a || review.state === "PENDING" || a.login === pull.author?.login) continue;
-    rows.set(a.login, { key: a.login, name: a.login, avatarUrl: a.avatarUrl, url: a.url, requested: false, state: review.state, id: a.id, isTeam: false });
+    rows.set(a.login, { key: a.login, name: a.login, avatarUrl: a.avatarUrl, url: a.url, requested: false, state: review.state, id: a.id, isTeam: false, readOnly: review.authorCanPushToRepository === false });
   }
   for (const { requestedReviewer: r } of pull.reviewRequests.nodes) {
     if (!r) continue;
@@ -61,6 +63,7 @@ function buildRows(pull: PullMeta): Row[] {
       state: prev?.state,
       id: r.id,
       isTeam: r.__typename === "Team",
+      readOnly: false,
     });
   }
   return [...rows.values()];
@@ -91,7 +94,10 @@ export function Reviewers({ pull, owner, repo }: Props) {
     enabled: !!anchor,
     staleTime: 5 * 60_000,
   });
+  const [readOnlyOpen, setReadOnlyOpen] = useState(true);
   const rows = buildRows(pull);
+  const counted = rows.filter((r) => !r.readOnly);
+  const readOnly = rows.filter((r) => r.readOnly);
   const requested = pull.reviewRequests.nodes.map((n) => n.requestedReviewer).filter((r): r is Reviewer => !!r);
 
   const apply = async (selected: string[]) => {
@@ -148,27 +154,23 @@ export function Reviewers({ pull, owner, repo }: Props) {
       {rows.length === 0 ? (
         <div className="muted sidebar-empty">No reviews</div>
       ) : (
-        <ul className="sidebar-list">
-          {rows.map((row) => (
-            <li key={row.key} className="row" title={row.requested ? "Awaiting requested review" : STATE_TITLE[row.state ?? ""]}>
-              {row.isTeam && !row.avatarUrl ? <PeopleIcon size={20} /> : <Avatar src={row.avatarUrl} size={20} login={row.name} />}
-              <a className="grow truncate sidebar-user" href={row.url} target="_blank" rel="noopener noreferrer">
-                {row.name}
-              </a>
-              {editable && !row.requested && row.id && (
-                <button
-                  className="btn invisible xs icon"
-                  title="Re-request review"
-                  aria-label={`Re-request review from ${row.name}`}
-                  onClick={() => rerequest(row, row.id!)}
-                >
-                  <SyncIcon size={14} />
-                </button>
-              )}
-              <StateIcon row={row} />
-            </li>
-          ))}
-        </ul>
+        counted.length > 0 && <ReviewerList rows={counted} editable={editable} onRerequest={rerequest} />
+      )}
+      {readOnly.length > 0 && (
+        <>
+          <button className="btn invisible xs pull-reviewers-toggle" aria-expanded={readOnlyOpen} onClick={() => setReadOnlyOpen(!readOnlyOpen)}>
+            <span className="grow">
+              {readOnly.length} {readOnly.length === 1 ? "reviewer" : "reviewers"} without write access
+            </span>
+            {readOnlyOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
+          </button>
+          {readOnlyOpen && (
+            <>
+              <ReviewerList rows={readOnly} editable={editable} onRerequest={rerequest} />
+              <div className="pull-sidebar-note muted">Their reviews don't count toward merging.</div>
+            </>
+          )}
+        </>
       )}
       {error != null && <ErrorBanner error={error} />}
       {pull.state === "OPEN" && !pull.isDraft && pull.viewerCanUpdate && <ConvertToDraft pull={pull} owner={owner} repo={repo} />}
@@ -195,6 +197,32 @@ export function Reviewers({ pull, owner, repo }: Props) {
       )}
       {candidates.error != null && anchor && <ErrorBanner error={candidates.error} />}
     </section>
+  );
+}
+
+function ReviewerList({ rows, editable, onRerequest }: { rows: Row[]; editable: boolean; onRerequest: (row: Row, id: string) => void }) {
+  return (
+    <ul className="sidebar-list">
+      {rows.map((row) => (
+        <li key={row.key} className="row" title={row.requested ? "Awaiting requested review" : STATE_TITLE[row.state ?? ""]}>
+          {row.isTeam && !row.avatarUrl ? <PeopleIcon size={20} /> : <Avatar src={row.avatarUrl} size={20} login={row.name} />}
+          <a className="grow truncate sidebar-user" href={row.url} target="_blank" rel="noopener noreferrer">
+            {row.name}
+          </a>
+          {editable && !row.requested && row.id && (
+            <button
+              className="btn invisible xs icon"
+              title="Re-request review"
+              aria-label={`Re-request review from ${row.name}`}
+              onClick={() => onRerequest(row, row.id!)}
+            >
+              <SyncIcon size={14} />
+            </button>
+          )}
+          <StateIcon row={row} />
+        </li>
+      ))}
+    </ul>
   );
 }
 

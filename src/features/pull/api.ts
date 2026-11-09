@@ -64,6 +64,8 @@ export interface Review {
   state: ReviewState;
   submittedAt: string | null;
   author: (Actor & { id?: string }) | null;
+  /** False when the author lacks write access, so the review doesn't count toward merging; absent in older caches. */
+  authorCanPushToRepository?: boolean;
 }
 
 export interface PullMeta extends SubjectMeta {
@@ -142,7 +144,7 @@ export const pullQuery = (withChecks: boolean) => `query PullMeta($owner: String
         ... on Mannequin { id ${ACTOR_FIELDS} }
         ... on Team { id name slug combinedSlug url avatarUrl }
       } } }
-      latestReviews(first: 100) { nodes { state submittedAt author { ${ACTOR_FIELDS} ... on User { id } } } }
+      latestReviews(first: 100) { nodes { state submittedAt authorCanPushToRepository author { ${ACTOR_FIELDS} ... on User { id } } } }
       latestOpinionatedReviews(first: 100, writersOnly: true) { nodes { state submittedAt author { ${ACTOR_FIELDS} } } }
       ${withChecks ? ROLLUP_FIELDS : ""}
     }
