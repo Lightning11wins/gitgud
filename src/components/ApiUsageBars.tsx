@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { SyncIcon } from "@primer/octicons-react";
 import { rateLimits, type RateLimits } from "@/api/rateLimit";
+import { refreshRateLimits } from "@/api/warmUp";
 import { useStore } from "@/lib/store";
 import "./api-usage.css";
 
@@ -9,6 +10,8 @@ const LIMITS: [keyof RateLimits, string][] = [
   ["core", "REST"],
   ["search", "Search"],
 ];
+/** How often to reread the limits while the bars show, since other tabs and apps spend them too. */
+const REFRESH_MS = 60_000;
 
 /** "42m", "1h 5m", or "30s" until a reset. */
 function formatCountdown(ms: number) {
@@ -24,6 +27,14 @@ export function ApiUsageBars() {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    const refresh = () => {
+      if (!document.hidden) refreshRateLimits().catch(() => {});
+    };
+    refresh();
+    const id = setInterval(refresh, REFRESH_MS);
     return () => clearInterval(id);
   }, []);
 

@@ -43,6 +43,7 @@ server/serve.mjs  static server with CSP and compression
 - Reserve space for content that loads late (skeletons, `Spinner show`, `Timeline commentCount`), so nothing below it moves. `lib/clickGuard.ts` drops a click on a control that slid under a still pointer within the last 600ms.
 - `features/pull/checkPolling.ts` watches a PR's pending checks while its page is visible: it polls the head commit's check runs and statuses over REST every 15 seconds (every minute after 10 quiet minutes). Each request sends the last ETag, and GitHub doesn't count 304s against the rate limit. A changed ETag reloads only the rollup (1 GraphQL point); once nothing is pending, the whole PR reloads.
 - `api/warmUp.ts` starts the REST and GraphQL rate limit windows: it reads `/rate_limit` (free) at load and at each reset, and sends one request to any limit with no window running. A setting turns it off.
+- Rate limits are per account, shared with other tabs and apps. `rateLimits` in `api/rateLimit.ts` merges every reading through `mergeRateLimits` (a later reset wins; within a window, the lowest `remaining`) and drops each window when it resets. `refreshRateLimits` in `api/warmUp.ts` rereads `/rate_limit` when a tab shows after 30 seconds and every minute while Settings shows the numbers.
 - A 401 from GitHub returns to the sign-in screen at the same URL. Signing in as the same user keeps the cache and drafts; another user starts clean.
 - Save drafts with `drafts.setSoon` (debounced); `drafts.clear` and sign-out cancel pending writes.
 

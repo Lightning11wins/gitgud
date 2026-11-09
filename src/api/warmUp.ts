@@ -1,7 +1,7 @@
 import { auth } from "@/auth/token";
 import { settings } from "@/lib/settings";
 import { gql, rest } from "./client";
-import { rateLimits, type RateLimitState } from "./rateLimit";
+import { mergeRateLimits, type RateLimits, type RateLimitState } from "./rateLimit";
 
 /** Rate limits with hourly windows. Search resets every minute, so it has none worth starting. */
 const RESOURCES = ["core", "graphql"] as const;
@@ -16,6 +16,8 @@ const WINDOW_MS = 60 * 60_000;
 const AFTER_RESET_MS = 2000;
 const MIN_DELAY_MS = 60_000;
 const RETRY_MS = 5 * 60_000;
+/** Readings older than this are reread when a tab shows. */
+const STALE_MS = 30_000;
 
 /** Which limits have no window running and need a request now, and when to check again. */
 export function planWarmUp(resources: Partial<Record<string, LimitInfo>>, now: number): { warm: Resource[]; checkAt: number } {
@@ -35,17 +37,31 @@ function warmUp(resource: Resource): Promise<unknown> {
   return resource === "core" ? rest("/user") : gql("query WarmUp { viewer { login } }");
 }
 
-/** Reads every limit for free, starts the windows that aren't running, and returns when to check again. */
-async function checkLimits(): Promise<number> {
+let readAt = 0;
+let reading: Promise<Record<string, LimitInfo>> | undefined;
+
+/** Reads every limit from `/rate_limit`, which costs nothing, and merges the running windows into `rateLimits`. */
+async function readLimits(): Promise<Record<string, LimitInfo>> {
   const { resources } = await rest<{ resources: Record<string, LimitInfo> }>("/rate_limit");
-  const limits = { ...rateLimits.get() };
-  for (const r of RESOURCES) {
+  readAt = Date.now();
+  const updates: RateLimits = {};
+  for (const r of ["core", "graphql", "search"] as const) {
     const info = resources[r];
-    if (!info) continue;
-    if (info.used) limits[r] = { remaining: info.remaining, limit: info.limit, reset: info.reset };
-    else delete limits[r];
+    if (info?.used) updates[r] = { remaining: info.remaining, limit: info.limit, reset: info.reset };
   }
-  rateLimits.set(limits);
+  mergeRateLimits(updates);
+  return resources;
+}
+
+/** Rereads every limit, sharing a read already in flight. */
+export function refreshRateLimits(): Promise<unknown> {
+  reading ??= readLimits().finally(() => (reading = undefined));
+  return reading;
+}
+
+/** Reads every limit, starts the windows that aren't running, and returns when to check again. */
+async function checkLimits(): Promise<number> {
+  const resources = await readLimits();
   const plan = planWarmUp(resources, Date.now());
   await Promise.all(plan.warm.map(warmUp));
   return plan.checkAt;
@@ -70,7 +86,7 @@ async function check() {
   timer = setTimeout(check, next - Date.now());
 }
 
-/** Starts each hourly rate limit window as it resets, while signed in with the setting on. */
+/** Starts each hourly rate limit window as it resets, while signed in with the setting on. Rereads stale limits when a tab shows. */
 export function startWarmUp() {
   let running = false;
   const sync = () => {
@@ -85,10 +101,15 @@ export function startWarmUp() {
   auth.subscribe(sync);
   settings.subscribe(sync);
   sync();
-  // Timers stall while the computer sleeps; catch up when the tab shows again.
   document.addEventListener("visibilitychange", () => {
-    if (!running || document.visibilityState !== "visible" || !dueAt || Date.now() < dueAt + 5000) return;
-    clearTimeout(timer);
-    void check();
+    if (document.visibilityState !== "visible" || auth.get().status !== "signed-in") return;
+    // Timers stall while the computer sleeps; catch up when the tab shows again.
+    if (running && dueAt && Date.now() >= dueAt + 5000) {
+      clearTimeout(timer);
+      void check();
+    } else if (Date.now() - readAt > STALE_MS) {
+      // Other tabs and apps spend the same limits.
+      refreshRateLimits().catch(() => {});
+    }
   });
 }

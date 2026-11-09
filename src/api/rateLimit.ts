@@ -1,3 +1,4 @@
+import { auth } from "@/auth/token";
 import { createStore } from "@/lib/store";
 
 export interface RateLimitState {
@@ -12,15 +13,62 @@ export interface RateLimits {
   search?: RateLimitState;
 }
 
+/** The latest reading of each rate limit. Entries drop when their window resets. */
 export const rateLimits = createStore<RateLimits>({});
+
+/**
+ * Merges readings into `rateLimits`. A later reset starts a new window, and within a window the lowest
+ * `remaining` is the newest, so readings that arrive out of order or late can't raise it.
+ */
+export function mergeRateLimits(updates: RateLimits) {
+  const current = rateLimits.get();
+  const next = { ...current };
+  let changed = false;
+  for (const key of Object.keys(updates) as (keyof RateLimits)[]) {
+    const update = updates[key];
+    const old = current[key];
+    if (!update || update.reset * 1000 <= Date.now()) continue;
+    if (old && (update.reset < old.reset || (update.reset === old.reset && update.remaining >= old.remaining))) continue;
+    next[key] = update;
+    changed = true;
+  }
+  if (!changed) return;
+  rateLimits.set(next);
+  scheduleExpiry();
+}
+
+let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+
+function scheduleExpiry() {
+  clearTimeout(expiryTimer);
+  const resets = Object.values(rateLimits.get()).map((r) => r.reset * 1000);
+  if (resets.length) expiryTimer = setTimeout(dropExpired, Math.max(0, Math.min(...resets) - Date.now()));
+}
+
+function dropExpired() {
+  const now = Date.now();
+  rateLimits.set(Object.fromEntries(Object.entries(rateLimits.get()).filter(([, r]) => r.reset * 1000 > now)));
+  scheduleExpiry();
+}
+
+// Another account has its own limits.
+let viewerLogin: string | undefined;
+auth.subscribe(() => {
+  const login = auth.get().viewer?.login;
+  if (!login || login === viewerLogin) return;
+  if (viewerLogin) {
+    rateLimits.set({});
+    scheduleExpiry();
+  }
+  viewerLogin = login;
+});
 
 export function recordRateLimit(headers: Headers) {
   const resource = headers.get("x-ratelimit-resource");
   const remaining = headers.get("x-ratelimit-remaining");
   if (!resource || remaining === null) return;
   if (resource !== "core" && resource !== "graphql" && resource !== "search") return;
-  rateLimits.set({
-    ...rateLimits.get(),
+  mergeRateLimits({
     [resource]: {
       remaining: Number(remaining),
       limit: Number(headers.get("x-ratelimit-limit")),
