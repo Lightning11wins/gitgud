@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { createStore } from "./store";
 
 export type ThemePref = "system" | "light" | "dark";
@@ -37,4 +38,19 @@ export function isDark(): boolean {
   const pref = themePref.get();
   if (pref !== "system") return pref === "dark";
   return matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function subscribeDark(listener: () => void): () => void {
+  const query = matchMedia("(prefers-color-scheme: dark)");
+  const off = themePref.subscribe(listener);
+  query.addEventListener("change", listener);
+  return () => {
+    off();
+    query.removeEventListener("change", listener);
+  };
+}
+
+/** Whether dark colors are showing, updating when the theme or system setting changes. */
+export function useDark(): boolean {
+  return useSyncExternalStore(subscribeDark, isDark);
 }

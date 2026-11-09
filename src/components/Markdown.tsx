@@ -8,6 +8,8 @@ import { freshBodyHtml } from "@/api/bodyHtml";
 import { copyText } from "@/lib/clipboard";
 import { toAppPath } from "@/lib/githubUrl";
 import { attachmentUrl, isSignedMedia, signedExpiry } from "@/lib/signedMedia";
+import { useDark } from "@/lib/theme";
+import { cachedMermaid, renderMermaid } from "@/components/mermaid";
 
 DOMPurify.addHook("uponSanitizeElement", (node, data) => {
   if (data.tagName !== "input") return;
@@ -53,6 +55,51 @@ function iconHtml(icon: ReactElement): string {
 // Rendered at load: flushSync can't render while React is committing.
 const COPY_ICON = iconHtml(<CopyIcon size={16} />);
 const CHECK_ICON = iconHtml(<CheckIcon size={16} />);
+
+/** Replaces GitHub's script-filled embeds (Mermaid, GeoJSON, STL) with their source code block. */
+function unwrapEnrichments(root: HTMLElement) {
+  for (const section of root.querySelectorAll("section.render-needs-enrichment")) {
+    const pre = section.querySelector("pre");
+    if (pre) section.replaceWith(pre);
+    else section.remove();
+  }
+}
+
+/** Turns `#gh-light-mode-only` / `#gh-dark-mode-only` links into plain spans that markdown.css shows per theme. */
+function unwrapThemeLinks(root: HTMLElement) {
+  for (const a of root.querySelectorAll('a[href="#gh-light-mode-only"], a[href="#gh-dark-mode-only"]')) {
+    const span = document.createElement("span");
+    span.className = a.getAttribute("href")!.slice(1);
+    span.append(...a.childNodes);
+    a.replaceWith(span);
+  }
+}
+
+/** Draws each Mermaid code block as a diagram, keeping the code block for copying and as a fallback. */
+function renderDiagrams(root: HTMLElement, dark: boolean, live: () => boolean) {
+  for (const pre of root.querySelectorAll<HTMLElement>('pre[lang="mermaid"]')) {
+    const host = pre.closest<HTMLElement>(".code-copy-host");
+    if (!host) continue;
+    const source = pre.textContent ?? "";
+    const show = (svg: string) => {
+      let diagram = host.querySelector<HTMLElement>(".mermaid-diagram");
+      if (!diagram) {
+        diagram = document.createElement("div");
+        diagram.className = "mermaid-diagram";
+        pre.after(diagram);
+      }
+      diagram.innerHTML = svg;
+      host.classList.add("mermaid-host");
+    };
+    const cached = cachedMermaid(source, dark);
+    if (cached !== undefined) show(cached);
+    else
+      renderMermaid(source, dark).then(
+        (svg) => live() && show(svg),
+        (e) => console.warn("Failed to render Mermaid diagram:", e, source),
+      );
+  }
+}
 
 /** Adds a copy button to every code block that lacks one. Buttons are plain DOM, handled by delegation. */
 function addCopyButtons(root: HTMLElement) {
@@ -107,9 +154,21 @@ export const Markdown = memo(function Markdown({ html, className, nodeId }: Mark
   const clean = useMemo(() => sanitizeHtml(shown), [shown]);
   const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
+  const dark = useDark();
   useLayoutEffect(() => {
-    if (ref.current) addCopyButtons(ref.current);
+    if (!ref.current) return;
+    unwrapEnrichments(ref.current);
+    unwrapThemeLinks(ref.current);
+    addCopyButtons(ref.current);
   }, [clean]);
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    let live = true;
+    renderDiagrams(ref.current, dark, () => live);
+    return () => {
+      live = false;
+    };
+  }, [clean, dark]);
   // Signed attachment links expire minutes after GitHub renders them, so cached HTML needs a fresh copy.
   useLayoutEffect(() => {
     const root = ref.current;

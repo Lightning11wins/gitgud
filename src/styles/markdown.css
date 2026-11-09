@@ -142,6 +142,38 @@
     opacity: 1;
   }
 }
+/* Mermaid diagrams keep their code block hidden for the copy button. */
+.markdown-body .mermaid-host > pre {
+  display: none;
+}
+.markdown-body .mermaid-diagram {
+  margin-bottom: 16px;
+  overflow: auto;
+  text-align: center;
+  /* Mermaid sizes labels without the markdown body's wrapping. */
+  overflow-wrap: normal;
+  word-wrap: normal;
+}
+/* Content GitHub shows in only one theme. Print uses the light theme. */
+.markdown-body .gh-light-mode-only {
+  display: contents;
+}
+.markdown-body .gh-dark-mode-only,
+.markdown-body img[src*="#gh-dark-mode-only"] {
+  display: none;
+}
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .markdown-body .gh-light-mode-only,
+  :root:not([data-theme="light"]) .markdown-body img[src*="#gh-light-mode-only"] { display: none; }
+  :root:not([data-theme="light"]) .markdown-body .gh-dark-mode-only { display: contents; }
+  :root:not([data-theme="light"]) .markdown-body img[src*="#gh-dark-mode-only"] { display: inline; }
+}
+@media screen {
+  :root[data-theme="dark"] .markdown-body .gh-light-mode-only,
+  :root[data-theme="dark"] .markdown-body img[src*="#gh-light-mode-only"] { display: none; }
+  :root[data-theme="dark"] .markdown-body .gh-dark-mode-only { display: contents; }
+  :root[data-theme="dark"] .markdown-body img[src*="#gh-dark-mode-only"] { display: inline; }
+}
 .markdown-body table {
   display: block;
   width: max-content;
