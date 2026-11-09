@@ -158,18 +158,16 @@ export function Reviewers({ pull, owner, repo }: Props) {
       )}
       {readOnly.length > 0 && (
         <>
-          <button className="btn invisible xs pull-reviewers-toggle" aria-expanded={readOnlyOpen} onClick={() => setReadOnlyOpen(!readOnlyOpen)}>
-            <span className="grow">
-              {readOnly.length} {readOnly.length === 1 ? "reviewer" : "reviewers"} without write access
-            </span>
+          <button
+            className="btn invisible xs pull-reviewers-toggle"
+            title="These reviewers don't have write access to the repository."
+            aria-expanded={readOnlyOpen}
+            onClick={() => setReadOnlyOpen(!readOnlyOpen)}
+          >
+            <span className="grow">Can't approve or block merging</span>
             {readOnlyOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
           </button>
-          {readOnlyOpen && (
-            <>
-              <ReviewerList rows={readOnly} editable={editable} onRerequest={rerequest} />
-              <div className="pull-sidebar-note muted">Their reviews don't count toward merging.</div>
-            </>
-          )}
+          {readOnlyOpen && <ReviewerList rows={readOnly} editable={editable} onRerequest={rerequest} />}
         </>
       )}
       {error != null && <ErrorBanner error={error} />}
