@@ -11,6 +11,8 @@ export const keys = {
   repoMeta: (owner: string, repo: string) => ["repo", owner, repo] as const,
   /** Repo header and open/closed counts for the list filter `base`. */
   repoCounts: (owner: string, repo: string, base: string) => ["repo-header", owner, repo, base] as const,
+  /** The viewer's branches pushed in the last hour that have no pull request. */
+  recentPushes: (owner: string, repo: string) => ["recent-pushes", owner, repo] as const,
   issue: (owner: string, repo: string, number: number) => ["issue", owner, repo, number] as const,
   pull: (owner: string, repo: string, number: number) => ["pull", owner, repo, number] as const,
   timeline: (owner: string, repo: string, number: number) => ["timeline", owner, repo, number] as const,

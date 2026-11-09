@@ -8,6 +8,7 @@ import { keys } from "@/api/keys";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { FilterInput } from "./FilterInput";
 import { DEFAULT_SORT, ListFilters } from "./ListFilters";
+import { RecentPushes } from "./RecentPushes";
 import { SubjectList } from "./SubjectList";
 import { baseQuery, buildSearch, getSort, getState, prefetchSearchList, setState, useSearchList, type StateFilter } from "./searchList";
 import "./repo.css";
@@ -154,6 +155,8 @@ export function RepoPage({ kind }: { kind?: Kind }) {
           <CodeIcon size={14} /> Code
         </a>
       </nav>
+
+      {kind !== "issue" && <RecentPushes owner={owner} repo={repo} />}
 
       <div className="repo-toolbar">
         <FilterInput value={q === DEFAULT_Q ? "" : q} onApply={(next) => setQ(next || DEFAULT_Q)} placeholder={DEFAULT_Q} />

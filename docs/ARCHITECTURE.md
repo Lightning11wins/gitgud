@@ -76,6 +76,7 @@ server/serve.mjs  static server with CSP and compression
 - Issue rows select `closedByPullRequestsReferences` in the list query itself; it adds about 8% to first rows, cheaper than a second search on issue-only pages.
 - GraphQL connections page serially at about 1.8s per 100 nodes regardless of fields selected. Owner pages refresh by fetching the first page and merging with the cache.
 - Issue fields (Priority, Effort, ...) show in the sidebar when pinned to the issue's type. Tokens without organization admin access see no pins (`pinnedFields` is empty, without an error), so `shownFields` in `features/sidebar/data.ts` then shows every field.
+- The "had recent pushes" banners read `/repos/{owner}/{repo}/activity`, which is current. The Events API lags by minutes and leaves private repos out of user feeds.
 - The first request from headless Chromium can fail CORS preflight behind some proxies; it's an environment problem, not an app bug.
 
 ## Shared contracts

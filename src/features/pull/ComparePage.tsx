@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { gql, gqlAll, type PageInfo } from "@/api/client";
+import { keys } from "@/api/keys";
 import { queryClient } from "@/api/queryClient";
 import { ACTOR_FIELDS } from "@/api/types";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -304,6 +305,7 @@ function NewPullForm({ owner, repo, base, head, data }: { owner: string; repo: s
     await drafts.clear(`${draftKey}:title`);
     queryClient.invalidateQueries({ queryKey: ["compare", owner, repo] });
     queryClient.invalidateQueries({ queryKey: ["repo-list", owner, repo] });
+    queryClient.invalidateQueries({ queryKey: keys.recentPushes(owner, repo) });
     navigate(`/${owner}/${repo}/pull/${number}`);
   };
 
