@@ -1,8 +1,9 @@
-import { CommentIcon, LinkExternalIcon } from "@primer/octicons-react";
+import { CheckIcon, CommentIcon, LinkExternalIcon } from "@primer/octicons-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { rateLimits } from "@/api/rateLimit";
 import { auth, signOut } from "@/auth/token";
+import { copyText } from "@/lib/clipboard";
 import { repoPath, toAppPath, toGitHubUrl } from "@/lib/githubUrl";
 import { useHotkey } from "@/lib/hotkeys";
 import { settings } from "@/lib/settings";
@@ -107,9 +108,7 @@ export function Layout() {
         <div className="app-header-end">
           <ApiMeter />
           {pathname !== "/" && pathname !== "/settings" && (
-            <a className="btn invisible sm" href={toGitHubUrl(pathname + search)} target="_blank" rel="noopener noreferrer" title="Open this page on GitHub" aria-label="Open this page on GitHub">
-              <LinkExternalIcon /> <span className="app-header-label">GitHub</span>
-            </a>
+            <GitHubLink url={toGitHubUrl(pathname + search)} />
           )}
           <Link
             className="btn invisible sm"
@@ -204,6 +203,33 @@ const METER_LIMITS = [
   ["graphql", "GraphQL"],
   ["core", "REST"],
 ] as const;
+
+/** Opens the current page on GitHub. Shift-click copies the GitHub link instead. */
+function GitHubLink({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(t);
+  }, [copied]);
+  return (
+    <a
+      className="btn invisible sm"
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={copied ? "Copied!" : "Open this page on GitHub. Shift-click to copy the link."}
+      aria-label="Open this page on GitHub"
+      onClick={(e) => {
+        if (!e.shiftKey) return;
+        e.preventDefault();
+        copyText(url).then(() => setCopied(true), () => {});
+      }}
+    >
+      {copied ? <CheckIcon /> : <LinkExternalIcon />} <span className="app-header-label">{copied ? "Copied" : "GitHub"}</span>
+    </a>
+  );
+}
 
 /** One bar per GitHub API rate limit, filled by the share used. Links to Settings for the numbers, except on Settings. Hidden by a setting unless a limit runs low. */
 function ApiMeter() {
