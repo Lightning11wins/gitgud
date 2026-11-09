@@ -212,12 +212,16 @@ export function ComparePage({ head: headProp }: { head?: string } = {}) {
       </div>
       {data?.compare && !nothing && (
         <>
-          <div className="compare-stats muted row">
-            <span>{plural(data.compare.totalCommits, "commit")}</span>
-            {data.commits.length < data.compare.totalCommits && <span>(showing {data.commits.length})</span>}
+          <div className="compare-stats row">
+            <span>
+              <strong>{data.compare.totalCommits.toLocaleString()}</strong>{" "}
+              <span className="muted">{data.compare.totalCommits === 1 ? "commit" : "commits"}</span>
+            </span>
+            {data.commits.length < data.compare.totalCommits && <span className="muted">(showing {data.commits.length})</span>}
           </div>
-          <CommitList commits={data.commits} />
-          <h2 className="compare-files-heading">Files changed</h2>
+          <div className="compare-commits">
+            <CommitList commits={data.commits} />
+          </div>
           <CompareFiles owner={owner} repo={repo} base={base!} head={head!} />
         </>
       )}

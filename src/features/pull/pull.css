@@ -505,11 +505,13 @@ span.pull-branch {
 .compare-branch-btn {
   max-width: 320px;
 }
+.compare-branch-btn .muted {
+  font-weight: 600;
+}
 .compare-merge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 13px;
 }
 .compare-merge.ok {
   color: var(--success);
@@ -517,6 +519,15 @@ span.pull-branch {
 .compare-top > .flash,
 .compare-top > .blankslate {
   margin-bottom: 16px;
+}
+.compare-top > .blankslate h3 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.compare-top > .blankslate p {
+  margin: 0;
 }
 .compare-form {
   padding: 12px;
@@ -530,20 +541,16 @@ span.pull-branch {
 .compare-draft {
   gap: 6px;
   margin-right: auto;
-  font-size: 13px;
 }
 .compare-hint {
   gap: 4px;
   font-size: 12px;
 }
 .compare-stats {
-  margin-bottom: 8px;
-  font-size: 13px;
+  margin-bottom: 12px;
 }
-.compare-files-heading {
-  margin: 24px 0 8px;
-  font-size: 16px;
-  font-weight: 600;
+.compare-commits {
+  margin-bottom: 24px;
 }
 
 @media (max-width: 767px) {
