@@ -63,7 +63,7 @@ function buildRows(pull: PullMeta): Row[] {
       state: prev?.state,
       id: r.id,
       isTeam: r.__typename === "Team",
-      readOnly: false,
+      readOnly: prev?.readOnly ?? false,
     });
   }
   return [...rows.values()];
