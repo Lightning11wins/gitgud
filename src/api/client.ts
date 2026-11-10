@@ -104,6 +104,8 @@ export interface RestOptions {
   signal?: AbortSignal;
   /** Return the raw Response text (e.g. diffs, raw file contents). */
   text?: boolean;
+  /** An ETag from an earlier response. An unchanged resource returns status 304 with no data, which GitHub doesn't count against the rate limit. */
+  etag?: string;
 }
 
 export interface RestResponse<T> {
@@ -123,16 +125,17 @@ export async function restRaw<T>(path: string, opts: RestOptions = {}): Promise<
   recordRequest("rest", `${method} ${path.replace(/\?.*/, "")}`);
   const headers: Record<string, string> = { ...authHeaders(session), Accept: opts.accept ?? "application/vnd.github+json" };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+  if (opts.etag) headers["If-None-Match"] = opts.etag;
   const res = await fetch(url, {
     method,
     headers,
     body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
     signal: opts.signal,
     // Always revalidate with the server; 304 responses are free against the rate limit.
-    cache: method === "GET" ? "no-cache" : "no-store",
+    cache: method === "GET" && !opts.etag ? "no-cache" : "no-store",
   });
   recordRateLimit(res.headers);
-  if (!res.ok) throw await failure(res, `${method} ${path}`, session);
+  if (!res.ok && !(opts.etag && res.status === 304)) throw await failure(res, `${method} ${path}`, session);
   let data: unknown;
   if (opts.text) data = await res.text();
   else if (res.status === 204) data = undefined;

@@ -11,6 +11,7 @@ import { FilesChanged } from "@/features/diff/FilesChanged";
 import { MetadataSidebar } from "@/features/sidebar/MetadataSidebar";
 import { HotkeysActive } from "@/lib/hotkeys";
 import { prefetchCommits, usePull } from "./api";
+import { useCheckPolling } from "./checkPolling";
 import { ChecksTab } from "./ChecksTab";
 import { CommitView } from "./CommitView";
 import { CommitsTab } from "./CommitsTab";
@@ -43,6 +44,7 @@ export function PullPage() {
 
 function PullView({ owner, repo, number, rest }: { owner: string; repo: string; number: number; rest: string }) {
   const q = usePull(owner, repo, number);
+  useCheckPolling(owner, repo, number, q.data);
   useTitle(q.data?.title, `Pull request #${number}`, `${owner}/${repo}`);
   const { tab, sha } = parseTab(rest);
   const view = sha ? `commit:${sha}` : tab;

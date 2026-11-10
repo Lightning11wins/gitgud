@@ -29,6 +29,16 @@ export function recordRateLimit(headers: Headers) {
   });
 }
 
+/** Speculative and background requests stop while less than this share of a rate limit is left. */
+const LOW_SHARE = 0.2;
+
+/** Whether less than `LOW_SHARE` of `resource`'s current window is left. */
+export function isRateLimitLow(resource: keyof RateLimits): boolean {
+  const r = rateLimits.get()[resource];
+  if (!r || !r.limit || r.reset * 1000 < Date.now()) return false;
+  return r.remaining / r.limit <= LOW_SHARE;
+}
+
 /** Request counters, exposed as `window.__gitgudApiStats` for tests and the dev console. */
 export const apiStats = {
   total: 0,

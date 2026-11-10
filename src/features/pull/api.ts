@@ -285,15 +285,24 @@ export function refreshPull(owner: string, repo: string, number: number) {
   ]);
 }
 
+const checksQuery = `query PullChecks($owner: String!, $repo: String!, $number: Int!, $oid: GitObjectID!, $after: String) {
+  repository(owner: $owner, name: $repo) { object(oid: $oid) { ... on Commit { statusCheckRollup { state contexts(first: 100, after: $after) {
+    totalCount pageInfo { hasNextPage endCursor } nodes { ${CHECK_CONTEXT_FIELDS} }
+  } } } } }
+}`;
+
+type ChecksResponse = { repository: { object: { statusCheckRollup: RawRollup | null } | null } };
+
+/** A commit's rollup with the first page of its contexts, as `fetchPull` loads it for the head commit. */
+export async function fetchRollup(owner: string, repo: string, number: number, oid: string): Promise<CheckRollup | null> {
+  const data = await gql<ChecksResponse>(checksQuery, { owner, repo, number, oid, after: null });
+  return toRollup(data.repository.object?.statusCheckRollup);
+}
+
 /** Every check and status on a commit, for heads with more than the first page of contexts. */
 export async function fetchAllChecks(owner: string, repo: string, number: number, oid: string): Promise<CheckContext[]> {
-  const query = `query PullChecks($owner: String!, $repo: String!, $number: Int!, $oid: GitObjectID!, $after: String) {
-    repository(owner: $owner, name: $repo) { object(oid: $oid) { ... on Commit { statusCheckRollup { state contexts(first: 100, after: $after) {
-      totalCount pageInfo { hasNextPage endCursor } nodes { ${CHECK_CONTEXT_FIELDS} }
-    } } } } }
-  }`;
   return gqlAll(async (after) => {
-    const data = await gql<{ repository: { object: { statusCheckRollup: RawRollup | null } | null } }>(query, { owner, repo, number, oid, after });
+    const data = await gql<ChecksResponse>(checksQuery, { owner, repo, number, oid, after });
     const rollup = data.repository.object?.statusCheckRollup;
     if (!rollup) return { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
     return { nodes: toRollup(rollup)!.contexts, pageInfo: rollup.contexts.pageInfo };

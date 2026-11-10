@@ -1,6 +1,6 @@
 import { toAppPath } from "@/lib/githubUrl";
 import { settings } from "@/lib/settings";
-import { rateLimits, type RateLimits } from "./rateLimit";
+import { isRateLimitLow, type RateLimits } from "./rateLimit";
 
 /**
  * Speculative loads: data the user is likely to open next (a hovered link, the next tab), fetched in
@@ -14,8 +14,6 @@ type Resource = keyof RateLimits;
 
 /** How long a hover or focus must last before it prefetches. */
 export const HOVER_DELAY_MS = 150;
-/** Speculation stops while less than this share of a rate limit is left. */
-const LOW_SHARE = 0.2;
 /** Loads at a time: presses run at once, hovers and focus a few at a time, background warming one. */
 const MAX_RUNNING = { press: Infinity, intent: 2, background: 1 };
 const MAX_QUEUED = 6;
@@ -44,9 +42,7 @@ export function registerPathPrefetcher(re: RegExp, fn: PathPrefetcher) {
 export function canSpeculate(resource: Resource = "graphql"): boolean {
   if (!settings.get().prefetch || document.hidden) return false;
   if ((navigator as { connection?: { saveData?: boolean } }).connection?.saveData) return false;
-  const r = rateLimits.get()[resource];
-  if (!r || !r.limit || r.reset * 1000 < Date.now()) return true;
-  return r.remaining / r.limit > LOW_SHARE;
+  return !isRateLimitLow(resource);
 }
 
 /**
