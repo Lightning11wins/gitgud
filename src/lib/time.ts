@@ -1,8 +1,33 @@
+import { useSyncExternalStore } from "react";
 import { createStore } from "./store";
 
 /** Increments once a minute so relative timestamps re-render together. */
 export const minuteTick = createStore(0);
 setInterval(() => minuteTick.set(minuteTick.get() + 1), 60_000);
+
+const secondListeners = new Set<() => void>();
+let secondTimer: ReturnType<typeof setTimeout> | undefined;
+
+function tickSecond() {
+  secondTimer = setTimeout(tickSecond, 1000 - (Date.now() % 1000));
+  secondListeners.forEach((l) => l());
+}
+
+function subscribeSecond(listener: () => void) {
+  secondListeners.add(listener);
+  if (secondListeners.size === 1) tickSecond();
+  return () => {
+    secondListeners.delete(listener);
+    if (!secondListeners.size) clearTimeout(secondTimer);
+  };
+}
+
+const currentSecond = () => Math.floor(Date.now() / 1000);
+
+/** The current time in whole seconds, re-rendering each second. The timer runs only while a component uses it. */
+export function useSecond(): number {
+  return useSyncExternalStore(subscribeSecond, currentSecond);
+}
 
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const dateFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });

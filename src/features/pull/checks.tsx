@@ -1,5 +1,6 @@
 import { AlertIcon, CheckCircleFillIcon, DotFillIcon, SkipIcon, SquareFillIcon, StopIcon, XCircleFillIcon } from "@primer/octicons-react";
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
+import { useSecond } from "@/lib/time";
 import type { CheckContext, RollupState } from "./api";
 import { formatDuration } from "./util";
 
@@ -76,11 +77,21 @@ export function checkLink(c: CheckContext): string | null {
   return c.__typename === "CheckRun" ? (c.detailsUrl ?? c.url) : c.targetUrl;
 }
 
-function checkDetail(c: CheckContext, outcome: CheckOutcome): string {
+/** Time since `since`, counting up each second. */
+function Elapsed({ since }: { since: string }) {
+  return formatDuration(useSecond() * 1000 - Date.parse(since));
+}
+
+function checkDetail(c: CheckContext, outcome: CheckOutcome): ReactNode {
   if (c.__typename === "StatusContext") return c.description ?? "";
   if (c.status === "QUEUED" || c.status === "WAITING" || c.status === "PENDING" || c.status === "REQUESTED") return "Queued";
   if (!c.startedAt) return outcome === "skipped" ? "Skipped" : "";
-  if (c.status !== "COMPLETED") return `Started ${formatDuration(Date.now() - Date.parse(c.startedAt))} ago`;
+  if (c.status !== "COMPLETED")
+    return (
+      <>
+        Started <Elapsed since={c.startedAt} /> ago
+      </>
+    );
   const verb = { success: "Successful", failure: "Failing", skipped: "Skipped", cancelled: "Cancelled", action: "Action required", neutral: "Completed", pending: "" }[outcome];
   return c.completedAt ? `${verb} in ${formatDuration(Date.parse(c.completedAt) - Date.parse(c.startedAt))}` : verb;
 }
