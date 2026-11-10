@@ -141,7 +141,7 @@ export function fetchMergeBase(owner: string, repo: string, base: string, head: 
   return queryClient.fetchQuery({
     queryKey: ["merge-base", owner, repo, base, head],
     staleTime: Infinity,
-    queryFn: async () => (await rest<CompareResponse>(`/repos/${owner}/${repo}/compare/${base}...${head}?per_page=1`)).merge_base_commit.sha,
+    queryFn: async () => (await rest<CompareResponse>(`/repos/${owner}/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}?per_page=1`)).merge_base_commit.sha,
   });
 }
 

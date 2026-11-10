@@ -6,6 +6,11 @@ export function repoPath(owner: string, repo: string): string {
   return tab === "issues" || tab === "pulls" ? `/${owner}/${repo}/${tab}` : `/${owner}/${repo}`;
 }
 
+/** True for a name GitHub allows for an owner or repo: letters, digits, `_`, `.`, and `-`, but not only dots. */
+export function isValidName(name: string): boolean {
+  return /^[\w.-]+$/.test(name) && !/^\.+$/.test(name);
+}
+
 /** Routes this app handles, mirroring github.com paths. */
 const SUPPORTED = [
   /^\/[^/]+\/?$/,
@@ -42,6 +47,7 @@ export function toAppPath(input: string): string | null {
   if (!isGitHub && url.origin !== location.origin) return null;
   const path = url.pathname.replace(/\/$/, "") || "/";
   if (!SUPPORTED.some((re) => re.test(path)) || RESERVED_OWNERS.has(path.split("/")[1].toLowerCase())) return null;
+  if (!path.split("/").slice(1, 3).every(isValidName)) return null;
   const repo = /^\/([^/]+)\/([^/]+)$/.exec(path);
   if (repo && !url.search) return repoPath(repo[1], repo[2]) + url.hash;
   return path + url.search + url.hash;

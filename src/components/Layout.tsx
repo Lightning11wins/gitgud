@@ -4,12 +4,13 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { rateLimits } from "@/api/rateLimit";
 import { auth, signOut } from "@/auth/token";
 import { copyText } from "@/lib/clipboard";
-import { repoPath, toAppPath, toGitHubUrl } from "@/lib/githubUrl";
+import { isValidName, repoPath, toAppPath, toGitHubUrl } from "@/lib/githubUrl";
 import { useHotkey } from "@/lib/hotkeys";
 import { settings } from "@/lib/settings";
 import { useStore } from "@/lib/store";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
+import { NotFound } from "./NotFound";
 import { Popover } from "./Popover";
 import { RepoSwitcher } from "./RepoSwitcher";
 
@@ -17,7 +18,7 @@ import { RepoSwitcher } from "./RepoSwitcher";
 export function useRepoFromPath(): { owner: string; repo: string } | null {
   const { pathname } = useLocation();
   const [owner, repo] = pathname.split("/").filter(Boolean);
-  if (!owner || !repo || owner === "settings") return null;
+  if (!owner || !repo || owner === "settings" || !isValidName(owner) || !isValidName(repo)) return null;
   return { owner, repo };
 }
 
@@ -64,7 +65,9 @@ export function Layout() {
   const { pathname, search } = useLocation();
   const repo = useRepoFromPath();
   const segments = pathname.split("/").filter(Boolean);
-  const owner = repo?.owner ?? (segments.length === 1 && segments[0] !== "settings" ? segments[0] : null);
+  // Names a crafted link could use to send API requests outside the repo they name.
+  const badName = segments[0] !== "settings" && !segments.slice(0, 2).every(isValidName);
+  const owner = repo?.owner ?? (segments.length === 1 && !badName && segments[0] !== "settings" ? segments[0] : null);
   const [help, setHelp] = useState(false);
   useHotkey("?", () => setHelp(true));
   useRememberListQuery(repo ? segments : [], search);
@@ -122,7 +125,7 @@ export function Layout() {
         </div>
       </header>
       <main className={`app-main ${wide ? "wide" : ""}`}>
-        <Outlet />
+        {badName ? <NotFound /> : <Outlet />}
       </main>
       {help && <ShortcutsDialog onClose={() => setHelp(false)} />}
     </>
