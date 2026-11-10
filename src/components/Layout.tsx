@@ -72,6 +72,7 @@ export function Layout() {
   useHotkey("?", () => setHelp(true));
   useRememberListQuery(repo ? segments : [], search);
   const list = repo && listCrumb(segments);
+  const onFeedback = pathname.toLowerCase() === `/${FEEDBACK_REPO}/issues/new`.toLowerCase();
   const wide = /\/pull\/(\d+\/(files|commits\/[0-9a-f]+)|new\/)/.test(pathname) || pathname.includes("/compare");
 
   return (
@@ -113,14 +114,16 @@ export function Layout() {
           {pathname !== "/" && pathname !== "/settings" && (
             <GitHubLink url={toGitHubUrl(pathname + search)} />
           )}
-          <Link
-            className="btn invisible sm"
-            to={`/${FEEDBACK_REPO}/issues/new?title=${encodeURIComponent("Feedback: ")}`}
-            title="Opens an issue on the GitGud repo."
-            aria-label="Send feedback"
-          >
-            <CommentIcon /> <span className="app-header-label">Feedback</span>
-          </Link>
+          {!onFeedback && (
+            <Link
+              className="btn invisible sm"
+              to={`/${FEEDBACK_REPO}/issues/new?title=${encodeURIComponent("Feedback: ")}`}
+              title="Opens an issue on the GitGud repo."
+              aria-label="Send feedback"
+            >
+              <CommentIcon /> <span className="app-header-label">Feedback</span>
+            </Link>
+          )}
           <UserMenu />
         </div>
       </header>
