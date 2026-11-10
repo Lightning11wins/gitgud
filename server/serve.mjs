@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import { readFile, stat } from "node:fs/promises";
-import { extname, join, normalize, resolve } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 import { brotliCompressSync, gzipSync } from "node:zlib";
 
 const args = Object.fromEntries(
@@ -58,9 +58,12 @@ const SECURITY_HEADERS = {
   "Referrer-Policy": "no-referrer",
   "X-Frame-Options": "DENY",
   "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "same-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
   ...(TLS ? { "Strict-Transport-Security": "max-age=31536000" } : {}),
 };
+
+const TEXT_HEADERS = { ...SECURITY_HEADERS, "Content-Type": "text/plain; charset=utf-8" };
 
 const cache = new Map();
 
@@ -83,7 +86,7 @@ async function load(path) {
 async function resolveFile(urlPath) {
   const safe = normalize(decodeURIComponent(urlPath)).replace(/^(\.\.[/\\])+/, "");
   const file = join(ROOT, safe);
-  if (!file.startsWith(ROOT)) return null;
+  if (!file.startsWith(ROOT + sep)) return null;
   try {
     if ((await stat(file)).isFile()) return file;
   } catch {
@@ -99,7 +102,7 @@ async function handle(req, res) {
     const isPage = !extname(url.pathname) || String(req.headers.accept ?? "").includes("text/html");
     const file = (await resolveFile(url.pathname)) ?? (isPage ? join(ROOT, "index.html") : null);
     if (!file) {
-      res.writeHead(404, SECURITY_HEADERS).end("Not found");
+      res.writeHead(404, TEXT_HEADERS).end("Not found");
       return;
     }
     const entry = await load(file);
@@ -121,7 +124,7 @@ async function handle(req, res) {
     res.writeHead(200, headers);
     res.end(req.method === "HEAD" ? undefined : body);
   } catch (e) {
-    res.writeHead(500, SECURITY_HEADERS).end(`Failed to serve ${req.url}: ${e.message}`);
+    res.writeHead(500, TEXT_HEADERS).end(`Failed to serve ${req.url}: ${e.message}`);
   }
 }
 
