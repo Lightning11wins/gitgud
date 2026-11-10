@@ -1,4 +1,4 @@
-import { createStore as createIdbStore, del, get, set } from "idb-keyval";
+import { createStore as createIdbStore, del, get, set, update } from "idb-keyval";
 import { createStore } from "@/lib/store";
 
 const authDb = createIdbStore("gitgud-auth", "kv");
@@ -25,9 +25,52 @@ export function getToken(): string | null {
   return auth.get().token;
 }
 
+/** The token encrypted with the `key` stored beside it. */
+interface SealedToken {
+  iv: Uint8Array<ArrayBuffer>;
+  data: ArrayBuffer;
+}
+
+/**
+ * The AES key that encrypts the stored token. It's non-extractable, so scripts can use it but not
+ * read it, and the token never sits on disk as plain text for scanners to find.
+ */
+async function tokenKey(): Promise<CryptoKey> {
+  const existing = await get<CryptoKey>("key", authDb);
+  if (existing) return existing;
+  const fresh = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  // Another tab may have stored a key meanwhile; the first one stored wins.
+  await update<CryptoKey>("key", (key) => key ?? fresh, authDb);
+  return (await get<CryptoKey>("key", authDb))!;
+}
+
+async function saveToken(token: string) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await tokenKey(), new TextEncoder().encode(token));
+  await set("token", { iv, data } satisfies SealedToken, authDb);
+}
+
+/** The stored token, or undefined when there's none or it can't be decrypted. Encrypts a plain-text token left by older versions. */
+async function readToken(): Promise<string | undefined> {
+  const stored = await get<string | SealedToken>("token", authDb);
+  if (!stored) return undefined;
+  if (typeof stored === "string") {
+    await saveToken(stored);
+    return stored;
+  }
+  const key = await get<CryptoKey>("key", authDb);
+  if (!key) return undefined;
+  try {
+    return new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: stored.iv }, key, stored.data));
+  } catch (e) {
+    console.error("Failed to decrypt the stored token:", e);
+    return undefined;
+  }
+}
+
 export async function loadAuth() {
   try {
-    const [token, viewer] = await Promise.all([get<string>("token", authDb), get<Viewer>("viewer", authDb)]);
+    const [token, viewer] = await Promise.all([readToken(), get<Viewer>("viewer", authDb)]);
     if (token && viewer) auth.set({ status: "signed-in", token, viewer });
     // A stored viewer without a token means GitHub rejected it; the cache and drafts are still theirs.
     else auth.set({ status: "signed-out", token: null, viewer: null, rejected: viewer ?? null });
@@ -54,7 +97,7 @@ export async function signIn(token: string) {
   if (!viewer) throw new Error(`Failed to sign in: ${body?.errors?.[0]?.message ?? "no viewer returned"}.`);
   const previous = auth.get().rejected ?? (await get<Viewer>("viewer", authDb).catch(() => undefined));
   if (previous?.login !== viewer.login) await clearLocalData();
-  await Promise.all([set("token", token, authDb), set("viewer", viewer, authDb)]);
+  await Promise.all([saveToken(token), set("viewer", viewer, authDb)]);
   auth.set({ status: "signed-in", token, viewer });
   // Best effort: keep the cache from being evicted under storage pressure.
   navigator.storage?.persist?.().catch(() => {});
@@ -63,7 +106,7 @@ export async function signIn(token: string) {
 export async function signOut() {
   // Drop the token first so in-flight requests can't persist into the wiped cache.
   auth.set({ status: "signed-out", token: null, viewer: null });
-  await Promise.all([del("token", authDb), del("viewer", authDb)]);
+  await Promise.all([del("token", authDb), del("key", authDb), del("viewer", authDb)]);
   await clearLocalData();
 }
 

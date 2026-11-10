@@ -7,11 +7,12 @@ vi.mock("idb-keyval", () => ({
   get: async (key: string, s: string) => store(s).get(key),
   set: async (key: string, value: unknown, s: string) => void store(s).set(key, value),
   del: async (key: string, s: string) => void store(s).delete(key),
+  update: async (key: string, fn: (v: unknown) => unknown, s: string) => void store(s).set(key, fn(store(s).get(key))),
   clear: async (s: string) => store(s).clear(),
   entries: async (s: string) => [...store(s).entries()],
 }));
 
-const { auth, signIn, tokenRejected } = await import("./token");
+const { auth, loadAuth, signIn, tokenRejected } = await import("./token");
 const { drafts } = await import("@/lib/drafts");
 
 const viewer = (login: string) => ({ login, name: null, avatarUrl: "", url: "" });
@@ -53,5 +54,36 @@ describe("token rejection", () => {
     await signIn("t3");
     expect(auth.get().viewer?.login).toBe("bob");
     expect(await drafts.get("k")).toBeUndefined();
+  });
+});
+
+describe("token storage", () => {
+  beforeEach(() => {
+    stores.clear();
+    mockViewer("alice");
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("stores the token encrypted and reads it back", async () => {
+    await signIn("ghp_secret");
+    const stored = store("gitgud-auth").get("token");
+    expect(typeof stored).not.toBe("string");
+    expect(new TextDecoder().decode((stored as { data: ArrayBuffer }).data)).not.toContain("ghp_secret");
+    await loadAuth();
+    expect(auth.get()).toMatchObject({ status: "signed-in", token: "ghp_secret" });
+  });
+
+  it("encrypts a plain-text token from an older version", async () => {
+    store("gitgud-auth").set("token", "ghp_old").set("viewer", viewer("alice"));
+    await loadAuth();
+    expect(auth.get()).toMatchObject({ status: "signed-in", token: "ghp_old" });
+    expect(typeof store("gitgud-auth").get("token")).not.toBe("string");
+  });
+
+  it("signs out, keeping the cache, when the key is gone", async () => {
+    await signIn("ghp_secret");
+    store("gitgud-auth").delete("key");
+    await loadAuth();
+    expect(auth.get()).toMatchObject({ status: "signed-out", rejected: { login: "alice" } });
   });
 });
