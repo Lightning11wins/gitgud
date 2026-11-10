@@ -1,3 +1,5 @@
+// First, so its default policy exists before other modules run.
+import "./lib/trustedTypes";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles/base.css";

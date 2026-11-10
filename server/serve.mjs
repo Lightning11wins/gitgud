@@ -50,6 +50,8 @@ export const CSP = [
   "base-uri 'none'",
   "form-action 'none'",
   "frame-ancestors 'none'",
+  "require-trusted-types-for 'script'",
+  "trusted-types default gitgud-mermaid dompurify",
 ].join("; ");
 
 const SECURITY_HEADERS = {

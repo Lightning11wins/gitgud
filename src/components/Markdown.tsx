@@ -9,6 +9,7 @@ import { copyText } from "@/lib/clipboard";
 import { toAppPath } from "@/lib/githubUrl";
 import { attachmentUrl, isSignedMedia, signedExpiry } from "@/lib/signedMedia";
 import { useDark } from "@/lib/theme";
+import { mermaidHtml } from "@/lib/trustedTypes";
 import { cachedMermaid, renderMermaid } from "@/components/mermaid";
 
 DOMPurify.addHook("uponSanitizeElement", (node, data) => {
@@ -38,23 +39,23 @@ const PURIFY_CONFIG = {
   ALLOW_DATA_ATTR: false,
 };
 
-/** Sanitizes GitHub-rendered HTML. Only disabled task-list checkboxes survive as inputs. */
-export function sanitizeHtml(html: string): string {
-  return DOMPurify.sanitize(html, PURIFY_CONFIG) as string;
+/** Sanitizes GitHub-rendered HTML, as TrustedHTML where the browser has Trusted Types. Only disabled task-list checkboxes survive as inputs. */
+export function sanitizeHtml(html: string): TrustedHTML | string {
+  return DOMPurify.sanitize(html, { ...PURIFY_CONFIG, RETURN_TRUSTED_TYPE: true });
 }
 
-function iconHtml(icon: ReactElement): string {
+function iconElement(icon: ReactElement): Element {
   const div = document.createElement("div");
   const root = createRoot(div);
   flushSync(() => root.render(icon));
-  const html = div.innerHTML;
+  const el = div.firstElementChild!.cloneNode(true) as Element;
   root.unmount();
-  return html;
+  return el;
 }
 
 // Rendered at load: flushSync can't render while React is committing.
-const COPY_ICON = iconHtml(<CopyIcon size={16} />);
-const CHECK_ICON = iconHtml(<CheckIcon size={16} />);
+const COPY_ICON = iconElement(<CopyIcon size={16} />);
+const CHECK_ICON = iconElement(<CheckIcon size={16} />);
 
 /** Replaces GitHub's script-filled embeds (Mermaid, GeoJSON, STL) with their source code block. */
 function unwrapEnrichments(root: HTMLElement) {
@@ -88,7 +89,7 @@ function renderDiagrams(root: HTMLElement, dark: boolean, live: () => boolean) {
         diagram.className = "mermaid-diagram";
         pre.after(diagram);
       }
-      diagram.innerHTML = svg;
+      diagram.innerHTML = mermaidHtml(svg);
       host.classList.add("mermaid-host");
     };
     const cached = cachedMermaid(source, dark);
@@ -117,7 +118,7 @@ function addCopyButtons(root: HTMLElement) {
     btn.className = "btn sm icon code-copy";
     btn.title = "Copy code";
     btn.setAttribute("aria-label", "Copy code");
-    btn.innerHTML = COPY_ICON;
+    btn.append(COPY_ICON.cloneNode(true));
     host.appendChild(btn);
   }
 }
@@ -127,9 +128,9 @@ function copyBlock(btn: HTMLElement) {
   const text = host?.getAttribute("data-snippet-clipboard-copy-content") ?? host?.querySelector("pre")?.textContent ?? "";
   copyText(text).then(
     () => {
-      btn.innerHTML = CHECK_ICON;
+      btn.replaceChildren(CHECK_ICON.cloneNode(true));
       clearTimeout(Number(btn.dataset.timer));
-      btn.dataset.timer = String(window.setTimeout(() => (btn.innerHTML = COPY_ICON), 2000));
+      btn.dataset.timer = String(window.setTimeout(() => btn.replaceChildren(COPY_ICON.cloneNode(true)), 2000));
     },
     (e) => console.error(e),
   );
@@ -196,6 +197,6 @@ export const Markdown = memo(function Markdown({ html, className, nodeId }: Mark
       navigate(path);
     }
   };
-  if (!clean.trim()) return <div className={`markdown-body muted ${className ?? ""}`}><em>No description provided.</em></div>;
+  if (!String(clean).trim()) return <div className={`markdown-body muted ${className ?? ""}`}><em>No description provided.</em></div>;
   return <div ref={ref} className={`markdown-body ${className ?? ""}`} onClick={onClick} dangerouslySetInnerHTML={{ __html: clean }} />;
 });
