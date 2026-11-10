@@ -3,9 +3,9 @@
 ## Checks
 
 ```sh
-npm run typecheck
-npm test
-npm run build
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
 ## Browser scripts
@@ -14,7 +14,7 @@ The scripts in `scripts/` drive the app in headless Chromium, signed in with the
 
 Launch Chromium with `launchBrowser` from `scripts/browser.mjs`. Behind a proxy with credentials (`HTTPS_PROXY`), it routes through a local relay that adds them, because Playwright turns off the HTTP cache when it answers proxy auth itself. Without the cache, nothing revalidates with ETags and API costs read too high.
 
-Setup: `npx playwright install chromium`. If the default browser cache isn't writable, set `PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers` (gitignored). Scripts must live inside the repo so `playwright` resolves.
+Setup: `pnpm exec playwright install chromium`. If the default browser cache isn't writable, set `PLAYWRIGHT_BROWSERS_PATH=$PWD/.browsers` (gitignored). Scripts must live inside the repo so `playwright` resolves.
 
 | Script | Purpose | Writes to GitHub |
 |---|---|---|

@@ -9,8 +9,8 @@ After installing, open the extension's preferences in `about:addons` and enter y
 Signing makes a private, unlisted `.xpi` that release Firefox installs permanently. Get an API key at https://addons.mozilla.org/developers/addon/api/key/ and bump `version` in `manifest.json` for each new upload.
 
 ```sh
-npx web-ext lint -s extension
-npx web-ext sign -s extension -a extension/dist --channel unlisted \
+pnpm dlx web-ext lint -s extension
+pnpm dlx web-ext sign -s extension -a extension/dist --channel unlisted \
   --ignore-files README.md rules.d.ts \
   --api-key "$AMO_JWT_ISSUER" --api-secret "$AMO_JWT_SECRET"
 ```
