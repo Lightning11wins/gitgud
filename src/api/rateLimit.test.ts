@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("idb-keyval", () => ({ createStore: () => undefined, get: async () => undefined, set: async () => {}, del: async () => {}, clear: async () => {} }));
 
 const { auth } = await import("@/auth/token");
-const { mergeRateLimits, rateLimits, recordRateLimit } = await import("./rateLimit");
+const { clearRateLimits, mergeRateLimits, rateLimits, recordRateLimit } = await import("./rateLimit");
 
 const now = 1_700_000_000_000;
 const reset = now / 1000 + 600;
@@ -11,7 +11,7 @@ const viewer = (login: string) => ({ login, name: null, avatarUrl: "", url: "" }
 
 beforeEach(() => {
   vi.useFakeTimers({ now });
-  rateLimits.set({});
+  clearRateLimits();
 });
 afterEach(() => vi.useRealTimers());
 
@@ -24,12 +24,21 @@ describe("mergeRateLimits", () => {
     expect(rateLimits.get().graphql?.remaining).toBe(3900);
   });
 
-  it("takes a later window and ignores an earlier one", () => {
-    mergeRateLimits({ core: { remaining: 10, limit: 5000, reset } });
-    mergeRateLimits({ core: { remaining: 4999, limit: 5000, reset: reset + 3600 } });
-    expect(rateLimits.get().core?.remaining).toBe(4999);
-    mergeRateLimits({ core: { remaining: 5, limit: 5000, reset } });
-    expect(rateLimits.get().core?.remaining).toBe(4999);
+  it("shows the most spent of several running windows", () => {
+    mergeRateLimits({ graphql: { remaining: 4900, limit: 5000, reset: reset + 1800 } });
+    mergeRateLimits({ graphql: { remaining: 4950, limit: 5000, reset } });
+    expect(rateLimits.get().graphql?.remaining).toBe(4900);
+    mergeRateLimits({ graphql: { remaining: 4800, limit: 5000, reset } });
+    expect(rateLimits.get().graphql?.remaining).toBe(4800);
+    mergeRateLimits({ graphql: { remaining: 4899, limit: 5000, reset: reset + 1800 } });
+    expect(rateLimits.get().graphql?.remaining).toBe(4800);
+  });
+
+  it("shows the other window when the most spent one resets", () => {
+    mergeRateLimits({ graphql: [{ remaining: 10, limit: 5000, reset }, { remaining: 4000, limit: 5000, reset: reset + 1800 }] });
+    expect(rateLimits.get().graphql?.remaining).toBe(10);
+    vi.advanceTimersByTime(600_000);
+    expect(rateLimits.get().graphql).toEqual({ remaining: 4000, limit: 5000, reset: reset + 1800 });
   });
 
   it("ignores readings whose window already reset", () => {
