@@ -3,7 +3,7 @@
 // Scenarios: read (cli/cli checks, commits, tabs), sandbox (reviewers, title, draft), merge, compare.
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
-import { chromium } from "playwright";
+import { launchBrowser } from "./browser.mjs";
 import { sandbox } from "./sandbox.mjs";
 
 const argv = process.argv.slice(2);
@@ -18,15 +18,7 @@ await server.listen();
 const base = server.resolvedUrls.local[0].replace(/\/$/, "");
 const token = execFileSync("gh", ["auth", "token"], { encoding: "utf8" }).trim();
 const viewer = JSON.parse(execFileSync("gh", ["api", "user", "-q", "{login, name, avatarUrl: .avatar_url, url: .html_url}"], { encoding: "utf8" }));
-const proxyEnv = process.env.HTTPS_PROXY || process.env.https_proxy;
-const proxyUrl = proxyEnv && new URL(proxyEnv);
-const proxy = proxyUrl && {
-  server: `${proxyUrl.protocol}//${proxyUrl.host}`,
-  username: decodeURIComponent(proxyUrl.username),
-  password: decodeURIComponent(proxyUrl.password),
-  bypass: "localhost,127.0.0.1",
-};
-const browser = await chromium.launch({ proxy });
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, colorScheme: dark ? "dark" : "light" });
 page.on("console", (m) => m.type() === "error" && console.log("console error:", m.text()));
 page.on("pageerror", (e) => console.log("page error:", e.message));

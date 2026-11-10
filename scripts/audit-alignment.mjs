@@ -5,7 +5,7 @@
 // nearest text on its line, halfway between the cap-height and x-height centers. --all prints every pair.
 // Exits 1 when anything is found.
 import { execFileSync } from "node:child_process";
-import { chromium } from "playwright";
+import { launchBrowser } from "./browser.mjs";
 import { sandbox } from "./sandbox.mjs";
 
 const argv = process.argv.slice(2);
@@ -50,15 +50,7 @@ if (!process.env.BASE) {
 }
 const base = process.env.BASE ?? server.resolvedUrls.local[0].replace(/\/$/, "");
 
-const proxyEnv = process.env.HTTPS_PROXY || process.env.https_proxy;
-const proxyUrl = proxyEnv && new URL(proxyEnv);
-const proxy = proxyUrl && {
-  server: `${proxyUrl.protocol}//${proxyUrl.host}`,
-  username: decodeURIComponent(proxyUrl.username),
-  password: decodeURIComponent(proxyUrl.password),
-  bypass: "localhost,127.0.0.1",
-};
-const browser = await chromium.launch({ proxy });
+const browser = await launchBrowser();
 const context = await browser.newContext({
   viewport: { width: 1400, height: 900 },
   colorScheme: argv.includes("--dark") ? "dark" : "light",

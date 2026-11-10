@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { chromium } from "playwright";
+import { launchBrowser } from "./browser.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(`--${name}`);
@@ -28,15 +28,7 @@ const base = server.resolvedUrls.local[0].replace(/\/$/, "");
 const token = execFileSync("gh", ["auth", "token"], { encoding: "utf8" }).trim();
 const viewer = JSON.parse(execFileSync("gh", ["api", "user", "-q", "{login, name, avatarUrl: .avatar_url, url: .html_url}"], { encoding: "utf8" }));
 
-const proxyEnv = process.env.HTTPS_PROXY || process.env.https_proxy;
-const proxyUrl = proxyEnv && new URL(proxyEnv);
-const proxy = proxyUrl && {
-  server: `${proxyUrl.protocol}//${proxyUrl.host}`,
-  username: decodeURIComponent(proxyUrl.username),
-  password: decodeURIComponent(proxyUrl.password),
-  bypass: "localhost,127.0.0.1",
-};
-const browser = await chromium.launch({ proxy });
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, colorScheme: flag("dark") ? "dark" : "light" });
 page.on("console", (m) => m.type() === "error" && console.log("console error:", m.text().slice(0, 300)));
 page.on("pageerror", (e) => console.log("page error:", e.message));
@@ -53,7 +45,6 @@ await page.addInitScript(() => {
   requestAnimationFrame(tick);
 });
 
-if (proxy) await page.goto("https://api.github.com/zen").catch(() => {});
 await page.goto(base + "/settings");
 await page.evaluate(
   ([token, viewer]) =>
