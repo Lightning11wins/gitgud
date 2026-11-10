@@ -4,7 +4,7 @@ import { auth, signIn } from "./token";
 import { useTitle } from "@/lib/useTitle";
 
 const TOKEN_URL =
-  "https://github.com/settings/tokens/new?description=GitGud&scopes=repo,read:org,read:user,read:project";
+  "https://github.com/settings/tokens/new?description=GitGud&scopes=repo,read:org,read:project";
 
 export function Login() {
   useTitle("Sign in");
@@ -60,7 +60,7 @@ export function Login() {
             <a href={TOKEN_URL} target="_blank" rel="noopener noreferrer">
               Create a classic token
             </a>{" "}
-            with <code>repo</code>, <code>read:org</code>, <code>read:project</code>, and <code>read:user</code> scopes, or a fine-grained token with read/write access to
+            with <code>repo</code>, <code>read:org</code>, and <code>read:project</code> scopes, or a fine-grained token with read/write access to
             Contents, Issues, and Pull requests, plus read access to Actions, Commit statuses, and Metadata (and Members
             and Projects for organizations).
           </p>
