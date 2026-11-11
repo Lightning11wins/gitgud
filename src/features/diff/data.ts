@@ -64,8 +64,8 @@ function pullFilesQueryOptions(owner: string, repo: string, number: number) {
           head = (await gql<HeadData>(HEAD_QUERY, { owner, repo, number })).repository.pullRequest;
           return `${head.headRefOid}:${head.baseRefName}`;
         },
-        async (stamp) => {
-          const files = await restAll<DiffFile>(`/repos/${owner}/${repo}/pulls/${number}/files`, { maxPages: 30 });
+        async (stampP) => {
+          const [stamp, files] = await Promise.all([stampP, restAll<DiffFile>(`/repos/${owner}/${repo}/pulls/${number}/files`, { maxPages: 30 })]);
           return { stamp, pullId: head!.id, head: head!.headRefOid, baseRefOid: head!.baseRefOid, files: files.map(trimFile) };
         },
       );

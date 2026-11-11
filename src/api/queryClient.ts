@@ -111,22 +111,23 @@ export function cachedData<T>(key: QueryKey): T | undefined {
 /**
  * Cheap freshness check for expensive queries. Runs `probe` (a small query returning a
  * version stamp like `updatedAt`) and returns the cached value when the stamp matches;
- * otherwise runs `load`. Cached values must carry the stamp as `stamp`.
+ * otherwise runs `load`. Cached values must carry the stamp as `stamp`. With nothing cached,
+ * `load` starts while the probe is still in flight, so it can fetch before awaiting the stamp.
  *
- *   queryFn: () => probeThenLoad(key, () => fetchUpdatedAt(), (stamp) => fetchAll(stamp))
+ *   queryFn: () => probeThenLoad(key, () => fetchUpdatedAt(), async (stamp) => fetchAll(await stamp))
  */
 export async function probeThenLoad<T extends { stamp: string }>(
   key: QueryKey,
   probe: () => Promise<string>,
-  load: (stamp: string) => Promise<T>,
+  load: (stamp: Promise<string>) => Promise<T>,
 ): Promise<T> {
   const cached = queryClient.getQueryData<T>(key) ?? (await persistedData<T>(key));
   if (cached) {
     const stamp = await probe();
     if (stamp === cached.stamp) return cached;
-    return load(stamp);
+    return load(Promise.resolve(stamp));
   }
-  return load(await probe());
+  return load(probe());
 }
 
 export async function persistedData<T>(key: QueryKey): Promise<T | undefined> {

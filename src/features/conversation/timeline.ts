@@ -227,7 +227,7 @@ function timelineQueryFn(subject: Subject, maxPages = Infinity) {
   const cached = queryClient.getQueryData<TimelineData>(key);
   if (reloadDue(cached, Date.now())) return probe().then(load);
   if (recheckDue(cached, Date.now())) return probe().then((stamp) => loadTimeline(subject, stamp, maxPages, stamp === cached!.stamp));
-  return probeThenLoad(key, probe, load);
+  return probeThenLoad(key, probe, (stamp) => stamp.then(load));
 }
 
 export function useTimeline(kind: SubjectKind, owner: string, repo: string, number: number) {
