@@ -123,6 +123,8 @@ export function useScheduled(ref: RefObject<Element | null>, want: boolean, weig
   useEffect(() => {
     if (!want || granted || !ref.current) return;
     return schedule(ref.current, weight, (urgent, d) => {
+      // A pending idle grant's slot must be released before a rescheduled grant replaces it, or the idle queue stalls.
+      done.current?.();
       done.current = d;
       if (urgent) setGranted(true);
       else startTransition(() => setGranted(true));
