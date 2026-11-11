@@ -76,13 +76,14 @@ export const FileDiff = memo(function FileDiff(props: FileDiffProps) {
   // Once shown, the body stays mounted and is only hidden while collapsed, so toggling is cheap and keeps its state.
   const [opened, setOpened] = useState(!collapsed);
   if (!collapsed && !opened) setOpened(true);
+  const closeFileComment = useCallback(() => setFileComment(false), []);
   const comments = threads?.reduce((n, t) => n + t.comments.nodes.length, 0) ?? 0;
   return (
     <section className={`df ${collapsed ? "collapsed" : ""}`} id={fileDomId(file.filename)} data-path={file.filename}>
       <FileHeader {...props} comments={comments} onComment={pull ? () => setFileComment(true) : undefined} />
       {opened && (
         <div className="df-body" style={collapsed ? undefined : { containIntrinsicSize: `auto ${estimateHeight(file)}px` }}>
-          <FileBody {...props} fileComment={fileComment} closeFileComment={() => setFileComment(false)} />
+          <FileBody file={file} source={props.source} pull={pull} threads={threads} ignoreWs={props.ignoreWs} fileComment={fileComment} closeFileComment={closeFileComment} />
         </div>
       )}
     </section>
@@ -216,7 +217,10 @@ function patchIndex(nums: Int32Array) {
   };
 }
 
-function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileComment: () => void }) {
+type FileBodyProps = Pick<FileDiffProps, "file" | "source" | "pull" | "threads" | "ignoreWs"> & { fileComment: boolean; closeFileComment: () => void };
+
+// Memoized so collapsing or marking the file viewed doesn't re-render its body.
+const FileBody = memo(function FileBody(props: FileBodyProps) {
   const { file, source, pull, threads, ignoreWs, fileComment, closeFileComment } = props;
   const hidden = hiddenReason(file);
   const needsFetch = file.patch === undefined && file.changes > 0;
@@ -501,7 +505,7 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
       )}
     </div>
   );
-}
+});
 
 function overlaps(rows: Row[], range: { side: "L" | "R"; start: number; end: number }) {
   for (const r of rows) {
