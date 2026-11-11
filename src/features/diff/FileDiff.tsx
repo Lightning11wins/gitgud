@@ -227,7 +227,7 @@ const FileBody = memo(function FileBody(props: FileBodyProps) {
   const [load, setLoad] = useState(!hidden && !needsFetch);
   // Expanded gaps and fetched head lines, tagged with the diff version they belong to.
   const gapsId = ignoreWs ? `${source.id}:w` : source.id;
-  const [expansionState, setExpansion] = useState<{ id: string; gaps: Record<number, GapExpansion> }>({ id: gapsId, gaps: {} });
+  const [expansionState, setExpansion] = useState<{ id: string; gaps: Record<number, GapExpansion> }>({ id: gapsId, gaps: NO_GAPS });
   const [headState, setHead] = useState<{ id: string; lines: string[] }>();
   const expansion = expansionState.id === gapsId ? expansionState.gaps : NO_GAPS;
   const head = headState?.id === source.id ? headState.lines : undefined;
