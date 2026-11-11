@@ -64,7 +64,7 @@ export interface FileDiffProps {
 }
 
 export const ROW_H = 20;
-const CHUNK_ROWS = 80;
+const CHUNK_ROWS = 40;
 const NO_GAPS: Record<number, GapExpansion> = {};
 
 export const fileDomId = (path: string) => `diff-${path}`;
