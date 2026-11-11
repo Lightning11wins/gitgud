@@ -565,7 +565,8 @@ const KIND_CLASS = ["ctx", "del", "add"] as const;
 const Chunk = memo(function Chunk({ rows, blocks, ltok, rtok, lmap, rmap, one, pull, sel, form, onExpand }: ChunkProps) {
   const ref = useRef<HTMLDivElement>(null);
   const mounted = useScheduled(ref, true, rows.length);
-  const colored = useScheduled(ref, mounted && !!(ltok || rtok), rows.length);
+  // Scheduled alongside mounting, so a chunk that comes near with its tokens ready renders once, already coloured.
+  const colored = useScheduled(ref, !!(ltok || rtok), rows.length);
   if (!mounted) return <div ref={ref} className="dk-ph" data-blocks={blocks || undefined} style={{ height: rows.length * ROW_H }} />;
   const starts = blocks ? blocks.split(",").map(Number) : [];
   const L = colored ? ltok : null;
