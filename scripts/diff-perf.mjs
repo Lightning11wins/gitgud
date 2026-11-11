@@ -1,7 +1,8 @@
 // Benchmarks the Files changed tab on a production build. Each run uses a fresh browser profile and measures:
 //   cold, warm   time to the first file header, diff rows, and syntax colors, and until every chunk is mounted
 //   scroll       wheel-like scrolling from the top as soon as rows appear, while most chunks are still unmounted
-//   interact     latency of collapsing, marking viewed, Collapse all, Hide whitespace, and typing a comment
+//   interact     latency of typing a comment while chunks are still mounting, then, once all are mounted, of
+//                collapsing, marking viewed, Collapse all, Hide whitespace, and typing again
 // Prints the median of each metric over the runs. GitHub writes are stubbed out, so "Viewed" never changes.
 //
 // Usage: node scripts/diff-perf.mjs <app path> [--runs 3] [--cpu 1] [--only cold,warm,scroll,interact]
@@ -58,8 +59,7 @@ function pageInit() {
     if (!p.firstFile && document.querySelector("section.df")) p.firstFile = now;
     if (!p.firstRows && document.querySelector(".dk")) p.firstRows = now;
     if (!p.firstColor && document.querySelector(".dk [class^='hl-']")) p.firstColor = now;
-    if (p.firstRows && !p.allMounted && !document.querySelector(".dk-ph")) p.allMounted = now;
-    if (!p.allMounted || !p.firstColor) requestAnimationFrame(tick);
+    if (!p.firstColor) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
   // Benchmarks must not change anything on GitHub: GraphQL mutations succeed without being sent, other writes fail.
@@ -127,16 +127,30 @@ const settle = (page, from, quiet = 500, max = 15000) =>
     [from, quiet, max],
   );
 
+/** How long to wait for every chunk to mount; huge PRs on slow CPUs can take minutes. */
+const MOUNT_WAIT_MS = 60000;
+
+/**
+ * Waits until every chunk is mounted, at most MOUNT_WAIT_MS, and records when in `__perf.allMounted`. Returns how many
+ * were still placeholders. Checking scans the DOM, so it only runs while waiting, not during other measurements.
+ */
+async function waitMounted(page) {
+  await page
+    .waitForFunction(() => !document.getElementsByClassName("dk-ph").length && (window.__perf.allMounted ??= performance.now()), null, { timeout: MOUNT_WAIT_MS, polling: 200 })
+    .catch(() => {});
+  return page.evaluate(() => document.querySelectorAll(".dk-ph").length);
+}
+
 async function load(page, label, out) {
   await page.goto(base + path);
   await page.waitForSelector(".dk", { timeout: 180000 });
-  await page.waitForFunction(() => window.__perf.allMounted, null, { timeout: 180000, polling: 200 }).catch(() => console.log(`${label}: chunks still unmounted after 180s`));
+  out[`${label}.unmountedAt60s`] = await waitMounted(page);
   const p = await page.evaluate(() => window.__perf);
   out[`${label}.firstFile`] = p.firstFile;
   out[`${label}.firstRows`] = p.firstRows;
   out[`${label}.firstColor`] = p.firstColor;
   out[`${label}.allMounted`] = p.allMounted;
-  const b = blocking(p.longTasks, 0, p.allMounted);
+  const b = blocking(p.longTasks, 0, p.allMounted ?? Infinity);
   out[`${label}.longTasks`] = b.long;
   out[`${label}.tbt`] = b.tbt;
 }
@@ -192,15 +206,59 @@ async function timeIt(page, out, name, act) {
   out[`${name}.tbt`] = blocking(p.longTasks, from, last + 1).tbt;
 }
 
+/** Opens the comment form by clicking a line number. */
+async function openComment(page, out, name, num) {
+  await num.scrollIntoViewIfNeeded();
+  const box = await num.boundingBox();
+  await timeIt(page, out, name, async () => {
+    await page.mouse.move(box.x + 4, box.y + 4);
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForSelector(".new-thread textarea");
+  });
+}
+
+/** Per-keystroke latency at a steady pace, then how long a burst of 40 keys (like mashing the keyboard) takes to show. Cancels the form after. */
+async function typing(page, out, name) {
+  const typeFrom = await page.evaluate(() => performance.now());
+  await page.keyboard.type("steady typing test ", { delay: 50 });
+  const keys = (await page.evaluate(() => window.__perf.events)).filter(([s, , n]) => s >= typeFrom && n === "keydown").map(([, d]) => d);
+  // Keys under 16ms aren't reported by the Event Timing API.
+  const typed = 19;
+  const all = [...keys, ...Array(Math.max(0, typed - keys.length)).fill(16)].sort((a, b) => a - b);
+  out[`${name}.keyP50`] = all[Math.floor(all.length * 0.5)];
+  out[`${name}.keyMax`] = all[all.length - 1];
+  const burst = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn";
+  const want = (await page.locator(".new-thread textarea").inputValue()).length + burst.length;
+  const t0 = await page.evaluate(() => performance.now());
+  await page.keyboard.type(burst);
+  out[`${name}.burst40`] = await page.evaluate(
+    ([want, t0]) =>
+      new Promise((resolve) => {
+        const ta = document.querySelector(".new-thread textarea");
+        const wait = () => (ta.value.length >= want ? requestAnimationFrame(() => setTimeout(() => resolve(performance.now() - t0))) : setTimeout(wait, 5));
+        wait();
+      }),
+    [want, t0],
+  );
+  await page.locator(".new-thread button", { hasText: "Cancel" }).click();
+}
+
 async function interact(page, out) {
   await page.goto(base + path);
-  await page.waitForSelector(".dk", { timeout: 180000 });
-  await page.waitForFunction(() => window.__perf.allMounted, null, { timeout: 180000, polling: 200 }).catch(() => {});
+  // Right after opening, while most chunks are still mounting in the background.
+  const early = page.locator(".dk .dn[data-c][data-s='R']").first();
+  await early.waitFor({ timeout: 180000 });
+  await openComment(page, out, "openCommentFormLoading", early);
+  await typing(page, out, "typingLoading");
+  const unmounted = await page.evaluate(() => document.querySelectorAll(".dk-ph").length);
+  if (!unmounted) console.log("interact: every chunk mounted before typing ended, so typingLoading measured an idle page");
+  await waitMounted(page);
   await settle(page, 0, 1000);
   // A file a few screens down, so content sits above and below it.
   const target = await page.evaluate(() => {
     const files = [...document.querySelectorAll("section.df")];
-    const f = files.find((s, i) => i >= Math.min(5, files.length - 1) && s.querySelector(".dk .dn[data-c][data-s='R']"));
+    const f = files.find((s, i) => i >= Math.min(5, files.length - 1) && s.querySelectorAll(".dk .dn[data-c][data-s='R']").length > 10);
     f?.scrollIntoView({ block: "start" });
     return f?.dataset.path;
   });
@@ -213,46 +271,15 @@ async function interact(page, out) {
     await timeIt(page, out, "markViewed", () => file.locator(".df-viewed input").click());
     await timeIt(page, out, "unmarkViewed", () => file.locator(".df-viewed input").click());
   }
-  await timeIt(page, out, "collapseAll", () => page.locator("button[aria-label='Collapse all']").click());
-  await timeIt(page, out, "expandAll", () => page.locator("button[aria-label='Expand all']").click());
+  await timeIt(page, out, "collapseAll", () => page.locator(".dv-toolbar button[aria-label='Collapse all']").click());
+  await timeIt(page, out, "expandAll", () => page.locator(".dv-toolbar button[aria-label='Expand all']").click());
   await timeIt(page, out, "hideWhitespace", () => page.locator(".dv-ws input").click());
   await timeIt(page, out, "showWhitespace", () => page.locator(".dv-ws input").click());
 
   await file.evaluate((el) => el.scrollIntoView({ block: "start" }));
   await page.waitForTimeout(500);
-  const num = file.locator(".dk .dn[data-c][data-s='R']").nth(10);
-  await num.scrollIntoViewIfNeeded();
-  const box = await num.boundingBox();
-  await timeIt(page, out, "openCommentForm", async () => {
-    await page.mouse.move(box.x + 4, box.y + 4);
-    await page.mouse.down();
-    await page.mouse.up();
-    await page.waitForSelector(".new-thread textarea");
-  });
-  // Typing: per-keystroke latency at a steady pace, then how long a burst of 40 keys takes to show.
-  const typeFrom = await page.evaluate(() => performance.now());
-  await page.keyboard.type("steady typing test ", { delay: 50 });
-  const keys = (await page.evaluate(() => window.__perf.events)).filter(([s, , n]) => s >= typeFrom && n === "keydown").map(([, d]) => d);
-  // Keys under 16ms aren't reported by the Event Timing API.
-  const typed = 19;
-  const all = [...keys, ...Array(Math.max(0, typed - keys.length)).fill(16)].sort((a, b) => a - b);
-  out["typing.keyP50"] = all[Math.floor(all.length * 0.5)];
-  out["typing.keyMax"] = all[all.length - 1];
-  // Keys sent back to back, like mashing the keyboard: time until the last one shows.
-  const burst = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn";
-  const want = (await page.locator(".new-thread textarea").inputValue()).length + burst.length;
-  const t0 = await page.evaluate(() => performance.now());
-  await page.keyboard.type(burst);
-  out["typing.burst40"] = await page.evaluate(
-    ([want, t0]) =>
-      new Promise((resolve) => {
-        const ta = document.querySelector(".new-thread textarea");
-        const wait = () => (ta.value.length >= want ? requestAnimationFrame(() => setTimeout(() => resolve(performance.now() - t0))) : setTimeout(wait, 5));
-        wait();
-      }),
-    [want, t0],
-  );
-  await page.locator(".new-thread button", { hasText: "Cancel" }).click();
+  await openComment(page, out, "openCommentForm", file.locator(".dk .dn[data-c][data-s='R']").nth(10));
+  await typing(page, out, "typing");
 }
 
 /** Main-thread self time in a Chrome trace, by kind of work. */
