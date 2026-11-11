@@ -6,15 +6,17 @@
 // Prints the median of each metric over the runs. GitHub writes are stubbed out, so "Viewed" never changes.
 //
 // Usage: node scripts/diff-perf.mjs <app path> [--runs 3] [--cpu 1] [--only cold,warm,scroll,interact]
-//          [--json out.json] [--baseline old.json] [--trace dir] [--dev]
+//          [--json out.json] [--baseline old.json] [--trace dir] [--dev] [--firefox]
 //   --cpu N       slow the CPU N times (Chrome throttling), to approximate slower machines
 //   --json        save every run's numbers; --baseline prints the change from a saved file
 //   --trace dir   one extra traced run: saves a Chrome trace per scenario (open in DevTools > Performance)
 //                 and prints where main-thread time went (script, style, layout, paint, GC)
+//   --firefox     run in Firefox: no --cpu, --trace, or scroll, and no long tasks, so every tbt reads 0
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { firefox } from "playwright";
 import { launchBrowser } from "./browser.mjs";
 
 const argv = process.argv.slice(2);
@@ -30,8 +32,13 @@ if (!path) {
 }
 const runs = Number(opt("runs", 3));
 const cpu = Number(opt("cpu", 1));
-const only = new Set(opt("only", "cold,warm,scroll,interact").split(","));
+const isFirefox = flag("firefox");
+const only = new Set(opt("only", isFirefox ? "cold,warm,interact" : "cold,warm,scroll,interact").split(","));
 const traceDir = opt("trace");
+if (isFirefox && (cpu > 1 || traceDir || only.has("scroll"))) {
+  console.error("--firefox can't throttle the CPU, trace, or scroll: those use the Chrome DevTools Protocol");
+  process.exit(2);
+}
 
 const vite = await import("vite");
 let server;
@@ -46,7 +53,7 @@ if (flag("dev")) {
 const base = server.resolvedUrls.local[0].replace(/\/$/, "");
 const token = execFileSync("gh", ["auth", "token"], { encoding: "utf8" }).trim();
 const viewer = JSON.parse(execFileSync("gh", ["api", "user", "-q", "{login, name, avatarUrl: .avatar_url, url: .html_url}"], { encoding: "utf8" }));
-const browser = await launchBrowser();
+const browser = await launchBrowser(isFirefox ? firefox : undefined);
 
 /** Runs in the page before the app: load milestones, long tasks, event timings, and stubbed GitHub writes. */
 function pageInit() {

@@ -1,20 +1,20 @@
-// Launches headless Chromium for the browser scripts, through the HTTPS_PROXY in the environment when one is set.
+// Launches a headless browser for the browser scripts, through the HTTPS_PROXY in the environment when one is set.
 import net from "node:net";
 import { chromium } from "playwright";
 
 /**
- * Launches Chromium. A proxy with credentials goes through a local relay that adds them: Playwright
+ * Launches Chromium, or another Playwright browser type such as `firefox`. A proxy with credentials goes through a local relay that adds them: Playwright
  * turns off the HTTP cache when it answers proxy auth itself, so requests would never revalidate with
  * ETags and API costs would read higher than in a real browser.
  */
-export async function launchBrowser() {
+export async function launchBrowser(type = chromium) {
   const env = process.env.HTTPS_PROXY || process.env.https_proxy;
-  if (!env) return chromium.launch();
+  if (!env) return type.launch();
   const upstream = new URL(env);
   const bypass = "localhost,127.0.0.1";
-  if (!upstream.username) return chromium.launch({ proxy: { server: `${upstream.protocol}//${upstream.host}`, bypass } });
+  if (!upstream.username) return type.launch({ proxy: { server: `${upstream.protocol}//${upstream.host}`, bypass } });
   const relay = await startRelay(upstream);
-  const browser = await chromium.launch({ proxy: { server: `http://127.0.0.1:${relay.port}`, bypass } });
+  const browser = await type.launch({ proxy: { server: `http://127.0.0.1:${relay.port}`, bypass } });
   browser.on("disconnected", relay.close);
   return browser;
 }
