@@ -73,13 +73,15 @@ export const fileDomId = (path: string) => `diff-${path}`;
 export const FileDiff = memo(function FileDiff(props: FileDiffProps) {
   const { file, collapsed, pull, threads } = props;
   const [fileComment, setFileComment] = useState(false);
+  // Once shown, the body stays mounted and is only hidden while collapsed, so toggling is cheap and keeps its state.
+  const [opened, setOpened] = useState(!collapsed);
+  if (!collapsed && !opened) setOpened(true);
   const comments = threads?.reduce((n, t) => n + t.comments.nodes.length, 0) ?? 0;
-  const estimate = collapsed ? 0 : estimateHeight(file);
   return (
     <section className={`df ${collapsed ? "collapsed" : ""}`} id={fileDomId(file.filename)} data-path={file.filename}>
       <FileHeader {...props} comments={comments} onComment={pull ? () => setFileComment(true) : undefined} />
-      {!collapsed && (
-        <div className="df-body" style={{ containIntrinsicSize: `auto ${estimate}px` }}>
+      {opened && (
+        <div className="df-body" style={collapsed ? undefined : { containIntrinsicSize: `auto ${estimateHeight(file)}px` }}>
           <FileBody {...props} fileComment={fileComment} closeFileComment={() => setFileComment(false)} />
         </div>
       )}
@@ -284,8 +286,12 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
     return l === r ? undefined : l ? "L" : "R";
   }, [rows]);
 
+  // Chunks take onExpand; keeping it stable lets them skip re-rendering when, e.g., hiding whitespace leaves this file as it was.
+  const latest = useRef({ headLines, hunks, source, gapsId });
+  latest.current = { headLines, hunks, source, gapsId };
   const onExpand = useCallback(
     async (gap: number, dir: "up" | "down" | "all") => {
+      const { headLines, hunks, source, gapsId } = latest.current;
       setExpandError(null);
       const id = source.id;
       let lines = headLines;
@@ -304,7 +310,7 @@ function FileBody(props: FileDiffProps & { fileComment: boolean; closeFileCommen
         return { id: gapsId, gaps: { ...gaps, [gap]: expandGap(hunks, gap, len, gaps[gap], dir) } };
       });
     },
-    [headLines, hunks, source, file.filename, gapsId],
+    [file.filename],
   );
 
   // Hunk of each commentable line per side; GitHub rejects comment ranges that span hunks.

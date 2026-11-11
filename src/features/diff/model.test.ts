@@ -121,6 +121,13 @@ describe("ignoreWhitespace", () => {
     expect(L.length).toBe(oldL.length);
   });
 
+  it("returns the same hunks when no change is whitespace-only", () => {
+    const oldL = lines(30, (i) => `a${i}`);
+    const newL = oldL.map((l, i) => (i === 10 ? "changed" : i === 20 ? l + "!" : l));
+    const raw = parsePatch(ghPatch(text(oldL), text(newL)));
+    expect(ignoreWhitespace(raw)).toBe(raw);
+  });
+
   it("trims context around real changes inside a whitespace-changed run", () => {
     const oldL = lines(30, (i) => `a${i}`);
     const newL = oldL.map((l, i) => (i >= 5 && i < 20 ? "  " + l : i === 20 ? "changed" : l));

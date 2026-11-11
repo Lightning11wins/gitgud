@@ -177,7 +177,8 @@ function matchWhitespace(out: HunkLine[], dels: HunkLine[], adds: HunkLine[]) {
 /**
  * Hunks as `git diff -w` shows them: lines whose only change is whitespace become context,
  * context is trimmed to `context` lines around the remaining changes, and hunks left without
- * changes are dropped. Every line kept is a line of the original patch.
+ * changes are dropped. Every line kept is a line of the original patch. Returns `hunks` itself
+ * when nothing changes, so callers can skip rebuilding what depends on it.
  */
 export function ignoreWhitespace(hunks: Hunk[], context = 3): Hunk[] {
   const out: Hunk[] = [];
@@ -233,7 +234,17 @@ export function ignoreWhitespace(hunks: Hunk[], context = 3): Hunk[] {
       c = last + 1;
     }
   }
-  return out;
+  return sameHunks(hunks, out) ? hunks : out;
+}
+
+function sameHunks(a: Hunk[], b: Hunk[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((h, i) => {
+      const o = b[i];
+      return h.oldStart === o.oldStart && h.oldLines === o.oldLines && h.newStart === o.newStart && h.newLines === o.newLines && h.lines.length === o.lines.length && h.lines.every((l, j) => l === o.lines[j]);
+    })
+  );
 }
 
 /**

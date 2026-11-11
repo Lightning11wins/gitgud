@@ -265,6 +265,11 @@
   border-radius: 0 0 var(--radius) var(--radius);
   overflow: hidden;
 }
+/* Hidden keeps the collapsed body's rendering state, so expanding it again is quick. */
+.df.collapsed .df-body {
+  content-visibility: hidden;
+  contain-intrinsic-size: 0;
+}
 .df-notice {
   display: flex;
   align-items: center;

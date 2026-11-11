@@ -212,7 +212,7 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
       el.classList.contains("dk-ph")
         ? el.dataset.blocks!.split(",").map((i) => el.getBoundingClientRect().top + Number(i) * ROW_H)
         : [...el.querySelectorAll("[data-blk]")].map((c) => c.getBoundingClientRect().top);
-    const chunks = [...rootEl.querySelectorAll<HTMLElement>(".dv-files [data-blocks]")];
+    const chunks = [...rootEl.querySelectorAll<HTMLElement>(".dv-files .df:not(.collapsed) [data-blocks]")];
     let target: { el: HTMLElement; k: number } | null = null;
     for (let c = d === 1 ? 0 : chunks.length - 1; !target && c >= 0 && c < chunks.length; c += d) {
       const el = chunks[c];
