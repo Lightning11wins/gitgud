@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState, type RefObject } from "react";
+import { startTransition, useEffect, useRef, useState, type RefObject } from "react";
 
 /**
  * Upgrades diff chunks (mount, then apply syntax tokens) right away when they're near the
@@ -8,7 +8,8 @@ import { startTransition, useEffect, useState, type RefObject } from "react";
 interface Task {
   el: Element;
   weight: number;
-  grant: (urgent: boolean) => void;
+  /** An idle grant passes `done`, to call once it has rendered or will never need to. */
+  grant: (urgent: boolean, done: () => void) => void;
 }
 
 const NEAR_MARGIN = "1200px 0px";
@@ -22,6 +23,11 @@ const nearListeners = new Map<Element, Set<() => void>>();
 let io: IntersectionObserver | null = null;
 let lastScroll = 0;
 let idleHandle: number | null = null;
+/**
+ * Idle grants not yet rendered. The next batch waits for these: input interrupts transition renders, so batches
+ * granted meanwhile would pile up until React expires them and renders all at once, freezing the page.
+ */
+let inFlight = 0;
 
 const ric: (cb: (d: { timeRemaining: () => number }) => void) => number =
   typeof requestIdleCallback === "function" ? (cb) => requestIdleCallback(cb, { timeout: 500 }) : (cb) => window.setTimeout(() => cb({ timeRemaining: () => 8 }), 32);
@@ -60,7 +66,15 @@ function unobserve(el: Element) {
 
 function run(t: Task, urgent: boolean) {
   remove(t);
-  t.grant(urgent);
+  if (urgent) return t.grant(true, () => {});
+  inFlight++;
+  let pending = true;
+  t.grant(false, () => {
+    if (!pending) return;
+    pending = false;
+    inFlight--;
+    pump();
+  });
 }
 
 function remove(t: Task) {
@@ -72,7 +86,7 @@ function remove(t: Task) {
 }
 
 function pump() {
-  if (idleHandle !== null || !tasks.size) return;
+  if (idleHandle !== null || inFlight || !tasks.size) return;
   idleHandle = ric((deadline) => {
     idleHandle = null;
     if (performance.now() - lastScroll < SCROLL_QUIET_MS) return pump();
@@ -86,11 +100,11 @@ function pump() {
   });
 }
 
-function schedule(el: Element, weight: number, grant: (urgent: boolean) => void): () => void {
+function schedule(el: Element, weight: number, grant: Task["grant"]): () => void {
   observe(el);
   const t: Task = { el, weight, grant };
   if (near.has(el)) {
-    grant(true);
+    grant(true, () => {});
     unobserve(el);
     return () => {};
   }
@@ -105,10 +119,19 @@ function schedule(el: Element, weight: number, grant: (urgent: boolean) => void)
 /** False until the element is near the viewport or its idle turn comes; then true for good. */
 export function useScheduled(ref: RefObject<Element | null>, want: boolean, weight: number): boolean {
   const [granted, setGranted] = useState(false);
+  const done = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (!want || granted || !ref.current) return;
-    return schedule(ref.current, weight, (urgent) => (urgent ? setGranted(true) : startTransition(() => setGranted(true))));
+    return schedule(ref.current, weight, (urgent, d) => {
+      done.current = d;
+      if (urgent) setGranted(true);
+      else startTransition(() => setGranted(true));
+    });
   }, [ref, want, granted, weight]);
+  useEffect(() => {
+    if (granted) done.current?.();
+  }, [granted]);
+  useEffect(() => () => done.current?.(), []);
   return granted;
 }
 
