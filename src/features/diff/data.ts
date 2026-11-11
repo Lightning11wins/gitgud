@@ -50,6 +50,11 @@ export function prefetchPullFiles(owner: string, repo: string, number: number, l
   });
 }
 
+/** Starts loading a PR's files whatever their count, e.g. alongside its metadata when the page opens on Files changed. */
+export function loadPullFiles(owner: string, repo: string, number: number) {
+  void queryClient.prefetchQuery(pullFilesQueryOptions(owner, repo, number));
+}
+
 registerPathPrefetcher(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/files$/, ([, owner, repo, number]) => prefetchPullFiles(owner, repo, Number(number)));
 
 function pullFilesQueryOptions(owner: string, repo: string, number: number) {

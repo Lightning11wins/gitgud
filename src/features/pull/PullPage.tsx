@@ -6,7 +6,7 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 import { NotFound } from "@/components/NotFound";
 import { SubjectSeed } from "@/features/conversation/SubjectSeed";
 import { Timeline } from "@/features/conversation/Timeline";
-import { prefetchPullFiles } from "@/features/diff/data";
+import { loadPullFiles, prefetchPullFiles } from "@/features/diff/data";
 import { FilesChanged } from "@/features/diff/FilesChanged";
 import { MetadataSidebar } from "@/features/sidebar/MetadataSidebar";
 import { HotkeysActive } from "@/lib/hotkeys";
@@ -55,6 +55,11 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
   useEffect(() => {
     if (!sha) setVisited((v) => (v.has(tab) ? v : new Set(v).add(tab)));
   }, [tab, sha]);
+
+  // Opened on Files changed, its files load alongside the metadata instead of after it.
+  useEffect(() => {
+    if (tab === "files") loadPullFiles(owner, repo, number);
+  }, [tab, owner, repo, number]);
 
   // Files changed is the likeliest next tab; load it once the page settles.
   const loaded = !!q.data;
