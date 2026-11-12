@@ -43,7 +43,7 @@ import { RelativeTime } from "@/components/RelativeTime";
 import { StateBadge, StateIcon } from "@/components/StateBadge";
 import { TitleText } from "@/components/TitleText";
 import { commitsQueryOptions, type PullCommit } from "@/features/pull/api";
-import { OutcomeIcon, rollupOutcome } from "@/features/pull/checks";
+import { CommitChecksButton, OutcomeIcon, rollupOutcome } from "@/features/pull/checks";
 import { SignatureLabel } from "@/features/pull/CommitsTab";
 import { BotBadge } from "./BotBadge";
 import { eventGroup } from "./rows";
@@ -550,7 +550,21 @@ export const ReferenceGroup = memo(function ReferenceGroup({ events }: { events:
 });
 
 /** One commit on the timeline. `detail` comes from the Commits tab's list, which has bodies, checks, and signatures. */
-const TimelineCommit = memo(function TimelineCommit({ item, detail, to }: { item: CommitItem; detail: PullCommit | undefined; to: string }) {
+const TimelineCommit = memo(function TimelineCommit({
+  item,
+  detail,
+  to,
+  owner,
+  repo,
+  number,
+}: {
+  item: CommitItem;
+  detail: PullCommit | undefined;
+  to: string;
+  owner: string;
+  repo: string;
+  number: number;
+}) {
   const [open, setOpen] = useState(false);
   const c = item.commit;
   const login = c.author?.user?.login ?? c.author?.name ?? undefined;
@@ -573,12 +587,16 @@ const TimelineCommit = memo(function TimelineCommit({ item, detail, to }: { item
           )}
           <span className="tl-commit-end">
             <SignatureLabel signature={detail?.signature} />
-            {outcome === "success" ? (
-              <CheckIcon size={14} className="check-icon success" aria-label="Checks passed" />
-            ) : outcome === "failure" ? (
-              <XIcon size={14} className="check-icon failure" aria-label="Checks failed" />
-            ) : (
-              outcome && <OutcomeIcon outcome={outcome} size={14} />
+            {outcome && (
+              <CommitChecksButton owner={owner} repo={repo} number={number} oid={c.oid}>
+                {outcome === "success" ? (
+                  <CheckIcon size={14} className="check-icon success" aria-label="Checks passed" />
+                ) : outcome === "failure" ? (
+                  <XIcon size={14} className="check-icon failure" aria-label="Checks failed" />
+                ) : (
+                  <OutcomeIcon outcome={outcome} size={14} />
+                )}
+              </CommitChecksButton>
             )}
             <Link to={to} className="mono tl-commit-sha">
               {c.abbreviatedOid}
@@ -612,7 +630,7 @@ export const CommitGroup = memo(function CommitGroup({ commits, owner, repo, num
         </div>
       </div>
       {commits.map((c) => (
-        <TimelineCommit key={c.id} item={c} detail={byOid.get(c.commit.oid)} to={base + c.commit.oid} />
+        <TimelineCommit key={c.id} item={c} detail={byOid.get(c.commit.oid)} to={base + c.commit.oid} owner={owner} repo={repo} number={number} />
       ))}
     </>
   );

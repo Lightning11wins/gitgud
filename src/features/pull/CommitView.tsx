@@ -5,7 +5,7 @@ import { Link } from "react-router";
 import { RelativeTime } from "@/components/RelativeTime";
 import { CommitFiles } from "@/features/diff/FilesChanged";
 import { commitsQueryOptions, type PullMeta } from "./api";
-import { OutcomeIcon, rollupOutcome } from "./checks";
+import { CommitChecksButton, OutcomeIcon, rollupOutcome } from "./checks";
 import { CommitAuthors } from "./CommitsTab";
 import { CopyButton } from "./util";
 
@@ -37,7 +37,12 @@ export function CommitView({ pull, owner, repo, sha }: { pull: PullMeta; owner: 
           {commit ? (
             <>
               <h2 className="commit-view-title">
-                {commit.messageHeadline} {outcome && <OutcomeIcon outcome={outcome} />}
+                {commit.messageHeadline}{" "}
+                {outcome && (
+                  <CommitChecksButton owner={owner} repo={repo} number={pull.number} oid={commit.oid}>
+                    <OutcomeIcon outcome={outcome} />
+                  </CommitChecksButton>
+                )}
               </h2>
               {commit.messageBody && <pre className="commit-body">{commit.messageBody}</pre>}
             </>

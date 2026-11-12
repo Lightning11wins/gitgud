@@ -1,7 +1,12 @@
 import { AlertIcon, CheckCircleFillIcon, DotFillIcon, SkipIcon, SquareFillIcon, StopIcon, XCircleFillIcon } from "@primer/octicons-react";
-import { memo, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { memo, useState, type ReactNode } from "react";
+import { keys } from "@/api/keys";
+import { ErrorBanner } from "@/components/ErrorBanner";
+import { Popover } from "@/components/Popover";
+import { Spinner } from "@/components/Spinner";
 import { useSecond } from "@/lib/time";
-import type { CheckContext, RollupState } from "./api";
+import { fetchAllChecks, type CheckContext, type RollupState } from "./api";
 import { formatDuration } from "./util";
 
 export type CheckOutcome = "success" | "failure" | "pending" | "skipped" | "neutral" | "cancelled" | "action";
@@ -142,3 +147,52 @@ export const CheckRow = memo(function CheckRow({ check, showGroup }: { check: Ch
     </div>
   );
 });
+
+/** A commit's check status icon as a button that opens a list of the commit's checks. */
+export function CommitChecksButton({ owner, repo, number, oid, children }: { owner: string; repo: string; number: number; oid: string; children: ReactNode }) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  return (
+    <>
+      <button
+        className="btn invisible xs icon commit-checks-btn"
+        aria-label="Show checks"
+        aria-expanded={!!anchor}
+        onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
+      >
+        {children}
+      </button>
+      {anchor && (
+        <Popover anchor={anchor} onClose={() => setAnchor(null)} width={400}>
+          <CommitChecks owner={owner} repo={repo} number={number} oid={oid} />
+        </Popover>
+      )}
+    </>
+  );
+}
+
+function CommitChecks({ owner, repo, number, oid }: { owner: string; repo: string; number: number; oid: string }) {
+  const q = useQuery({ queryKey: keys.checks(owner, repo, oid), queryFn: () => fetchAllChecks(owner, repo, number, oid) });
+  if (!q.data) {
+    if (q.error) return <ErrorBanner error={q.error} />;
+    return (
+      <div className="commit-checks-loading">
+        <Spinner label="Loading checks" />
+      </div>
+    );
+  }
+  if (!q.data.length) return <div className="commit-checks-header muted">No checks or statuses were reported on this commit.</div>;
+  const s = summarize(q.data);
+  return (
+    <>
+      <div className="commit-checks-header">
+        <strong>{s.title}</strong>
+        <div className="muted">{s.detail}</div>
+      </div>
+      <div className="commit-checks-list">
+        {sortChecks(q.data).map((c) => (
+          <CheckRow key={c.id} check={c} showGroup />
+        ))}
+      </div>
+    </>
+  );
+}

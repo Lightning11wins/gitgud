@@ -1,13 +1,13 @@
 import { EllipsisIcon, GitCommitIcon } from "@primer/octicons-react";
 import { useQuery } from "@tanstack/react-query";
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Avatar } from "@/components/Avatar";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { RelativeTime } from "@/components/RelativeTime";
 import { Spinner } from "@/components/Spinner";
 import { commitsQueryOptions, type PullCommit, type PullMeta } from "./api";
-import { OutcomeIcon, rollupOutcome } from "./checks";
+import { CommitChecksButton, OutcomeIcon, rollupOutcome } from "./checks";
 import { CopyButton, groupByDay } from "./util";
 
 /** Commit authors' avatars and a "x and y committed" line. */
@@ -36,7 +36,14 @@ export function SignatureLabel({ signature }: { signature: PullCommit["signature
   );
 }
 
-export const CommitRow = memo(function CommitRow({ commit, to }: { commit: PullCommit; to?: string }) {
+/** The PR a commit list belongs to; its check icons open the commit's checks. */
+export interface CommitListPull {
+  owner: string;
+  repo: string;
+  number: number;
+}
+
+export const CommitRow = memo(function CommitRow({ commit, to, pull }: { commit: PullCommit; to?: string; pull?: CommitListPull }) {
   const [open, setOpen] = useState(false);
   const outcome = rollupOutcome(commit.statusCheckRollup?.state);
   return (
@@ -64,7 +71,14 @@ export const CommitRow = memo(function CommitRow({ commit, to }: { commit: PullC
             <span>
               committed <RelativeTime date={commit.committedDate} />
             </span>
-            {outcome && <OutcomeIcon outcome={outcome} size={14} />}
+            {outcome &&
+              (pull ? (
+                <CommitChecksButton {...pull} oid={commit.oid}>
+                  <OutcomeIcon outcome={outcome} size={14} />
+                </CommitChecksButton>
+              ) : (
+                <OutcomeIcon outcome={outcome} size={14} />
+              ))}
           </div>
         </div>
         <SignatureLabel signature={commit.signature} />
@@ -87,7 +101,7 @@ export const CommitRow = memo(function CommitRow({ commit, to }: { commit: PullC
 });
 
 /** Commits grouped by day under date headings, oldest first like GitHub. */
-export function CommitList({ commits, linkFor }: { commits: PullCommit[]; linkFor?: (c: PullCommit) => string }) {
+export function CommitList({ commits, linkFor, pull }: { commits: PullCommit[]; linkFor?: (c: PullCommit) => string; pull?: CommitListPull }) {
   return (
     <div className="commit-list">
       {groupByDay(commits, (c) => c.committedDate).map((g) => (
@@ -97,7 +111,7 @@ export function CommitList({ commits, linkFor }: { commits: PullCommit[]; linkFo
           </h3>
           <div className="box">
             {g.items.map((c) => (
-              <CommitRow key={c.oid} commit={c} to={linkFor?.(c)} />
+              <CommitRow key={c.oid} commit={c} to={linkFor?.(c)} pull={pull} />
             ))}
           </div>
         </section>
@@ -108,6 +122,7 @@ export function CommitList({ commits, linkFor }: { commits: PullCommit[]; linkFo
 
 export function CommitsTab({ pull, owner, repo }: { pull: PullMeta; owner: string; repo: string }) {
   const q = useQuery(commitsQueryOptions(owner, repo, pull.number));
+  const listPull = useMemo(() => ({ owner, repo, number: pull.number }), [owner, repo, pull.number]);
   if (!q.data) {
     if (q.error) return <ErrorBanner error={q.error} />;
     return (
@@ -120,7 +135,7 @@ export function CommitsTab({ pull, owner, repo }: { pull: PullMeta; owner: strin
   return (
     <>
       {q.error != null && <ErrorBanner error={q.error} />}
-      <CommitList commits={q.data.commits} linkFor={(c) => base + c.oid} />
+      <CommitList commits={q.data.commits} linkFor={(c) => base + c.oid} pull={listPull} />
     </>
   );
 }

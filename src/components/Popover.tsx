@@ -26,9 +26,13 @@ export function Popover({ anchor, onClose, children, align = "start", width }: P
       setPos({ top, left });
     };
     place();
+    // Content that loads after opening changes the size, so place it again.
+    const observer = new ResizeObserver(place);
+    if (ref.current) observer.observe(ref.current);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     return () => {
+      observer.disconnect();
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };

@@ -577,3 +577,17 @@ span.pull-branch {
     display: none;
   }
 }
+.commit-checks-header {
+  padding: 12px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-muted);
+}
+.commit-checks-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.commit-checks-loading {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
