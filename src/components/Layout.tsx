@@ -1,10 +1,10 @@
 import { CheckIcon, CommentIcon, LinkExternalIcon } from "@primer/octicons-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, Outlet, useLocation } from "react-router";
 import { rateLimits } from "@/api/rateLimit";
 import { auth, signOut } from "@/auth/token";
 import { copyText } from "@/lib/clipboard";
-import { isValidName, repoPath, toAppPath, toGitHubUrl } from "@/lib/githubUrl";
+import { isValidName, repoPath, toGitHubUrl } from "@/lib/githubUrl";
 import { useHotkey } from "@/lib/hotkeys";
 import { settings } from "@/lib/settings";
 import { useStore } from "@/lib/store";
@@ -12,6 +12,7 @@ import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
 import { NotFound } from "./NotFound";
 import { Popover } from "./Popover";
+import { JumpBox } from "./JumpBox";
 import { RepoSwitcher } from "./RepoSwitcher";
 
 /** owner/repo from the current path, when the path is inside a repo. */
@@ -148,60 +149,6 @@ function Crumb({ to, current, bold, children }: { to: string; current: string; b
     <Link to={to} style={style}>
       {children}
     </Link>
-  );
-}
-
-function JumpBox({ repo }: { repo: { owner: string; repo: string } | null }) {
-  const navigate = useNavigate();
-  const ref = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useState("");
-  const [invalid, setInvalid] = useState(false);
-  useHotkey("/", () => ref.current?.focus());
-
-  const go = () => {
-    const text = value.trim();
-    const num = /^#?(\d+)$/.exec(text);
-    const path = num && repo ? `/${repo.owner}/${repo.repo}/issues/${num[1]}` : toAppPath(text);
-    if (!path) {
-      setInvalid(true);
-      return;
-    }
-    setValue("");
-    ref.current?.blur();
-    navigate(path);
-  };
-
-  return (
-    <label className="jump-box">
-      <input
-        ref={ref}
-        className="input sm"
-        style={invalid ? { borderColor: "var(--danger)" } : undefined}
-        placeholder="Jump to…"
-        title={repo ? "Type #123, owner/repo, or paste a GitHub URL, then press Enter. Shortcut: /" : "Type owner/repo, owner/repo#123, or paste a GitHub URL, then press Enter. Shortcut: /"}
-        aria-label="Jump to an issue, pull request, or repository"
-        value={value}
-        onChange={(e) => {
-          setValue(e.target.value);
-          setInvalid(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") go();
-          if (e.key === "Escape") ref.current?.blur();
-        }}
-        onPaste={(e) => {
-          const text = e.clipboardData.getData("text");
-          const path = toAppPath(text);
-          if (path && /github\.com\//.test(text)) {
-            e.preventDefault();
-            setValue("");
-            ref.current?.blur();
-            navigate(path);
-          }
-        }}
-      />
-      {!value && <kbd aria-hidden="true">/</kbd>}
-    </label>
   );
 }
 

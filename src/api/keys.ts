@@ -24,4 +24,6 @@ export const keys = {
   labels: (owner: string, repo: string) => ["labels", owner, repo] as const,
   assignable: (owner: string, repo: string) => ["assignable", owner, repo] as const,
   milestones: (owner: string, repo: string) => ["milestones", owner, repo] as const,
+  /** The jump box's GitHub search for `text`, scoped to the repo the user is in. */
+  jump: (repo: { owner: string; repo: string } | null, text: string) => ["jump", repo?.owner, repo?.repo, text] as const,
 };

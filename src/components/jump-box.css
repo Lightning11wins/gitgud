@@ -1,0 +1,25 @@
+.jump-box .spinner {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  margin-top: -7px;
+}
+.jump-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(480px, calc(100vw - 16px));
+  max-width: none;
+  padding: 4px 0;
+}
+.jump-menu .select-menu-item {
+  color: var(--fg);
+  text-decoration: none;
+}
+.jump-menu .truncate {
+  flex: 1;
+}
+.jump-hint {
+  flex-shrink: 0;
+}
