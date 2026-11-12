@@ -251,10 +251,11 @@ function ChecksSection({ pull, owner, repo }: { pull: PullMeta; owner: string; r
 }
 
 function MergeabilitySection({ pull, owner, repo }: { pull: PullMeta; owner: string; repo: string }) {
-  const [busy, setBusy] = useState(false);
+  // Names the running action, so a button that appears mid-action doesn't claim it.
+  const [busy, setBusy] = useState<"ready" | "update" | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const run = async (fn: () => Promise<unknown>) => {
-    setBusy(true);
+  const run = async (action: "ready" | "update", fn: () => Promise<unknown>) => {
+    setBusy(action);
     setError(null);
     try {
       await fn();
@@ -262,7 +263,7 @@ function MergeabilitySection({ pull, owner, repo }: { pull: PullMeta; owner: str
     } catch (e) {
       setError(e);
     }
-    setBusy(false);
+    setBusy(null);
   };
   const errorBanner = error != null && <ErrorBanner error={error} />;
 
@@ -277,15 +278,15 @@ function MergeabilitySection({ pull, owner, repo }: { pull: PullMeta; owner: str
           pull.viewerCanUpdate && (
             <button
               className="btn sm"
-              disabled={busy}
+              disabled={busy !== null}
               onClick={() =>
-                run(async () => {
+                run("ready", async () => {
                   await setDraft(pull.id, false);
                   patchPull(owner, repo, pull.number, { isDraft: false });
                 })
               }
             >
-              {busy ? "Marking..." : "Ready for review"}
+              {busy === "ready" ? "Marking..." : "Ready for review"}
             </button>
           )
         }
@@ -326,12 +327,12 @@ function MergeabilitySection({ pull, owner, repo }: { pull: PullMeta; owner: str
           canWrite(pull.repository.viewerPermission) && (
             <button
               className="btn sm"
-              disabled={busy}
+              disabled={busy !== null}
               onClick={() =>
-                run(() => rest(`/repos/${owner}/${repo}/pulls/${pull.number}/update-branch`, { method: "PUT", body: { expected_head_sha: pull.headRefOid } }))
+                run("update", () => rest(`/repos/${owner}/${repo}/pulls/${pull.number}/update-branch`, { method: "PUT", body: { expected_head_sha: pull.headRefOid } }))
               }
             >
-              {busy ? "Updating..." : "Update branch"}
+              {busy === "update" ? "Updating..." : "Update branch"}
             </button>
           )
         }
@@ -538,7 +539,8 @@ function MergeConfirm({ pull, owner, repo, method, onCancel }: { pull: PullMeta;
 
 function ClosedBox({ pull, owner, repo }: { pull: PullMeta; owner: string; repo: string }) {
   const { viewer } = useStore(auth);
-  const [busy, setBusy] = useState(false);
+  // Names the running action: deleting swaps in the restore button before the refresh finishes.
+  const [busy, setBusy] = useState<"delete" | "restore" | null>(null);
   const [error, setError] = useState<unknown>(null);
   const merged = pull.state === "MERGED";
   const headRepo = pull.headRepository;
@@ -547,8 +549,8 @@ function ClosedBox({ pull, owner, repo }: { pull: PullMeta; owner: string; repo:
   const exists = !!pull.headRef;
   const branch = <BranchName name={pull.headRefName} owner={pull.isCrossRepository ? headRepo?.owner.login : undefined} />;
 
-  const run = async (fn: () => Promise<unknown>) => {
-    setBusy(true);
+  const run = async (action: "delete" | "restore", fn: () => Promise<unknown>) => {
+    setBusy(action);
     setError(null);
     try {
       await fn();
@@ -556,7 +558,7 @@ function ClosedBox({ pull, owner, repo }: { pull: PullMeta; owner: string; repo:
     } catch (e) {
       setError(e);
     }
-    setBusy(false);
+    setBusy(null);
   };
 
   const action =
@@ -564,28 +566,28 @@ function ClosedBox({ pull, owner, repo }: { pull: PullMeta; owner: string; repo:
     (exists ? (
       <button
         className="btn sm"
-        disabled={busy}
+        disabled={busy !== null}
         onClick={() =>
-          run(async () => {
+          run("delete", async () => {
             await deleteBranch(pull.headRef!.id);
             patchPull(owner, repo, pull.number, { headRef: null });
           })
         }
       >
-        <GitBranchIcon /> {busy ? "Deleting..." : "Delete branch"}
+        <GitBranchIcon /> {busy === "delete" ? "Deleting..." : "Delete branch"}
       </button>
     ) : (
       <button
         className="btn sm"
-        disabled={busy}
+        disabled={busy !== null}
         onClick={() =>
-          run(async () => {
+          run("restore", async () => {
             const ref = await restoreBranch(headRepo!.owner.login, headRepo!.name, pull.headRefName, pull.headRefOid);
             patchPull(owner, repo, pull.number, { headRef: { id: (ref as { node_id: string }).node_id } });
           })
         }
       >
-        <GitBranchIcon /> {busy ? "Restoring..." : "Restore branch"}
+        <GitBranchIcon /> {busy === "restore" ? "Restoring..." : "Restore branch"}
       </button>
     ));
 
