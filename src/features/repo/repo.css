@@ -16,6 +16,9 @@
   font-size: 20px;
   font-weight: 400;
 }
+.repo-icon {
+  display: flex;
+}
 .repo-desc {
   margin: 0;
 }

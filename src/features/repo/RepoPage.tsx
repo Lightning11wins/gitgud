@@ -125,9 +125,13 @@ export function RepoPage({ kind }: { kind?: Kind }) {
     <div className="repo">
       <div className="repo-head">
         <h1 className="repo-name">
-          <RepoIcon size={20} />
+          <span className="repo-icon" role="img" title="Repository"><RepoIcon size={20} /></span>
           <span className="muted">{owner} /</span> <strong>{repo}</strong>
-          {c?.isPrivate && <LockIcon size={16} className="muted" />}
+          {c?.isPrivate && (
+            <span className="repo-icon muted" role="img" title="Private repository">
+              <LockIcon size={16} />
+            </span>
+          )}
         </h1>
         {counts.isPending ? (
           <p className="muted repo-desc">
