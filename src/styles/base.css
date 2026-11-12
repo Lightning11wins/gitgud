@@ -305,6 +305,19 @@ samp {
   line-height: 20px;
   color: var(--fg);
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* When the header is narrow, names shrink to an ellipsis; separators and carets keep their size. */
+.app-header .crumbs > .muted,
+.app-header .crumb-menu {
+  flex-shrink: 0;
+}
+/* The owner crumb gives up its space first, so the repo and section stay readable longest. The weight is large enough
+   that the others lose less than a layout unit (which would still show an ellipsis) until the owner can shrink no more. */
+.app-header .crumbs > :is(a, [aria-current="page"]) {
+  flex-shrink: 1000000;
 }
 .app-header .crumb-menu {
   display: inline-flex;
