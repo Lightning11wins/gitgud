@@ -443,17 +443,14 @@ span.pull-branch {
 }
 .signature-label {
   flex-shrink: 0;
-  height: 18px;
-  padding: 0 6px;
-  line-height: 16px;
 }
 .signature-label.verified {
   color: var(--success);
-  border-color: var(--success);
+  border-color: var(--success-emphasis);
 }
 .signature-label.unverified {
   color: var(--attention);
-  border-color: var(--attention);
+  border-color: var(--attention-emphasis);
 }
 .commit-body {
   margin: 6px 0 2px;

@@ -23,6 +23,7 @@
   --danger-emphasis: #cf222e;
   --danger-subtle: #ffebe9;
   --attention: #9a6700;
+  --attention-emphasis: #9a6700;
   --attention-subtle: #fff8c5;
   --attention-bright: #e3b341;
   --done: #8250df;
@@ -77,6 +78,7 @@
     --danger-emphasis: #da3633;
     --danger-subtle: #f851491a;
     --attention: #d29922;
+    --attention-emphasis: #9e6a03;
     --attention-subtle: #bb800926;
     --attention-bright: #f2cc60;
     --done: #ab7df8;
@@ -128,6 +130,7 @@
     --danger-emphasis: #da3633;
     --danger-subtle: #f851491a;
     --attention: #d29922;
+    --attention-emphasis: #9e6a03;
     --attention-subtle: #bb800926;
     --attention-bright: #f2cc60;
     --done: #ab7df8;
