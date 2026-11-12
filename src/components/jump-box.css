@@ -11,7 +11,7 @@
   transform: translateX(-50%);
   width: min(480px, calc(100vw - 16px));
   max-width: none;
-  padding: 4px 0;
+  padding: 8px;
 }
 .jump-menu .select-menu-item {
   color: var(--fg);
