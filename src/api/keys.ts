@@ -3,6 +3,8 @@ import type { QueryKey } from "@tanstack/react-query";
 /** Query keys shared across features. Invalidate these after mutations. */
 export const keys = {
   viewer: () => ["viewer"] as const,
+  /** Organizations the viewer belongs to. */
+  viewerOrgs: () => ["viewer-orgs"] as const,
   dashboard: (section: string) => ["dashboard", section] as const,
   owner: (login: string) => ["owner", login] as const,
   repoList: (owner: string, repo: string, query: string) => ["repo-list", owner, repo, query] as const,

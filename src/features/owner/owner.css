@@ -133,3 +133,11 @@
     position: static;
   }
 }
+.orgs-title {
+  margin: 0;
+}
+.orgs-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

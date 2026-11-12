@@ -247,6 +247,9 @@ function UserMenu() {
             <Link className="select-menu-item" to={`/${viewer.login}`} onClick={() => setAnchor(null)} style={{ color: "var(--fg)" }}>
               Repositories
             </Link>
+            <Link className="select-menu-item" to="/settings/organizations" onClick={() => setAnchor(null)} style={{ color: "var(--fg)" }}>
+              Organizations
+            </Link>
             <Link className="select-menu-item" to="/settings" onClick={() => setAnchor(null)} style={{ color: "var(--fg)" }}>
               Settings
             </Link>
