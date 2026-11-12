@@ -1,5 +1,5 @@
 import { ArrowRightIcon, RepoForkedIcon, RepoIcon, RepoLockedIcon } from "@primer/octicons-react";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { keys } from "@/api/keys";
@@ -7,14 +7,22 @@ import { toAppPath } from "@/lib/githubUrl";
 import { useHotkey } from "@/lib/hotkeys";
 import { useDebounced } from "@/lib/useDebounced";
 import { Avatar } from "./Avatar";
-import { cachedHits, jumpRows, searchJump, type JumpRow, type RepoRef } from "./jumpResults";
+import { cachedHits, isSearchable, jumpRows, searchJump, type JumpRow, type RepoRef } from "./jumpResults";
 import { Spinner } from "./Spinner";
 import { StateIcon } from "./StateBadge";
 import { TitleText } from "./TitleText";
 import "./jump-box.css";
 
 const SEARCH_DELAY_MS = 300;
-const MIN_SEARCH_LENGTH = 2;
+
+const jumpQuery = (repo: RepoRef | null, text: string) =>
+  queryOptions({
+    queryKey: keys.jump(repo, text),
+    queryFn: () => searchJump(text, repo),
+    staleTime: 5 * 60_000,
+    persister: undefined,
+    retry: false,
+  });
 
 /** Header box that suggests pages as you type; Enter opens the highlighted one. */
 export function JumpBox({ repo }: { repo: RepoRef | null }) {
@@ -27,24 +35,22 @@ export function JumpBox({ repo }: { repo: RepoRef | null }) {
   const [dismissed, setDismissed] = useState(false);
   const [active, setActive] = useState(0);
   const [invalid, setInvalid] = useState(false);
+
+  const [waiting, setWaiting] = useState(false);
   useHotkey("/", () => ref.current?.focus());
 
   const text = value.trim();
+  const textRef = useRef(text);
+  textRef.current = text;
   const debounced = useDebounced(text, SEARCH_DELAY_MS);
-  // Numbers and URLs only jump.
-  const searchable = debounced.length >= MIN_SEARCH_LENGTH && !/^#?\d+$/.test(debounced) && !debounced.includes("://");
   const live = useQuery({
-    queryKey: keys.jump(repo, debounced),
-    queryFn: () => searchJump(debounced, repo),
-    enabled: searchable && focused,
-    staleTime: 5 * 60_000,
-    persister: undefined,
+    ...jumpQuery(repo, debounced),
+    enabled: isSearchable(debounced) && focused,
     placeholderData: keepPreviousData,
-    retry: false,
   });
 
-  const open = focused && !dismissed && !!text;
-  const shown = open ? suggestions() : [];
+  const rows = text ? suggestions() : [];
+  const shown = focused && !dismissed ? rows : [];
 
   function suggestions() {
     const cached = cachedHits(client);
@@ -67,6 +73,16 @@ export function JumpBox({ repo }: { repo: RepoRef | null }) {
     }
     reset();
     navigate(row.path);
+  };
+  /** Opens the highlighted row. With none yet, searches now and opens the top result, unless the text changed meanwhile. */
+  const enter = async () => {
+    const row = rows[active] ?? rows[0];
+    if (row || !isSearchable(text)) return go(row);
+    const asked = text;
+    setWaiting(true);
+    const hits = await client.fetchQuery(jumpQuery(repo, asked)).catch(() => undefined);
+    setWaiting(false);
+    if (textRef.current === asked && document.activeElement === ref.current) go(jumpRows(asked, repo, cachedHits(client), hits)[0]);
   };
 
   return (
@@ -101,7 +117,7 @@ export function JumpBox({ repo }: { repo: RepoRef | null }) {
             if (dismissed) setDismissed(false);
             else setActive((a) => Math.max(0, Math.min(a + (e.key === "ArrowDown" ? 1 : -1), shown.length - 1)));
           } else if (e.key === "Enter") {
-            go(shown[active]);
+            void enter();
           } else if (e.key === "Escape") {
             if (shown.length) setDismissed(true);
             else ref.current?.blur();
@@ -118,7 +134,7 @@ export function JumpBox({ repo }: { repo: RepoRef | null }) {
         }}
       />
       {!value && <kbd aria-hidden="true">/</kbd>}
-      {value && <Spinner label="Searching GitHub" show={live.isFetching} />}
+      {value && <Spinner label="Searching GitHub" show={live.isFetching || waiting} />}
       {shown.length > 0 && (
         <div className="jump-menu popover" id={listId} role="listbox" aria-label="Suggestions">
           {shown.map((row, i) => (

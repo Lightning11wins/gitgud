@@ -15,11 +15,23 @@ const paths = (rows: { path: string }[]) => rows.map((r) => r.path);
 describe("jumpRows", () => {
   beforeEach(() => updateSettings({ repoTab: "all" }));
 
-  it("puts the jump target first, so Enter keeps opening what was typed", () => {
-    const cached: JumpHits = { ...none, repos: [{ owner: "cli", name: "cli" }, { owner: "cli", name: "go-gh" }] };
-    expect(paths(jumpRows("cli/go-gh", repo, cached))).toEqual(["/cli/go-gh"]);
-    expect(paths(jumpRows("#12", repo, none))).toEqual(["/cli/cli/issues/12"]);
-    expect(paths(jumpRows("cli", repo, cached))).toEqual(["/cli", "/cli/cli", "/cli/go-gh"]);
+  it("puts explicit targets first, so Enter opens what was typed", () => {
+    const cached: JumpHits = { ...none, repos: [{ owner: "cli", name: "cli" }] };
+    expect(paths(jumpRows("#12", repo, cached))).toEqual(["/cli/cli/issues/12"]);
+    expect(paths(jumpRows("cli/cli#5", null, cached))).toEqual(["/cli/cli/issues/5"]);
+    expect(paths(jumpRows("https://github.com/cli/cli/pull/3", null, cached))).toEqual(["/cli/cli/pull/3"]);
+  });
+
+  it("suggests no page for a half-typed name until a real one matches", () => {
+    expect(paths(jumpRows("gitgud", null, none))).toEqual([]);
+    expect(paths(jumpRows("lightsys/cen", null, none))).toEqual([]);
+  });
+
+  it("puts exact name matches first", () => {
+    const cached: JumpHits = { ...none, repos: [{ owner: "LightSys", name: "kardia" }] };
+    const live: JumpHits = { ...none, repos: [{ owner: "acme", name: "cli-tools" }, { owner: "cli", name: "cli" }], owners: [{ login: "LightSys", avatarUrl: "" }] };
+    expect(paths(jumpRows("lightsys", null, cached, live))).toEqual(["/LightSys", "/LightSys/kardia", "/acme/cli-tools", "/cli/cli"]);
+    expect(paths(jumpRows("cli/cli", null, none, live))).toEqual(["/cli/cli", "/acme/cli-tools", "/LightSys"]);
   });
 
   it("shows only cached hits that match, best match first", () => {
@@ -31,8 +43,8 @@ describe("jumpRows", () => {
         { owner: "LightSys", name: "centrallix" },
       ],
     };
-    expect(paths(jumpRows("centrallix", null, cached))).toEqual(["/centrallix", "/LightSys/centrallix", "/acme/centrallix-docs"]);
-    expect(paths(jumpRows("lightsys/cen", null, cached))).toEqual(["/lightsys/cen", "/LightSys/centrallix"]);
+    expect(paths(jumpRows("centrallix", null, cached))).toEqual(["/LightSys/centrallix", "/acme/centrallix-docs"]);
+    expect(paths(jumpRows("lightsys/cen", null, cached))).toEqual(["/LightSys/centrallix"]);
     expect(paths(jumpRows("zzz zzz", null, cached))).toEqual([]);
   });
 

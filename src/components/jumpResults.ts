@@ -50,59 +50,64 @@ const MAX_REPOS = 5;
 const MAX_OWNERS = 3;
 const MAX_SUBJECTS = 5;
 
-/** The page that typed text names directly: `#123` (inside a repo), `owner/repo`, `owner/repo#123`, an owner, or a GitHub URL. */
+/** The page that typed text names explicitly: `#123` (inside a repo), `owner/repo#123`, or a URL. Bare names may be half typed, so they aren't targets. */
 export function jumpTarget(text: string, repo: RepoRef | null): { path: string; label: string } | null {
   const t = text.trim();
   const num = /^#?(\d+)$/.exec(t);
   if (num && repo) return { path: `/${repo.owner}/${repo.repo}/issues/${num[1]}`, label: `${repo.owner}/${repo.repo}#${num[1]}` };
+  if (/^[\w.-]+(\/[\w.-]*)?$/.test(t)) return null;
   const path = toAppPath(t);
   return path ? { path, label: t } : null;
 }
 
+/** True when GitHub's search can add suggestions for `text`. Numbers and URLs only jump. */
+export function isSearchable(text: string): boolean {
+  const t = text.trim();
+  return t.length >= 2 && !/^#?\d+$/.test(t) && !t.includes("://");
+}
+
 /**
- * Suggestions for the jump box, best first: the jump target, the current repo's issues and PRs,
- * then repos and owners. Within each group, `cached` hits that match `text` come before `live`
- * hits, which are already search results and show unfiltered.
+ * Suggestions for the jump box, best first: the jump target, exact name matches, the current repo's
+ * issues and PRs, then repos and owners. Within each group, `cached` hits that match `text` come
+ * before `live` hits, which are already search results and show even when they don't match.
  */
 export function jumpRows(text: string, repo: RepoRef | null, cached: JumpHits, live?: JumpHits): JumpRow[] {
   const q = text.trim().toLowerCase();
   if (!q) return [];
   const inRepo = (s: SubjectHit) => !!repo && s.repo.toLowerCase() === `${repo.owner}/${repo.repo}`.toLowerCase();
-  const pick = <T>(hits: T[], liveHits: T[] | undefined, fields: (h: T) => string[]) => [
-    ...hits
-      .map((h) => ({ h, s: score(q, fields(h)) }))
-      .filter((x) => x.s < Infinity)
-      .sort((a, b) => a.s - b.s)
-      .map((x) => x.h),
-    ...(liveHits ?? []),
-  ];
+  const pick = <T>(hits: T[], liveHits: T[] | undefined, fields: (h: T) => string[], toRow: (h: T) => JumpRow) => {
+    const scored = (list: T[]) => list.map((h) => ({ row: toRow(h), s: score(q, fields(h)) })).sort((a, b) => a.s - b.s);
+    return [...scored(hits).filter((x) => x.s < Infinity), ...scored(liveHits ?? [])];
+  };
 
   const target = jumpTarget(text, repo);
-  const groups: [JumpRow[], number][] = [
-    [target ? [{ kind: "jump", ...target }] : [], 1],
+  const groups: [{ row: JumpRow; s: number }[], number][] = [
+    [target ? [{ row: { kind: "jump", ...target }, s: 0 }] : [], 1],
     [
-      pick(cached.subjects.filter(inRepo), live?.subjects, (s) => [s.title, `#${s.number}`]).map((s) => ({
+      pick(cached.subjects.filter(inRepo), live?.subjects, (s) => [s.title, `#${s.number}`], (s) => ({
         kind: "subject",
         path: `/${s.repo}/${s.isPull ? "pull" : "issues"}/${s.number}`,
         ...s,
       })),
       MAX_SUBJECTS,
     ],
-    [pick(cached.repos, live?.repos, (r) => [r.name, `${r.owner}/${r.name}`]).map((r) => ({ kind: "repo", path: repoPath(r.owner, r.name), ...r })), MAX_REPOS],
-    [pick(cached.owners, live?.owners, (o) => [o.login]).map((o) => ({ kind: "owner", path: `/${o.login}`, ...o })), MAX_OWNERS],
+    [pick(cached.repos, live?.repos, (r) => [r.name, `${r.owner}/${r.name}`], (r) => ({ kind: "repo", path: repoPath(r.owner, r.name), ...r })), MAX_REPOS],
+    [pick(cached.owners, live?.owners, (o) => [o.login], (o) => ({ kind: "owner", path: `/${o.login}`, ...o })), MAX_OWNERS],
   ];
 
   const seen = new Set<string>();
-  return groups.flatMap(([rows, max]) =>
-    rows
-      .filter((r) => {
-        const key = r.path.toLowerCase();
+  const rows = groups.flatMap(([hits, max]) =>
+    hits
+      .filter(({ row }) => {
+        const key = row.path.toLowerCase();
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       })
       .slice(0, max),
   );
+  const exact = (x: { s: number }) => x.s % 3 === 0;
+  return [...rows.filter(exact), ...rows.filter((x) => !exact(x))].map((x) => x.row);
 }
 
 /** How well `q` matches the best of `fields`, lower is better: exact, then prefix, then containing every word. Earlier fields win ties. */
