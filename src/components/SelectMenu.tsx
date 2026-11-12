@@ -1,4 +1,4 @@
-import { CheckIcon } from "@primer/octicons-react";
+import { CheckIcon, SearchIcon } from "@primer/octicons-react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Popover } from "./Popover";
 import { Spinner } from "./Spinner";
@@ -34,7 +34,8 @@ export function SelectMenu<T>(props: SelectMenuProps<T>) {
   const { anchor, title, items, getKey, getText, renderItem, initial, multiple, onApply, onClose, onFilterChange, footer, filterable = true, emptyText = "No matches", placeholder = "Filter" } = props;
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState(() => new Set(initial));
-  const [active, setActive] = useState(0);
+  // Nothing is highlighted until the user types or moves, like GitHub; then Enter picks the highlighted row.
+  const [active, setActive] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -103,24 +104,25 @@ export function SelectMenu<T>(props: SelectMenuProps<T>) {
 
   return (
     <Popover anchor={anchor} onClose={close} width={300}>
-      <div className="dialog-header" style={{ padding: "8px 12px", fontSize: 13 }}>
-        {title}
+      <div className="select-menu-head">
+        <div className="select-menu-title">{title}</div>
+        {filterable && (
+          <div className="select-menu-filter">
+            <SearchIcon />
+            <input
+              ref={inputRef}
+              className="input"
+              placeholder={placeholder}
+              value={filter}
+              onChange={(e) => {
+                setFilter(e.target.value);
+                setActive(0);
+              }}
+              onKeyDown={onKeyDown}
+            />
+          </div>
+        )}
       </div>
-      {filterable && (
-        <div className="select-menu-filter">
-          <input
-            ref={inputRef}
-            className="input sm"
-            placeholder={placeholder}
-            value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value);
-              setActive(0);
-            }}
-            onKeyDown={onKeyDown}
-          />
-        </div>
-      )}
       <div
         className="select-menu-list"
         ref={listRef}

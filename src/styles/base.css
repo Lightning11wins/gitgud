@@ -603,21 +603,15 @@ textarea.input {
   border-top: 1px solid var(--border);
 }
 
-.select-menu-filter {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-}
-.select-menu-filter .input {
-  width: 100%;
-}
+/* Rows sit inset from the menu's edges with rounded highlights, like GitHub's action lists. */
 .select-menu-list {
   max-height: 360px;
   overflow-y: auto;
-  padding: 4px 0;
+  padding: 8px;
 }
 /* A whole-pixel line height keeps every row on whole pixels, so stacked rows' text sits evenly apart. */
 .select-menu-header {
-  padding: 6px 12px;
+  padding: 6px 8px;
   font-size: 13px;
   line-height: 20px;
 }
@@ -626,8 +620,9 @@ textarea.input {
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 6px 12px;
+  padding: 6px 8px;
   border: none;
+  border-radius: var(--radius);
   background: none;
   text-align: left;
   font-size: 13px;

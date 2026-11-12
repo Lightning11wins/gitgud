@@ -16,3 +16,28 @@
   background: var(--accent);
   color: var(--fg-on-emphasis);
 }
+.select-menu-head {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.select-menu-title {
+  padding: 6px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.select-menu-filter {
+  position: relative;
+  margin-top: 4px;
+}
+.select-menu-filter svg {
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  color: var(--fg-muted);
+  pointer-events: none;
+}
+.select-menu-filter .input {
+  width: 100%;
+  padding-left: 32px;
+}
