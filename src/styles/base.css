@@ -321,6 +321,24 @@ samp {
   background: var(--neutral-hover);
   text-decoration: none;
 }
+/* The repo crumb and its menu caret form one split button, like GitHub's: hovering either half or opening the menu
+   tints the whole pill, and the active half gets the stronger hover tint. */
+.app-header .crumb-split {
+  display: inline-flex;
+  min-width: 0;
+  border-radius: var(--radius);
+}
+.app-header .crumb-split:has(a:hover, .crumb-menu:hover, .crumb-menu[aria-expanded="true"]) {
+  background: var(--neutral-muted);
+}
+.app-header .crumb-split > :first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.app-header .crumb-split > .crumb-menu {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
 @media (max-width: 1012px) {
   .app-header .app-header-label {
     display: none;

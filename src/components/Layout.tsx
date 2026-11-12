@@ -92,10 +92,12 @@ export function Layout() {
               {repo && (
                 <>
                   <span className="muted">/</span>
-                  <Crumb to={repoPath(repo.owner, repo.repo)} current={pathname} bold>
-                    {repo.repo}
-                  </Crumb>
-                  <RepoSwitcher owner={repo.owner} repo={repo.repo} />
+                  <span className="crumb-split">
+                    <Crumb to={repoPath(repo.owner, repo.repo)} current={pathname} bold>
+                      {repo.repo}
+                    </Crumb>
+                    <RepoSwitcher owner={repo.owner} repo={repo.repo} />
+                  </span>
                 </>
               )}
               {list && (
