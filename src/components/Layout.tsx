@@ -73,7 +73,7 @@ export function Layout() {
   useRememberListQuery(repo ? segments : [], search);
   const list = repo && listCrumb(segments);
   const onFeedback = pathname.toLowerCase() === `/${FEEDBACK_REPO}/issues/new`.toLowerCase();
-  const wide = /\/pull\/(\d+\/(files|commits\/[0-9a-f]+)|new\/)/.test(pathname) || pathname.includes("/compare");
+  const wide = /\/pull\/\d+\/(files|commits\/[0-9a-f]+)/.test(pathname);
 
   return (
     <>

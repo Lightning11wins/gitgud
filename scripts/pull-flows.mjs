@@ -152,11 +152,23 @@ try {
     if (process.env.CREATE) {
       await page.fill(".compare-title-input", "Add extra helper");
       await click(".compare-draft input");
+      await page.getByRole("button", { name: "Edit assignees" }).click();
+      await idle();
+      await page.locator(".select-menu-item", { hasText: viewer.login }).first().click();
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Edit labels" }).click();
+      await idle();
+      await page.locator(".select-menu-item", { hasText: "documentation" }).first().click();
+      await page.keyboard.press("Escape");
+      await shot("compare-filled", true);
       await click("text=Create draft pull request");
-      await page.waitForTimeout(3000);
+      await page.waitForURL(/\/pull\/\d+$/, { timeout: 20000 });
       await idle();
       console.log("navigated to", page.url());
       await shot("created", true);
+      const side = await page.locator(".sidebar").innerText();
+      const errors = await page.locator(".flash.error").allInnerTexts();
+      console.log(side.includes(viewer.login) && side.includes("documentation") && !errors.length ? "ok: metadata applied on create" : `FAIL: metadata not applied on create ${errors}`);
     }
   } else {
     console.log("unknown scenario", scenario);

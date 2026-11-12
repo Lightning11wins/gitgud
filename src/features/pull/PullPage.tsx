@@ -1,6 +1,6 @@
 import { ChecklistIcon, CommentDiscussionIcon, FileDiffIcon, GitCommitIcon } from "@primer/octicons-react";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { isNotFound } from "@/api/client";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { NotFound } from "@/components/NotFound";
@@ -44,6 +44,10 @@ export function PullPage() {
 
 function PullView({ owner, repo, number, rest }: { owner: string; repo: string; number: number; rest: string }) {
   const q = usePull(owner, repo, number);
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Set by the new PR form when the PR was created but some of its metadata wasn't.
+  const createError = (location.state as { createError?: string } | null)?.createError;
   useCheckPolling(owner, repo, number, q.data);
   useTitle(q.data?.title, `Pull request #${number}`, `${owner}/${repo}`);
   const { tab, sha } = parseTab(rest);
@@ -98,6 +102,16 @@ function PullView({ owner, repo, number, rest }: { owner: string; repo: string; 
   return (
     <div className="pull-page">
       {q.error != null && <ErrorBanner error={q.error} />}
+      {createError && (
+        <ErrorBanner
+          error={createError}
+          action={
+            <button className="btn sm" onClick={() => navigate(location, { replace: true, state: null })}>
+              Dismiss
+            </button>
+          }
+        />
+      )}
       <PullHeader pull={pull} owner={owner} repo={repo} />
       <nav className="tabs pull-tabs">
         <TabLink to={base} active={tab === "conversation"} icon={<CommentDiscussionIcon />} label="Conversation" count={pull.totalCommentsCount} />

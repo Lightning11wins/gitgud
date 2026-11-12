@@ -491,9 +491,6 @@ span.pull-branch {
 }
 
 /* Compare / new PR */
-.compare-top {
-  max-width: 1012px;
-}
 .compare-title {
   margin: 0 0 4px;
   font-size: 24px;
@@ -538,12 +535,24 @@ span.pull-branch {
   margin: 0;
 }
 .compare-form {
-  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 256px;
+  gap: 24px;
+  align-items: start;
   margin-bottom: 24px;
+}
+.compare-form-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.compare-form-main > label {
+  font-size: 13px;
+  font-weight: 600;
 }
 .compare-title-input {
   width: 100%;
-  margin-bottom: 8px;
+  height: 36px;
   font-size: 16px;
 }
 .compare-draft {
@@ -554,15 +563,29 @@ span.pull-branch {
   gap: 4px;
   font-size: 12px;
 }
-.compare-stats {
-  margin-bottom: 12px;
+.compare-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+}
+.compare-summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.compare-summary svg {
+  color: var(--fg-muted);
 }
 .compare-commits {
   margin-bottom: 24px;
 }
 
 @media (max-width: 767px) {
-  .pull-conversation {
+  .pull-conversation,
+  .compare-form {
     grid-template-columns: minmax(0, 1fr);
   }
   .pull-sticky-inner {

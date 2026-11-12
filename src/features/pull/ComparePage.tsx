@@ -1,18 +1,24 @@
-import { ArrowLeftIcon, CheckIcon, GitBranchIcon, GitCompareIcon, TriangleDownIcon, XIcon } from "@primer/octicons-react";
+import { ArrowLeftIcon, CheckIcon, FileDiffIcon, GitBranchIcon, GitCommitIcon, GitCompareIcon, GitPullRequestIcon, PeopleIcon, TriangleDownIcon, XIcon } from "@primer/octicons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { gql, gqlAll, type PageInfo } from "@/api/client";
 import { keys } from "@/api/keys";
 import { queryClient } from "@/api/queryClient";
-import { ACTOR_FIELDS } from "@/api/types";
+import { ACTOR_FIELDS, canTriage, type RepoPermission } from "@/api/types";
+import { auth } from "@/auth/token";
+import { Avatar } from "@/components/Avatar";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { SelectMenu } from "@/components/SelectMenu";
 import { Spinner } from "@/components/Spinner";
 import { Composer } from "@/features/composer/Composer";
+import { useCompareFiles } from "@/features/diff/data";
 import { CompareFiles } from "@/features/diff/FilesChanged";
+import { DraftSidebar, PickerSection, type DraftMetadata } from "@/features/sidebar/DraftSidebar";
+import { updateSubject } from "@/features/sidebar/data";
 import { drafts } from "@/lib/drafts";
-import type { PullCommit } from "./api";
+import { useStore } from "@/lib/store";
+import { fetchReviewerCandidates, requestReviews, reviewerCandidatesKey, type Candidate, type PullCommit } from "./api";
 import { CommitList } from "./CommitsTab";
 import { plural } from "./util";
 import "./pull.css";
@@ -55,6 +61,7 @@ async function fetchBranches(owner: string, repo: string): Promise<Branches> {
 
 interface Comparison {
   repositoryId: string;
+  viewerPermission: RepoPermission | null;
   /** Null when either ref doesn't exist. */
   compare: { aheadBy: number; behindBy: number; status: string; totalCommits: number } | null;
   commits: PullCommit[];
@@ -70,13 +77,14 @@ async function fetchComparison(owner: string, repo: string, base: string, head: 
   type Data = {
     repository: {
       id: string;
+      viewerPermission: RepoPermission | null;
       baseRef: { compare: { aheadBy: number; behindBy: number; status: string; commits: CommitPage } | null } | null;
       pullRequests: { nodes: { number: number; title: string }[] };
     } & Record<string, { text?: string } | null>;
   };
   const first = await gql<Data>(
     `query Compare($owner: String!, $repo: String!, $base: String!, $head: String!, ${templateArgs}) { repository(owner: $owner, name: $repo) {
-      id
+      id viewerPermission
       baseRef: ref(qualifiedName: $base) { compare(headRef: $head) { aheadBy behindBy status commits(first: 100) {
         totalCount pageInfo { hasNextPage endCursor } nodes { ${COMMIT_FIELDS} }
       } } }
@@ -105,6 +113,7 @@ async function fetchComparison(owner: string, repo: string, base: string, head: 
   const template = TEMPLATE_PATHS.map((_, i) => r[`t${i}`]?.text).find((t) => t != null) ?? null;
   return {
     repositoryId: r.id,
+    viewerPermission: r.viewerPermission,
     compare: cmp && { aheadBy: cmp.aheadBy, behindBy: cmp.behindBy, status: cmp.status, totalCommits: cmp.commits.totalCount },
     commits,
     existing: r.pullRequests.nodes[0] ?? null,
@@ -213,19 +222,38 @@ export function ComparePage({ head: headProp }: { head?: string } = {}) {
       </div>
       {data?.compare && !nothing && (
         <>
-          <div className="compare-stats row">
-            <span>
-              <strong>{data.compare.totalCommits.toLocaleString()}</strong>{" "}
-              <span className="muted">{data.compare.totalCommits === 1 ? "commit" : "commits"}</span>
-            </span>
-            {data.commits.length < data.compare.totalCommits && <span className="muted">(showing {data.commits.length})</span>}
-          </div>
+          <CompareSummary owner={owner} repo={repo} base={base!} head={head!} data={data} totalCommits={data.compare.totalCommits} />
           <div className="compare-commits">
             <CommitList commits={data.commits} />
           </div>
           <CompareFiles owner={owner} repo={repo} base={base!} head={head!} />
         </>
       )}
+    </div>
+  );
+}
+
+/** Commit, file, and contributor counts for the comparison. */
+function CompareSummary({ owner, repo, base, head, data, totalCommits }: { owner: string; repo: string; base: string; head: string; data: Comparison; totalCommits: number }) {
+  const files = useCompareFiles(owner, repo, base, head).data?.files;
+  const contributors = new Set(data.commits.flatMap((c) => c.authors.nodes.map((a) => a.user?.login ?? a.email ?? a.name))).size;
+  const count = (n: number | undefined, noun: string, suffix = "") => (
+    <>
+      <strong>{n == null ? "\u2026" : `${n.toLocaleString()}${suffix}`}</strong> {n === 1 ? noun : `${noun}s`}
+    </>
+  );
+  return (
+    <div className="box compare-summary">
+      <span>
+        <GitCommitIcon /> {count(totalCommits, "commit")}
+        {data.commits.length < totalCommits && <span className="muted"> (showing {data.commits.length.toLocaleString()})</span>}
+      </span>
+      <span>
+        <FileDiffIcon /> {count(files?.length, "file", files?.length === 300 ? "+" : "")} changed
+      </span>
+      <span>
+        <PeopleIcon /> {count(contributors, "contributor")}
+      </span>
     </div>
   );
 }
@@ -279,6 +307,9 @@ function NewPullForm({ owner, repo, base, head, data }: { owner: string; repo: s
   const [title, setTitle] = useState(fallbackTitle);
   const [draft, setDraft] = useState(false);
   const [titleLoaded, setTitleLoaded] = useState(false);
+  const [meta, setMeta] = useState<DraftMetadata>({ assignees: [], labels: [], milestone: null, type: null });
+  const [reviewers, setReviewers] = useState<Candidate[]>([]);
+  const triage = canTriage(data.viewerPermission);
 
   useEffect(() => {
     drafts.get(`${draftKey}:title`).then((t) => {
@@ -297,43 +328,125 @@ function NewPullForm({ owner, repo, base, head, data }: { owner: string; repo: s
   const create = async (body: string) => {
     const t = title.trim();
     if (!t) throw new Error("Failed to create the pull request: the title is empty");
-    const res = await gql<{ createPullRequest: { pullRequest: { number: number } } }>(
-      `mutation CreatePull($input: CreatePullRequestInput!) { createPullRequest(input: $input) { pullRequest { number } } }`,
+    const res = await gql<{ createPullRequest: { pullRequest: { id: string; number: number } } }>(
+      `mutation CreatePull($input: CreatePullRequestInput!) { createPullRequest(input: $input) { pullRequest { id number } } }`,
       { input: { repositoryId: data.repositoryId, baseRefName: base, headRefName: head, title: t, body, draft } },
     );
-    const number = res.createPullRequest.pullRequest.number;
+    const { id, number } = res.createPullRequest.pullRequest;
+    const createError = await applyMetadata(id, number, meta, reviewers);
     await drafts.clear(`${draftKey}:title`);
     queryClient.invalidateQueries({ queryKey: ["compare", owner, repo] });
     queryClient.invalidateQueries({ queryKey: ["repo-list", owner, repo] });
     queryClient.invalidateQueries({ queryKey: keys.recentPushes(owner, repo) });
-    navigate(`/${owner}/${repo}/pull/${number}`);
+    navigate(`/${owner}/${repo}/pull/${number}`, { state: createError ? { createError } : undefined });
   };
 
   return (
-    <div className="box compare-form">
-      <input className="input compare-title-input" value={title} placeholder="Title" aria-label="Title" onChange={(e) => setTitle(e.target.value)} />
-      <Composer
-        draftKey={draftKey}
-        owner={owner}
-        repo={repo}
-        initialValue={initialBody}
-        placeholder="Add a description"
-        submitLabel={draft ? "Create draft pull request" : "Create pull request"}
-        minRows={10}
-        allowEmpty
-        onSubmit={create}
-        actions={() => (
-          <label className="row compare-draft">
-            <input type="checkbox" checked={draft} onChange={(e) => setDraft(e.target.checked)} />
-            Create as draft
-          </label>
+    <div className="compare-form">
+      <div className="compare-form-main">
+        <label className="row" htmlFor="compare-title">
+          <GitPullRequestIcon />
+          Add a title
+        </label>
+        <input id="compare-title" className="input compare-title-input" value={title} placeholder="Title" onChange={(e) => setTitle(e.target.value)} />
+        {!title.trim() && (
+          <div className="muted compare-hint row">
+            <XIcon /> A title is required.
+          </div>
         )}
-      />
-      {!title.trim() && (
-        <div className="muted compare-hint row">
-          <XIcon /> A title is required.
-        </div>
-      )}
+        <label>Add a description</label>
+        <Composer
+          draftKey={draftKey}
+          owner={owner}
+          repo={repo}
+          initialValue={initialBody}
+          placeholder="Add a description"
+          submitLabel={draft ? "Create draft pull request" : "Create pull request"}
+          minRows={10}
+          allowEmpty
+          onSubmit={create}
+          actions={() => (
+            <label className="row compare-draft">
+              <input type="checkbox" checked={draft} onChange={(e) => setDraft(e.target.checked)} />
+              Create as draft
+            </label>
+          )}
+        />
+      </div>
+      <DraftSidebar kind="pull" owner={owner} repo={repo} editable={triage} value={meta} onChange={(patch) => setMeta((m) => ({ ...m, ...patch }))}>
+        <DraftReviewers owner={owner} repo={repo} editable={triage} value={reviewers} onChange={setReviewers} />
+      </DraftSidebar>
     </div>
+  );
+}
+
+/** Sets a new PR's metadata. Returns the error of the first update that failed, so the PR page can show it. */
+async function applyMetadata(id: string, number: number, meta: DraftMetadata, reviewers: Candidate[]): Promise<string | null> {
+  const updates: Promise<unknown>[] = [];
+  if (meta.assignees.length || meta.labels.length || meta.milestone)
+    updates.push(
+      updateSubject("pull", id, { assigneeIds: meta.assignees.map((u) => u.id), labelIds: meta.labels.map((l) => l.id), milestoneId: meta.milestone?.id ?? null }).catch((e) => {
+        throw new Error(`Failed to set the assignees, labels, and milestone of #${number}: ${e instanceof Error ? e.message : e}`);
+      }),
+    );
+  if (reviewers.length) {
+    const ids = (kind: Candidate["kind"]) => reviewers.filter((r) => r.kind === kind).map((r) => r.id);
+    updates.push(
+      requestReviews(id, ids("user"), ids("team")).catch((e) => {
+        throw new Error(`Failed to request reviewers on #${number}: ${e instanceof Error ? e.message : e}`);
+      }),
+    );
+  }
+  const failed = (await Promise.allSettled(updates)).find((r) => r.status === "rejected");
+  return failed ? (failed.reason as Error).message : null;
+}
+
+function DraftReviewers({ owner, repo, editable, value, onChange }: { owner: string; repo: string; editable: boolean; value: Candidate[]; onChange: (next: Candidate[]) => void }) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const { viewer } = useStore(auth);
+  const candidates = useQuery({
+    queryKey: reviewerCandidatesKey(owner, repo),
+    queryFn: () => fetchReviewerCandidates(owner, repo),
+    enabled: !!anchor,
+    staleTime: 5 * 60_000,
+  });
+  const name = (c: Candidate) => (c.kind === "user" ? c.login : c.combinedSlug);
+  return (
+    <PickerSection title="Reviewers" editable={editable} onEdit={(e) => setAnchor(anchor ? null : e.currentTarget)}>
+      {value.length === 0 ? (
+        <div className="muted sidebar-empty">No reviews</div>
+      ) : (
+        <ul className="sidebar-list">
+          {value.map((c) => (
+            <li key={c.id} className="row">
+              {c.kind === "team" && !c.avatarUrl ? <PeopleIcon size={20} /> : <Avatar src={c.avatarUrl} size={20} login={name(c)} />}
+              <span className="sidebar-user truncate">{name(c)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {candidates.error != null && anchor && <ErrorBanner error={candidates.error} />}
+      {anchor && (
+        <SelectMenu<Candidate>
+          anchor={anchor}
+          title="Request up to 15 reviewers"
+          items={candidates.data?.filter((c) => c.kind === "team" || c.login !== viewer?.login)}
+          getKey={(c) => c.id}
+          getText={(c) => (c.kind === "user" ? `${c.login} ${c.name ?? ""}` : `${c.combinedSlug} ${c.name}`)}
+          renderItem={(c) => (
+            <>
+              {c.kind === "team" && !c.avatarUrl ? <PeopleIcon size={20} /> : <Avatar src={c.avatarUrl} size={20} />}
+              <span className="truncate">
+                <strong>{name(c)}</strong> <span className="muted">{c.name}</span>
+              </span>
+            </>
+          )}
+          initial={value.map((c) => c.id)}
+          multiple
+          onApply={(ids) => onChange((candidates.data ?? []).filter((c) => ids.includes(c.id)))}
+          onClose={() => setAnchor(null)}
+        />
+      )}
+    </PickerSection>
   );
 }
