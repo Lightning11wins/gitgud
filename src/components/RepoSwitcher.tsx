@@ -4,6 +4,7 @@ import { RepoForkedIcon, RepoIcon, RepoLockedIcon, TriangleDownIcon } from "@pri
 import { useOwner, type OwnerRepo } from "@/features/owner/ownerData";
 import { repoPath } from "@/lib/githubUrl";
 import { SelectMenu } from "./SelectMenu";
+import { tooltip } from "@/lib/tooltip";
 
 /** Caret next to the repo crumb that opens a menu of the owner's other repos. */
 export function RepoSwitcher({ owner, repo }: { owner: string; repo: string }) {
@@ -13,8 +14,7 @@ export function RepoSwitcher({ owner, repo }: { owner: string; repo: string }) {
       <button
         type="button"
         className="crumb-menu"
-        aria-label="Switch repository"
-        title="Switch repository"
+        {...tooltip("Switch repository", "label")}
         aria-expanded={!!anchor}
         onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
       >

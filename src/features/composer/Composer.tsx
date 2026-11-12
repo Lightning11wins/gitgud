@@ -27,6 +27,7 @@ import { drafts } from "@/lib/drafts";
 import { useMentionSuggestions, useRefSuggestions, type MentionCandidate, type RefCandidate } from "./autocomplete";
 import { code, findTrigger, insert, link, prefixLines, suggestion, wrap, type Edit, type Trigger } from "./format";
 import "./composer.css";
+import { tooltip } from "@/lib/tooltip";
 
 export interface ComposerActionContext {
   value: string;
@@ -303,12 +304,12 @@ export function Composer(props: ComposerProps) {
         {tab === "write" && (
           <div className="composer-toolbar" role="toolbar">
             {suggestionSource !== undefined && (
-              <button className="btn invisible sm" title="Suggest change" onMouseDown={(e) => e.preventDefault()} onClick={() => format((v, s, e) => suggestion(v, s, e, suggestionSource))}>
+              <button className="btn invisible sm" {...tooltip("Suggest change")} onMouseDown={(e) => e.preventDefault()} onClick={() => format((v, s, e) => suggestion(v, s, e, suggestionSource))}>
                 <FileDiffIcon /> Suggest
               </button>
             )}
             {tools.map(([title, icon, op]) => (
-              <button key={title} className="btn invisible sm icon" title={title} aria-label={title} onMouseDown={(e) => e.preventDefault()} onClick={() => {
+              <button key={title} className="btn invisible sm icon" {...tooltip(title, "label")} onMouseDown={(e) => e.preventDefault()} onClick={() => {
                 format(op);
                 if (title === "Mention" || title.startsWith("Reference")) requestAnimationFrame(updateTrigger);
               }}>

@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Label } from "@/api/types";
+import { tooltip } from "@/lib/tooltip";
 
 /** A label pill colored like GitHub's: tinted background with readable text in both themes. */
 export function IssueLabel({ label, onClick }: { label: Pick<Label, "name" | "color" | "description">; onClick?: () => void }) {
@@ -14,7 +15,7 @@ export function IssueLabel({ label, onClick }: { label: Pick<Label, "name" | "co
     "--label-l": lum,
   } as CSSProperties;
   return (
-    <span className="label issue-label" style={style} title={label.description ?? undefined} onClick={onClick}>
+    <span className="label issue-label" style={style} {...tooltip(label.description)} onClick={onClick}>
       {label.name}
     </span>
   );

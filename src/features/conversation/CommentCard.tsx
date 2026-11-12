@@ -13,6 +13,7 @@ import type { MinimizeReason } from "./mutations";
 import { ReactionBar } from "@/components/Reactions";
 import type { CommentLike } from "./types";
 import { copyText } from "@/lib/clipboard";
+import { tooltip } from "@/lib/tooltip";
 
 const ASSOCIATION: Record<string, string> = {
   OWNER: "Owner",
@@ -101,7 +102,7 @@ export function CommentCard(props: CommentCardProps) {
             <a className="muted" href={c.url} target="_blank" rel="noopener noreferrer">
               <RelativeTime date={c.createdAt} />
             </a>
-            {c.lastEditedAt && <span title={`Edited ${new Date(c.lastEditedAt).toLocaleString()}`}> · edited</span>}
+            {c.lastEditedAt && <span {...tooltip(`Edited ${new Date(c.lastEditedAt).toLocaleString()}`)}> · edited</span>}
           </span>
           {headerExtra}
         </span>

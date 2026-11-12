@@ -7,6 +7,7 @@ import { SubjectList } from "../repo/SubjectList";
 import { buildSearch, getSort, useSearchList } from "../repo/searchList";
 import "./dashboard.css";
 import { useTitle } from "@/lib/useTitle";
+import { tooltip } from "@/lib/tooltip";
 
 const FILTERS = [
   { name: "Review requested", q: "is:open is:pr review-requested:@me archived:false" },
@@ -44,7 +45,7 @@ export function Dashboard() {
     <div className="dash">
       <nav className="dash-filters" aria-label="Filters">
         {FILTERS.map((f, i) => (
-          <button key={f.name} className="dash-filter" data-selected={f.q === q} onClick={() => setQ(f.q)} title={f.q}>
+          <button key={f.name} className="dash-filter" data-selected={f.q === q} onClick={() => setQ(f.q)} {...tooltip(f.q)}>
             <span className="grow truncate">{f.name}</span>
             {counts.data && <span className="counter">{counts.data[i]}</span>}
           </button>

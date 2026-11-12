@@ -12,6 +12,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { DiffFile } from "./model";
+import { tooltip } from "@/lib/tooltip";
 
 export interface TreeNode {
   name: string;
@@ -149,7 +150,7 @@ export const FileTree = memo(function FileTree({ root, active, viewed, comments,
             const isViewed = viewed?.[f.filename] === "VIEWED";
             return (
               <button key={node.path} className={`ft-row file ${node.path === active ? "active" : ""}`} style={style} onClick={() => onSelect(f.filename)} title={f.filename}>
-                <span style={{ color, display: "inline-flex" }} title={label}>
+                <span style={{ color, display: "inline-flex" }} role="img" {...tooltip(label, "label")}>
                   <Icon size={14} />
                 </span>
                 <span className={`truncate grow ${isViewed ? "muted" : ""}`}>{node.name}</span>

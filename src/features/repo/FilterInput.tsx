@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { SearchIcon, XCircleFillIcon } from "@primer/octicons-react";
+import { tooltip } from "@/lib/tooltip";
 
 /** Search-syntax input. Applies on Enter; Escape reverts and blurs; the clear button applies an empty search. */
 export function FilterInput({ value, onApply, placeholder }: { value: string; onApply: (q: string) => void; placeholder?: string }) {
@@ -28,8 +29,7 @@ export function FilterInput({ value, onApply, placeholder }: { value: string; on
       {draft && (
         <button
           className="btn invisible sm icon lr-filter-clear"
-          aria-label="Clear search"
-          title="Clear search"
+          {...tooltip("Clear search", "label")}
           onClick={() => {
             setDraft("");
             onApply("");

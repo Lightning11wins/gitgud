@@ -1,3 +1,5 @@
+import { tooltip } from "@/lib/tooltip";
+
 interface Props {
   /** What's loading, e.g. "Loading commits". Shown on hover and read by screen readers. */
   label: string;
@@ -10,5 +12,5 @@ interface Props {
 
 export function Spinner({ label, size = 14, delay = 400, show = true }: Props) {
   if (!show) return <span className="spinner idle" style={{ width: size, height: size }} aria-hidden="true" />;
-  return <span className="spinner" style={{ width: size, height: size, animationDelay: `0ms, ${delay}ms` }} role="status" aria-label={label} title={label} />;
+  return <span className="spinner" style={{ width: size, height: size, animationDelay: `0ms, ${delay}ms` }} role="status" {...tooltip(label, "label")} />;
 }

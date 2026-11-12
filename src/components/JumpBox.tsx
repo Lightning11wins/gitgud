@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router";
 import { keys } from "@/api/keys";
 import { toAppPath } from "@/lib/githubUrl";
 import { useHotkey } from "@/lib/hotkeys";
+import { tooltip } from "@/lib/tooltip";
 import { useDebounced } from "@/lib/useDebounced";
 import { Avatar } from "./Avatar";
 import { cachedHits, isSearchable, jumpRows, searchJump, type JumpRow, type RepoRef } from "./jumpResults";
@@ -92,7 +93,7 @@ export function JumpBox({ repo }: { repo: RepoRef | null }) {
         className="input sm"
         style={invalid ? { borderColor: "var(--danger)" } : undefined}
         placeholder="Jump to…"
-        title={repo ? "Type #123, a title, a repo, or a user, or paste a GitHub URL. Shortcut: /" : "Type a repo or user, owner/repo#123, or paste a GitHub URL. Shortcut: /"}
+        {...tooltip(repo ? "Type #123, a title, a repo, or a user, or paste a GitHub URL. Shortcut: /" : "Type a repo or user, owner/repo#123, or paste a GitHub URL. Shortcut: /")}
         aria-label="Jump to an issue, pull request, repository, or user"
         role="combobox"
         aria-expanded={shown.length > 0}

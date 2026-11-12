@@ -6,7 +6,7 @@
 //   button     <button> with no click handler and no form to submit
 //   hover      a :hover rule changes color, underline, or border on a non-interactive element
 //   link-style underlined or link-colored text outside links and buttons
-//   title      a tooltip that names an action on an element with no handler
+//   title      a tooltip (data-tooltip or title) that names an action on an element with no handler
 //   self-link  a link to the page it's on (active tabs excepted)
 //   not-found  an in-app link whose target renders the NotFound page
 //   dead-click a pointer element whose only handler is an ancestor's, and clicking it changes nothing
@@ -202,8 +202,8 @@ function scan(cands) {
       if (ownText && cs.textDecorationLine.includes("underline") && !["INS", "U", "ABBR"].includes(el.tagName)) add("link-style", el, " (underlined)");
       else if (ownText && cs.color === linkColor && !el.closest(".markdown-body, .label, .counter, .state-badge")) add("link-style", el, " (link color)");
     }
-    const title = el.getAttribute("title");
-    if (title && ACTION_TITLE.test(title) && !ok) add("title", el, ` [title="${title}"]`);
+    const tip = el.getAttribute("data-tooltip") ?? el.getAttribute("title");
+    if (tip && ACTION_TITLE.test(tip) && !ok) add("title", el, ` [tooltip "${tip}"]`);
     if (el.tagName === "A" && el.hasAttribute("href")) {
       const href = el.getAttribute("href");
       const url = new URL(href, location.href);

@@ -13,6 +13,7 @@ import { SubjectList } from "./SubjectList";
 import { baseQuery, buildSearch, getSort, getState, prefetchSearchList, setState, useSearchList, type StateFilter } from "./searchList";
 import "./repo.css";
 import { useTitle } from "@/lib/useTitle";
+import { tooltip } from "@/lib/tooltip";
 
 const DEFAULT_Q = "is:open";
 
@@ -125,10 +126,10 @@ export function RepoPage({ kind }: { kind?: Kind }) {
     <div className="repo">
       <div className="repo-head">
         <h1 className="repo-name">
-          <span className="repo-icon" role="img" title="Repository"><RepoIcon size={20} /></span>
+          <span className="repo-icon" role="img" {...tooltip("Repository", "label")}><RepoIcon size={20} /></span>
           <span className="muted">{owner} /</span> <strong>{repo}</strong>
           {c?.isPrivate && (
-            <span className="repo-icon muted" role="img" title="Private repository">
+            <span className="repo-icon muted" role="img" {...tooltip("Private repository", "label")}>
               <LockIcon size={16} />
             </span>
           )}

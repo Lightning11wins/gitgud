@@ -4,6 +4,7 @@ import { rateLimits, type RateLimits } from "@/api/rateLimit";
 import { refreshRateLimits } from "@/api/warmUp";
 import { useStore } from "@/lib/store";
 import "./api-usage.css";
+import { tooltip } from "@/lib/tooltip";
 
 const LIMITS: [keyof RateLimits, string][] = [
   ["graphql", "GraphQL"],
@@ -69,7 +70,7 @@ export function ApiUsageBars() {
             >
               <div className="api-usage-fill" style={{ width: `${left * 100}%` }} />
               {active && (
-                <span className="api-usage-reset" title={`Resets at ${new Date(resetAt).toLocaleTimeString()}`}>
+                <span className="api-usage-reset" {...tooltip(`Resets at ${new Date(resetAt).toLocaleTimeString()}`)}>
                   <SyncIcon size={12} />
                   {formatCountdown(resetAt - now)}
                 </span>

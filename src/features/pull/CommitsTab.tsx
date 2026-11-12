@@ -9,6 +9,7 @@ import { Spinner } from "@/components/Spinner";
 import { commitsQueryOptions, type PullCommit, type PullMeta } from "./api";
 import { CommitChecksButton, OutcomeIcon, rollupOutcome } from "./checks";
 import { CopyButton, groupByDay } from "./util";
+import { tooltip } from "@/lib/tooltip";
 
 /** Commit authors' avatars and a "x and y committed" line. */
 export function CommitAuthors({ commit }: { commit: Pick<PullCommit, "authors"> }) {
@@ -30,9 +31,9 @@ export function CommitAuthors({ commit }: { commit: Pick<PullCommit, "authors"> 
 export function SignatureLabel({ signature }: { signature: PullCommit["signature"] }) {
   if (!signature) return null;
   return signature.isValid ? (
-    <span className="label signature-label verified" title="This commit has a verified signature">Verified</span>
+    <span className="label signature-label verified" {...tooltip("This commit has a verified signature")}>Verified</span>
   ) : (
-    <span className="label signature-label unverified" title="This commit's signature could not be verified">Unverified</span>
+    <span className="label signature-label unverified" {...tooltip("This commit's signature could not be verified")}>Unverified</span>
   );
 }
 

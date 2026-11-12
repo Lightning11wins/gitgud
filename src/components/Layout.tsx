@@ -14,6 +14,7 @@ import { NotFound } from "./NotFound";
 import { Popover } from "./Popover";
 import { JumpBox } from "./JumpBox";
 import { RepoSwitcher } from "./RepoSwitcher";
+import { tooltip } from "@/lib/tooltip";
 
 /** owner/repo from the current path, when the path is inside a repo. */
 export function useRepoFromPath(): { owner: string; repo: string } | null {
@@ -80,7 +81,7 @@ export function Layout() {
     <>
       <header className="app-header">
         <div className="app-header-start">
-          <Link to="/" className="brand" title="Dashboard" aria-label="GitGud dashboard">
+          <Link to="/" className="brand" {...tooltip("GitGud dashboard", "label")}>
             <img src="/favicon.svg" width={24} height={24} alt="" />
           </Link>
           {owner && (
@@ -121,7 +122,7 @@ export function Layout() {
             <Link
               className="btn invisible sm"
               to={`/${FEEDBACK_REPO}/issues/new?title=${encodeURIComponent("Feedback: ")}`}
-              title="Opens an issue on the GitGud repo."
+              {...tooltip("Opens an issue on the GitGud repo.")}
               aria-label="Send feedback"
             >
               <CommentIcon /> <span className="app-header-label">Feedback</span>
@@ -173,7 +174,7 @@ function GitHubLink({ url }: { url: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      title={copied ? "Copied!" : "Open this page on GitHub. Shift-click to copy the link."}
+      {...tooltip(copied ? "Copied!" : "Open this page on GitHub. Shift-click to copy the link.")}
       aria-label="Open this page on GitHub"
       onClick={(e) => {
         if (!e.shiftKey) return;
@@ -202,8 +203,8 @@ function ApiMeter() {
   if (!showApiMeter && !tone) return null;
   const props = {
     className: `${onSettings ? "api-meter-static" : "btn invisible sm icon"} api-meter${tone ? ` ${tone}` : ""}`,
-    title: `GitHub API requests left\n${bars.map((b) => b.text).join("\n")}`,
     "aria-label": "GitHub API usage",
+    ...tooltip(`GitHub API requests left\n${bars.map((b) => b.text).join("\n")}`),
   };
   const svg = (
     <svg width={20} height={16} viewBox="0 0 20 16" aria-hidden="true">
@@ -235,7 +236,7 @@ function UserMenu() {
   if (!viewer) return null;
   return (
     <>
-      <button className="btn invisible sm icon" onClick={(e) => setAnchor(anchor ? null : e.currentTarget)} title={viewer.login}>
+      <button className="btn invisible sm icon" onClick={(e) => setAnchor(anchor ? null : e.currentTarget)} {...tooltip(viewer.login, "label")}>
         <Avatar src={viewer.avatarUrl} size={24} login={viewer.login} />
       </button>
       {anchor && (

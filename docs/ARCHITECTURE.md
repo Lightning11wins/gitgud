@@ -12,7 +12,7 @@ src/
   auth/         token storage + login screen
   components/   shared UI: Layout, Avatar, Button styles, StateBadge, IssueLabel, RelativeTime, Markdown,
                 Popover, Dialog, SelectMenu, Spinner, ErrorBanner
-  lib/          store (tiny observable), hotkeys, drafts, theme, settings, time, githubUrl
+  lib/          store (tiny observable), hotkeys, tooltip, drafts, theme, settings, time, githubUrl
   styles/       base.css (Primer-like tokens + primitives), markdown.css
   features/
     dashboard/  home page
@@ -65,6 +65,7 @@ server/serve.mjs  static server with CSP and compression
 - Routes mirror github.com paths (see `App.tsx`). The header has an "Open on GitHub" link for every page.
 - Error messages start with "Failed to ..." and include the offending value.
 - Tab bars: `.tabs` is the container; each tab needs `.tab` (and `.active`). Other children, like buttons, keep their own styles.
+- Hover text: spread `tooltip(text)` from `lib/tooltip.ts` (`"label"` for icon-only controls) for GitHub's dark tooltip, not `title`. Keep `title` only for the full text of truncated strings and `RelativeTime`, where GitHub keeps the browser's.
 - Every `<Spinner>` needs a `label` saying what's loading; it shows on hover. Spinners fade in after a delay, so quick loads show nothing.
 - Every page sets its browser tab title with `useTitle` from `lib/useTitle.ts`.
 - Nothing may look clickable unless it is: link color, underline, pointer cursor, and hover effects only go on elements that act. `scripts/audit-affordances.mjs` checks this.

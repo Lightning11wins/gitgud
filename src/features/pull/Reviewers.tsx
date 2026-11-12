@@ -18,6 +18,7 @@ import {
   type Reviewer,
   type ReviewState,
 } from "./api";
+import { tooltip } from "@/lib/tooltip";
 
 interface Props {
   pull: PullMeta;
@@ -146,7 +147,7 @@ export function Reviewers({ pull, owner, repo }: Props) {
       <h3 className="sidebar-title row">
         <span className="grow">Reviewers</span>
         {editable && (
-          <button className="btn invisible xs icon" aria-label="Request reviewers" title="Request reviewers" onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
+          <button className="btn invisible xs icon" {...tooltip("Request reviewers", "label")} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
             <GearIcon />
           </button>
         )}
@@ -160,7 +161,7 @@ export function Reviewers({ pull, owner, repo }: Props) {
         <>
           <button
             className="btn invisible xs pull-reviewers-toggle"
-            title="These reviewers don't have write access to the repository."
+            {...tooltip("These reviewers don't have write access to the repository.")}
             aria-expanded={readOnlyOpen}
             onClick={() => setReadOnlyOpen(!readOnlyOpen)}
           >
@@ -202,7 +203,7 @@ function ReviewerList({ rows, editable, onRerequest }: { rows: Row[]; editable: 
   return (
     <ul className="sidebar-list">
       {rows.map((row) => (
-        <li key={row.key} className="row" title={row.requested ? "Awaiting requested review" : STATE_TITLE[row.state ?? ""]}>
+        <li key={row.key} className="row" {...tooltip(row.requested ? "Awaiting requested review" : STATE_TITLE[row.state ?? ""])}>
           {row.isTeam && !row.avatarUrl ? <PeopleIcon size={20} /> : <Avatar src={row.avatarUrl} size={20} login={row.name} />}
           <a className="grow truncate sidebar-user" href={row.url} target="_blank" rel="noopener noreferrer">
             {row.name}
@@ -210,8 +211,7 @@ function ReviewerList({ rows, editable, onRerequest }: { rows: Row[]; editable: 
           {editable && !row.requested && row.id && (
             <button
               className="btn invisible xs icon"
-              title="Re-request review"
-              aria-label={`Re-request review from ${row.name}`}
+              {...tooltip(`Re-request review from ${row.name}`, "label")}
               onClick={() => onRerequest(row, row.id!)}
             >
               <SyncIcon size={14} />

@@ -9,6 +9,7 @@ import { FileDiff, ROW_H, fileDomId, type PullContext } from "./FileDiff";
 import { FileTree, buildTree, treeOrder } from "./FileTree";
 import type { DiffFile } from "./model";
 import "./diff.css";
+import { tooltip } from "@/lib/tooltip";
 
 export interface DiffViewProps {
   files: DiffFile[];
@@ -282,7 +283,7 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
     <div className="dv" ref={rootRef} style={{ "--tree-w": `${treeWidth}px` } as CSSProperties}>
       {notice && <div className="flash warn" style={{ marginBottom: 8 }}>{notice}</div>}
       <div className="dv-toolbar">
-        <button className="btn invisible sm icon" onClick={() => toggleTree(!showTree)} title={showTree ? "Hide file tree" : "Show file tree"} aria-label={showTree ? "Hide file tree" : "Show file tree"}>
+        <button className="btn invisible sm icon" onClick={() => toggleTree(!showTree)} {...tooltip(showTree ? "Hide file tree" : "Show file tree", "label")}>
           {showTree ? <SidebarExpandIcon /> : <SidebarCollapseIcon />}
         </button>
         <span>
@@ -303,7 +304,7 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
             )}
           </span>
         )}
-        <label className="row dv-ws" title="Hide whitespace-only changes">
+        <label className="row dv-ws" {...tooltip("Hide whitespace-only changes")}>
           <input
             type="checkbox"
             checked={ignoreWs}
@@ -326,7 +327,7 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
           <span className="dv-wide">{allCollapsed ? "Expand all" : "Collapse all"}</span>
         </button>
         {viewed && (
-          <span className="dv-viewed" title="Files you've marked as viewed">
+          <span className="dv-viewed" {...tooltip("Files you've marked as viewed")}>
             <progress max={ordered.length} value={viewedCount} />
             {viewedCount} / {ordered.length}
             <span className="dv-wide"> files viewed</span>
@@ -337,7 +338,7 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
         {showTree && (
           <aside className="dv-tree">
             <FileTree root={root} active={active} viewed={viewed} comments={commentCounts} onSelect={scrollToFile} />
-            <div className="dv-resize" onPointerDown={startResize} title="Drag to resize" />
+            <div className="dv-resize" onPointerDown={startResize} {...tooltip("Drag to resize")} />
           </aside>
         )}
         <div className="dv-files">

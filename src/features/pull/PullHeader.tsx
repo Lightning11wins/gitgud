@@ -7,6 +7,7 @@ import { TitleText } from "@/components/TitleText";
 import { ReviewSubmitButton } from "@/features/review/ReviewSubmit";
 import { patchPull, refreshPull, updateTitle, type PullMeta } from "./api";
 import { BranchName, CopyButton, plural } from "./util";
+import { tooltip } from "@/lib/tooltip";
 
 interface Props {
   pull: PullMeta;
@@ -40,7 +41,7 @@ export function PullHeader({ pull, owner, repo }: Props) {
             <h1 className="pull-title">
               <span className="pull-title-text"><TitleText text={pull.title} /></span> <span className="muted pull-number">#{pull.number}</span>
               {pull.viewerCanUpdate && (
-                <button className="btn invisible sm icon pull-title-edit-btn" aria-label="Edit title" title="Edit title" onClick={() => setEditing(true)}>
+                <button className="btn invisible sm icon pull-title-edit-btn" {...tooltip("Edit title", "label")} onClick={() => setEditing(true)}>
                   <PencilIcon />
                 </button>
               )}

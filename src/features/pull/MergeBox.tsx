@@ -26,6 +26,7 @@ import { useStore } from "@/lib/store";
 import { deleteBranch, fetchMergeMessages, markMerged, mergePull, patchPull, refreshPull, restoreBranch, setDraft, type MergeMethod, type PullMeta } from "./api";
 import { CheckRow, OutcomeIcon, sortChecks, summarize } from "./checks";
 import { BranchName, plural } from "./util";
+import { tooltip } from "@/lib/tooltip";
 
 interface Props {
   pull: PullMeta;
@@ -307,7 +308,7 @@ function MergeabilitySection({ pull, owner, repo }: { pull: PullMeta; owner: str
               Resolve conflicts
             </a>
           ) : (
-            <button className="btn sm" disabled title="Only the author and people with write access can resolve conflicts">
+            <button className="btn sm" disabled {...tooltip("Only the author and people with write access can resolve conflicts")}>
               Resolve conflicts
             </button>
           )

@@ -9,6 +9,7 @@ import { useStore } from "@/lib/store";
 import { setTheme, themePref, type ThemePref } from "@/lib/theme";
 import { useTitle } from "@/lib/useTitle";
 import { ApiUsageBars } from "./ApiUsageBars";
+import { tooltip } from "@/lib/tooltip";
 
 const REPO_TABS: { value: RepoTab; label: string }[] = [
   { value: "all", label: "All" },
@@ -97,14 +98,14 @@ export function Settings() {
         <label className="row" style={{ gap: 6 }}>
           <input type="checkbox" checked={!prefs.warmUpRateLimits} onChange={(e) => updateSettings({ warmUpRateLimits: !e.target.checked })} />
           Disable prewarming.
-          <span className="muted" role="img" style={{ display: "inline-flex" }} aria-label={WARM_UP_TIP} title={WARM_UP_TIP}>
+          <span className="muted" role="img" style={{ display: "inline-flex" }} {...tooltip(WARM_UP_TIP, "label")}>
             <QuestionIcon size={14} />
           </span>
         </label>
         <label className="row" style={{ gap: 6, marginTop: 8 }}>
           <input type="checkbox" checked={!prefs.prefetch} onChange={(e) => updateSettings({ prefetch: !e.target.checked })} />
           Disable prefetching.
-          <span className="muted" role="img" style={{ display: "inline-flex" }} aria-label={PREFETCH_TIP} title={PREFETCH_TIP}>
+          <span className="muted" role="img" style={{ display: "inline-flex" }} {...tooltip(PREFETCH_TIP, "label")}>
             <QuestionIcon size={14} />
           </span>
         </label>

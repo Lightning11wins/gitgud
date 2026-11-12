@@ -37,6 +37,7 @@ import {
 } from "./data";
 import "./sidebar.css";
 import { copyText } from "@/lib/clipboard";
+import { tooltip } from "@/lib/tooltip";
 
 export interface MetadataSidebarProps {
   subject: SubjectMeta;
@@ -83,7 +84,7 @@ export function MetadataSidebar({ subject, owner, repo, children }: MetadataSide
   const open = (which: Menu) => (e: React.MouseEvent<HTMLElement>) => setMenu(menu ? null : { which, anchor: e.currentTarget });
   const gear = (which: Menu, label: string) =>
     editable && (
-      <button className="btn invisible xs icon" aria-label={`Edit ${label}`} title={`Edit ${label}`} onClick={open(which)}>
+      <button className="btn invisible xs icon" {...tooltip(`Edit ${label}`, "label")} onClick={open(which)}>
         <GearIcon />
       </button>
     );
@@ -220,7 +221,7 @@ export function MetadataSidebar({ subject, owner, repo, children }: MetadataSide
           <h3 className="sidebar-title">Participants</h3>
           <div className="sidebar-participants">
             {extras.participants.nodes.map((u) => (
-              <a key={u.id} href={u.url} target="_blank" rel="noopener noreferrer" title={u.login}>
+              <a key={u.id} href={u.url} target="_blank" rel="noopener noreferrer" {...tooltip(u.login, "label")}>
                 <Avatar src={u.avatarUrl} size={20} login={u.login} />
               </a>
             ))}
@@ -451,7 +452,7 @@ function IssueFields({ subject, owner, repo, onError }: { subject: SubjectMeta &
           const shown = value ? <FieldValueView field={f} value={value} /> : <span className="muted">{editable ? FIELD_PLACEHOLDER[f.dataType] : "None"}</span>;
           return (
             <div key={f.id} className="sidebar-field">
-              <span className="sidebar-field-name truncate" title={f.description ?? f.name}>
+              <span className="sidebar-field-name truncate" {...(f.description ? tooltip(f.description) : { title: f.name })}>
                 {f.name}
               </span>
               {!editable ? (
@@ -568,7 +569,7 @@ function SubIssues({ subject, owner, repo, editable, onError }: { subject: Subje
             </span>
           )}
           {editable && (
-            <button className="btn invisible xs icon" aria-label="Add sub-issue" title="Add existing issue as sub-issue" onClick={() => setAdding(!adding)}>
+            <button className="btn invisible xs icon" {...tooltip("Add existing issue as sub-issue", "label")} onClick={() => setAdding(!adding)}>
               {adding ? <XIcon /> : <GearIcon />}
             </button>
           )}
@@ -584,7 +585,7 @@ function SubIssues({ subject, owner, repo, editable, onError }: { subject: Subje
             <li key={s.id} className="row sidebar-subissue">
               <IssueRefRow issue={s} owner={owner} repo={repo} />
               {editable && (
-                <button className="btn invisible xs icon" aria-label={`Remove sub-issue #${s.number}`} title="Remove sub-issue" onClick={() => remove(s)}>
+                <button className="btn invisible xs icon" {...tooltip(`Remove sub-issue #${s.number}`, "label")} onClick={() => remove(s)}>
                   <XIcon />
                 </button>
               )}

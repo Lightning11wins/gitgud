@@ -40,6 +40,7 @@ import {
 } from "./model";
 import { useNear, useScheduled } from "./schedule";
 import { copyText } from "@/lib/clipboard";
+import { tooltip } from "@/lib/tooltip";
 
 export interface PullContext {
   owner: string;
@@ -105,7 +106,7 @@ function DiffStat({ add, del }: { add: number; del: number }) {
     return i < a ? "a" : i < Math.min(5, a + Math.max(del ? 1 : 0, Math.round((del / total) * 5))) ? "d" : "n";
   });
   return (
-    <span className="diffstat" title={`${add} additions, ${del} deletions`}>
+    <span className="diffstat" {...tooltip(`${add} additions, ${del} deletions`)}>
       {add > 0 && <span className="add">+{add.toLocaleString()}</span>}
       {add > 0 && del > 0 && " "}
       {del > 0 && <span className="del">-{del.toLocaleString()}</span>}
@@ -144,8 +145,7 @@ function FileHeader({ file, source, collapsed, viewed, comments, onToggleCollaps
       </span>
       <button
         className="btn invisible xs icon"
-        title="Copy path"
-        aria-label="Copy path"
+        {...tooltip("Copy path", "label")}
         onClick={() => {
           copyText(file.filename).then(() => {
             setCopied(true);
@@ -158,25 +158,25 @@ function FileHeader({ file, source, collapsed, viewed, comments, onToggleCollaps
       {status && <span className={`label df-status ${file.status}`}>{status}</span>}
       <span className="grow" />
       {comments > 0 && (
-        <span className="muted row" style={{ gap: 4, fontSize: 12 }} title={`${comments} comments`}>
+        <span className="muted row" style={{ gap: 4, fontSize: 12 }} {...tooltip(`${comments} comments`)}>
           <CommentIcon size={14} />
           {comments}
         </span>
       )}
       <DiffStat add={file.additions} del={file.deletions} />
       {onToggleViewed && (
-        <label className={`df-viewed ${viewed ? "on" : ""}`} title="Mark as viewed (v)">
+        <label className={`df-viewed ${viewed ? "on" : ""}`} {...tooltip("Mark as viewed (v)")}>
           <input type="checkbox" checked={!!viewed} onChange={() => onToggleViewed(file.filename)} />
           Viewed
         </label>
       )}
       {onComment && (
-        <button className="btn invisible xs icon" title="Comment on this file" aria-label="Comment on this file" onClick={onComment}>
+        <button className="btn invisible xs icon" {...tooltip("Comment on this file", "label")} onClick={onComment}>
           <CommentIcon />
         </button>
       )}
       {file.status !== "removed" && (
-        <a className="btn invisible xs icon" href={blob} target="_blank" rel="noopener noreferrer" title="View file on GitHub" aria-label="View file on GitHub">
+        <a className="btn invisible xs icon" href={blob} target="_blank" rel="noopener noreferrer" {...tooltip("View file on GitHub", "label")}>
           <KebabHorizontalIcon />
         </a>
       )}
@@ -688,17 +688,17 @@ function HunkRow({ row, onExpand }: { row: Extract<Row, { r: "h" }>; onExpand: (
     <div className="dh">
       <span className="dh-btns">
         {row.down && (
-          <button className="dh-btn" title="Expand down" aria-label="Expand down" onClick={() => onExpand(row.gap, "down")}>
+          <button className="dh-btn" {...tooltip("Expand down", "label")} onClick={() => onExpand(row.gap, "down")}>
             <FoldDownIcon size={14} />
           </button>
         )}
         {row.up && (
-          <button className="dh-btn" title="Expand up" aria-label="Expand up" onClick={() => onExpand(row.gap, "up")}>
+          <button className="dh-btn" {...tooltip("Expand up", "label")} onClick={() => onExpand(row.gap, "up")}>
             <FoldUpIcon size={14} />
           </button>
         )}
         {row.all && (
-          <button className="dh-btn" title="Expand all" aria-label="Expand all" onClick={() => onExpand(row.gap, "all")}>
+          <button className="dh-btn" {...tooltip("Expand all", "label")} onClick={() => onExpand(row.gap, "all")}>
             <UnfoldIcon size={14} />
           </button>
         )}

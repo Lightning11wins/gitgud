@@ -14,6 +14,7 @@ import { MetadataSidebar } from "@/features/sidebar/MetadataSidebar";
 import { useIssueMeta, type IssueMeta } from "./issueData";
 import "./issue.css";
 import { useTitle } from "@/lib/useTitle";
+import { tooltip } from "@/lib/tooltip";
 
 export function IssuePage() {
   const params = useParams();
@@ -119,8 +120,7 @@ function IssueHeader({ issue, owner, repo }: { issue: IssueMeta; owner: string; 
               {issue.viewerCanUpdate && (
                 <button
                   className="btn invisible sm icon issue-title-edit-btn"
-                  aria-label="Edit title"
-                  title="Edit title"
+                  {...tooltip("Edit title", "label")}
                   onClick={() => {
                     setDraft(issue.title);
                     setEditing(true);

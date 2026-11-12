@@ -8,6 +8,7 @@ import { RelativeTime } from "@/components/RelativeTime";
 import { StateIcon } from "@/components/StateBadge";
 import { TitleText } from "@/components/TitleText";
 import type { CheckSummary, ListItem } from "./searchList";
+import { tooltip } from "@/lib/tooltip";
 
 export const ROW_HEIGHT = 56;
 const MAX_LABELS = 4;
@@ -49,7 +50,7 @@ function ChecksStatus({ item, checks }: { item: ListItem; checks?: CheckSummary 
       {checks && ci && (
         <>
           {" · "}
-          <Link className="lr-checks" to={`${itemPath(item)}/checks`} title={`${checks.passed} of ${checks.total} checks passed`}>
+          <Link className="lr-checks" to={`${itemPath(item)}/checks`} {...tooltip(`${checks.passed} of ${checks.total} checks passed`)}>
             <ci.Icon size={12} fill={ci.color} verticalAlign="middle" />
             {checks.passed}/{checks.total}
           </Link>
@@ -138,7 +139,7 @@ export const ListRow = memo(function ListRow({ item, checks, showRepo, active, s
       </div>
       <div className="lr-side">
         {!!item.linkedPrs?.totalCount && (
-          <span className="lr-prs muted" title={`${item.linkedPrs.totalCount} linked pull request${item.linkedPrs.totalCount === 1 ? "" : "s"}`}>
+          <span className="lr-prs muted" {...tooltip(`${item.linkedPrs.totalCount} linked pull request${item.linkedPrs.totalCount === 1 ? "" : "s"}`)}>
             <GitPullRequestIcon size={14} fill={linkedPrColor(item.linkedPrs.nodes)} /> {item.linkedPrs.totalCount}
           </span>
         )}
@@ -147,7 +148,7 @@ export const ListRow = memo(function ListRow({ item, checks, showRepo, active, s
             <Avatar key={a.login} src={a.avatarUrl} login={a.login} size={20} />
           ))}
         </span>
-        <span className="lr-comments muted" title={`${comments} comments`}>
+        <span className="lr-comments muted" {...tooltip(`${comments} comments`)}>
           {comments > 0 && (
             <>
               <CommentIcon size={14} /> {comments}

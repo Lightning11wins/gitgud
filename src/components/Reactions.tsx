@@ -3,6 +3,7 @@ import { memo, useState } from "react";
 import type { ReactionContent, ReactionGroup } from "@/api/types";
 import { Popover } from "./Popover";
 import "./reactions.css";
+import { tooltip } from "@/lib/tooltip";
 
 export const REACTION_EMOJI: [ReactionContent, string][] = [
   ["THUMBS_UP", "👍"],
@@ -38,7 +39,7 @@ export const ReactionBar = memo(function ReactionBar({ groups, canReact, onToggl
             className={`reaction-pill ${g.viewerHasReacted ? "reacted" : ""}`}
             disabled={!canReact}
             aria-pressed={g.viewerHasReacted}
-            title={`${content.toLowerCase().replace("_", " ")}`}
+            {...tooltip(content.toLowerCase().replace("_", " "))}
             onClick={() => onToggle(content, !g.viewerHasReacted)}
           >
             <span>{emoji}</span>
@@ -55,7 +56,7 @@ export function ReactionPicker({ groups, onToggle }: Pick<ReactionBarProps, "gro
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   return (
     <>
-      <button className="reaction-pill add" aria-label="Add reaction" title="Add reaction" onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
+      <button className="reaction-pill add" {...tooltip("Add reaction", "label")} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
         <SmileyIcon size={16} />
       </button>
       {anchor && (
@@ -68,7 +69,7 @@ export function ReactionPicker({ groups, onToggle }: Pick<ReactionBarProps, "gro
                   key={content}
                   className={`btn invisible sm icon ${reacted ? "reacted" : ""}`}
                   aria-pressed={reacted}
-                  title={content.toLowerCase().replace("_", " ")}
+                  {...tooltip(content.toLowerCase().replace("_", " "), "label")}
                   onClick={() => {
                     onToggle(content, !reacted);
                     setAnchor(null);

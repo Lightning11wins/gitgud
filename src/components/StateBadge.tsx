@@ -1,5 +1,6 @@
 import { GitMergeIcon, GitPullRequestClosedIcon, GitPullRequestDraftIcon, GitPullRequestIcon, IssueClosedIcon, IssueOpenedIcon, SkipIcon } from "@primer/octicons-react";
 import type { IssueStateReason } from "@/api/types";
+import { tooltip } from "@/lib/tooltip";
 
 export interface StateInfo {
   kind: "issue" | "pull";
@@ -37,7 +38,7 @@ export function StateBadge(props: StateInfo & { small?: boolean }) {
 export function StateIcon(props: StateInfo & { size?: number }) {
   const { Icon, color, text } = stateStyle(props);
   return (
-    <span style={{ color, display: "inline-flex" }} title={text}>
+    <span style={{ color, display: "inline-flex" }} role="img" {...tooltip(text, "label")}>
       <Icon size={props.size ?? 16} />
     </span>
   );

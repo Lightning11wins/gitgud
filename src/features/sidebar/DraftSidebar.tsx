@@ -8,6 +8,7 @@ import { SelectMenu } from "@/components/SelectMenu";
 import { IssueTypeChip } from "./MetadataSidebar";
 import { useAssignableUsers, useIssueTypes, useMilestones, useRepoLabels } from "./data";
 import "./sidebar.css";
+import { tooltip } from "@/lib/tooltip";
 
 /** Metadata picked for an issue or PR that doesn't exist yet. */
 export interface DraftMetadata {
@@ -170,7 +171,7 @@ export function PickerSection({ title, editable, onEdit, children }: { title: st
       <h3 className="sidebar-title row">
         <span className="grow">{title}</span>
         {editable && (
-          <button className="btn invisible xs icon" aria-label={`Edit ${title.toLowerCase()}`} title={`Edit ${title.toLowerCase()}`} onClick={onEdit}>
+          <button className="btn invisible xs icon" {...tooltip(`Edit ${title.toLowerCase()}`, "label")} onClick={onEdit}>
             <GearIcon />
           </button>
         )}

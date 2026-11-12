@@ -1,6 +1,7 @@
 import { CheckIcon, CopyIcon } from "@primer/octicons-react";
 import { useEffect, useState } from "react";
 import { copyText } from "@/lib/clipboard";
+import { tooltip } from "@/lib/tooltip";
 
 export function CopyButton({ text, label = "Copy", size = 14 }: { text: string; label?: string; size?: number }) {
   const [copied, setCopied] = useState(false);
@@ -13,8 +14,7 @@ export function CopyButton({ text, label = "Copy", size = 14 }: { text: string; 
     <button
       type="button"
       className="btn invisible xs icon pull-copy"
-      title={copied ? "Copied!" : label}
-      aria-label={label}
+      {...tooltip(copied ? "Copied!" : label, "label")}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();

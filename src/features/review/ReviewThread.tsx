@@ -17,6 +17,7 @@ import { ensurePendingReview, invalidateReview, usePendingReview } from "./pendi
 import { useReactions } from "./useReactions";
 import "./review.css";
 import { copyText } from "@/lib/clipboard";
+import { tooltip } from "@/lib/tooltip";
 
 export interface ReviewThreadViewProps {
   thread: ReviewThread;
@@ -116,7 +117,7 @@ export const ReviewThreadView = memo(function ReviewThreadView({ thread, owner, 
           {thread.isOutdated && <span className="label rt-outdated">Outdated</span>}
           {thread.isResolved ? <ThreadSummary first={first} count={thread.comments.totalCount} snippet={!expanded} /> : <span className="grow" />}
           {thread.isResolved && (
-            <span className="label rt-resolved" title={thread.resolvedBy ? `Resolved by ${thread.resolvedBy.login}` : undefined}>
+            <span className="label rt-resolved" {...tooltip(thread.resolvedBy && `Resolved by ${thread.resolvedBy.login}`)}>
               Resolved
             </span>
           )}
@@ -295,7 +296,7 @@ const ThreadComment = memo(function ThreadComment({ comment, anchor, threadId, o
           <RelativeTime date={comment.createdAt} />
         </a>
         {comment.lastEditedAt && (
-          <span className="rt-edited" title={`Edited ${new Date(comment.lastEditedAt).toLocaleString()}`}>
+          <span className="rt-edited" {...tooltip(`Edited ${new Date(comment.lastEditedAt).toLocaleString()}`)}>
             edited
           </span>
         )}

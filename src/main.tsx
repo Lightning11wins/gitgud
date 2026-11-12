@@ -11,6 +11,7 @@ import { startWarmUp } from "./api/warmUp";
 import { collectCacheGarbage, readRecent } from "./api/queryClient";
 import { getToken, loadAuth } from "./auth/token";
 import { installClickGuard } from "./lib/clickGuard";
+import { installTooltips } from "./lib/tooltip";
 
 const recent = readRecent();
 void loadAuth().then(async () => {
@@ -19,6 +20,7 @@ void loadAuth().then(async () => {
 startWarmUp();
 installLinkPrefetch();
 installClickGuard();
+installTooltips();
 setTimeout(() => collectCacheGarbage().catch(() => {}), 10_000);
 
 createRoot(document.getElementById("root")!).render(
