@@ -92,8 +92,8 @@ export function JumpBox({ repo }: { repo: RepoRef | null }) {
         ref={ref}
         className="input sm"
         style={invalid ? { borderColor: "var(--danger)" } : undefined}
-        placeholder="Jump to…"
-        {...tooltip(repo ? "Type #123, a title, a repo, or a user, or paste a GitHub URL. Shortcut: /" : "Type a repo or user, owner/repo#123, or paste a GitHub URL. Shortcut: /")}
+        placeholder="Type / to jump to…"
+        {...tooltip(repo ? "Type #123, a title, a repo, or a user, or paste a GitHub URL." : "Type a repo or user, owner/repo#123, or paste a GitHub URL.")}
         aria-label="Jump to an issue, pull request, repository, or user"
         role="combobox"
         aria-expanded={shown.length > 0}
@@ -134,7 +134,6 @@ export function JumpBox({ repo }: { repo: RepoRef | null }) {
           }
         }}
       />
-      {!value && <kbd aria-hidden="true">/</kbd>}
       {value && <Spinner label="Searching GitHub" show={live.isFetching || waiting} />}
       {shown.length > 0 && (
         <div className="jump-menu popover" id={listId} role="listbox" aria-label="Suggestions">

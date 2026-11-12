@@ -833,17 +833,6 @@ kbd {
   width: 100%;
   background: var(--bg);
 }
-.jump-box kbd {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--fg-subtle);
-  pointer-events: none;
-}
-.jump-box input:focus + kbd {
-  display: none;
-}
 
 @media (max-width: 767px) {
   .app-main {
