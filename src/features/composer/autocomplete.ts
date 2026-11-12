@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { gql } from "@/api/client";
+import { useDebounced } from "@/lib/useDebounced";
 
 export interface MentionCandidate {
   login: string;
@@ -42,15 +42,6 @@ async function searchRefs(owner: string, repo: string, query: string): Promise<R
     { q: `repo:${owner}/${repo} ${query || "sort:updated-desc"}`, n: query ? LIMIT * 2 : 50 },
   );
   return d.search.nodes.filter((n) => n && "number" in n);
-}
-
-function useDebounced<T>(value: T, ms: number): T {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return v;
 }
 
 function rank<T>(items: T[], query: string, fields: (t: T) => string[]): T[] {
