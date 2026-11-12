@@ -172,7 +172,7 @@ try {
 
     // React.
     await lastComment().getByRole("button", { name: "Add reaction" }).click();
-    await page.locator(".reaction-picker button[title='hooray']").click();
+    await page.locator(".reaction-picker button[data-tooltip='hooray']").click();
     await settle();
     await check(async () => (await lastComment().locator(".reaction-pill").count()) > 1, "reaction added");
 
