@@ -28,6 +28,22 @@ function authHeaders(session: AuthState): Record<string, string> {
   return { Authorization: `Bearer ${session.token}`, "X-GitHub-Api-Version": "2022-11-28" };
 }
 
+/** OAuth scopes from the last response, for the token that made it. */
+let lastScopes: { token: string; scopes: string[] | null } | undefined;
+
+function recordScopes(session: AuthState, headers: Headers) {
+  const header = headers.get("x-oauth-scopes");
+  lastScopes = { token: session.token!, scopes: header === null ? null : header.split(",").map((s) => s.trim()).filter(Boolean) };
+}
+
+/**
+ * The current token's OAuth scopes, as of its last response. Null for tokens that have no scopes,
+ * like fine-grained tokens, and undefined before the token's first response.
+ */
+export function tokenScopes(): string[] | null | undefined {
+  return lastScopes && lastScopes.token === auth.get().token ? lastScopes.scopes : undefined;
+}
+
 async function failure(res: Response, what: string, session: AuthState): Promise<GitHubError> {
   if (res.status === 401) tokenRejected(session);
   let message = `${res.status} ${res.statusText}`;
@@ -89,6 +105,7 @@ export async function gqlPartial<T>(query: string, variables: Record<string, unk
     signal: opts.signal,
   });
   recordRateLimit(res.headers);
+  recordScopes(session, res.headers);
   if (!res.ok) throw await failure(res, `run GraphQL ${opName}`, session);
   const body = (await res.json()) as { data?: T | null; errors?: GqlError[] };
   const errors = body.errors ?? [];
@@ -135,6 +152,7 @@ export async function restRaw<T>(path: string, opts: RestOptions = {}): Promise<
     cache: method === "GET" && !opts.etag ? "no-cache" : "no-store",
   });
   recordRateLimit(res.headers);
+  if (res.status !== 304) recordScopes(session, res.headers);
   if (!res.ok && !(opts.etag && res.status === 304)) throw await failure(res, `${method} ${path}`, session);
   let data: unknown;
   if (opts.text) data = await res.text();

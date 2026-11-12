@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
-import { gql, gqlAll, type PageInfo } from "@/api/client";
+import { gql, gqlAll, tokenScopes, type PageInfo } from "@/api/client";
 import { keys } from "@/api/keys";
 import { Avatar } from "@/components/Avatar";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -27,16 +27,28 @@ query ViewerOrganizations($after: String) {
 
 type OrgsResponse = { viewer: { organizations: { nodes: Organization[]; pageInfo: PageInfo } } };
 
-/** Organizations the signed-in user belongs to. Tokens without `read:org` see only public memberships. */
-async function fetchOrganizations(): Promise<Organization[]> {
+/** Scopes that let a classic token see private organization memberships. */
+const ORG_SCOPES = ["read:org", "write:org", "admin:org"];
+
+interface Organizations {
+  orgs: Organization[];
+  /** The token's OAuth scopes, or null when it has none (fine-grained and GitHub App tokens). */
+  scopes: string[] | null;
+}
+
+/** Organizations the signed-in user belongs to, with the token scopes that decide which ones it sees. */
+async function fetchOrganizations(): Promise<Organizations> {
   const orgs = await gqlAll(async (after) => (await gql<OrgsResponse>(ORGS_QUERY, { after })).viewer.organizations);
-  return orgs.sort((a, b) => a.login.localeCompare(b.login, undefined, { sensitivity: "base" }));
+  orgs.sort((a, b) => a.login.localeCompare(b.login, undefined, { sensitivity: "base" }));
+  return { orgs, scopes: tokenScopes() ?? null };
 }
 
 export function OrganizationsPage() {
   useTitle("Organizations");
   const query = useQuery({ queryKey: keys.viewerOrgs(), queryFn: fetchOrganizations });
-  const orgs = query.data;
+  const orgs = query.data?.orgs;
+  const scopes = query.data?.scopes;
+  const missingScope = scopes && !scopes.some((s) => ORG_SCOPES.includes(s));
 
   return (
     <div className="owner">
@@ -51,13 +63,28 @@ export function OrganizationsPage() {
           }
         />
       )}
+      {missingScope && (
+        <div className="flash error" role="alert">
+          Failed to list private organization memberships: your token doesn't have the <code>read:org</code> scope, so only public
+          memberships show. Add it to your token in{" "}
+          <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer">
+            GitHub's token settings
+          </a>
+          , then reload.
+        </div>
+      )}
+      {scopes === null && orgs && !orgs.length && (
+        <div className="flash warn">
+          Your token may not be allowed to see your organizations. Fine-grained tokens often list none, even when you belong to some.
+        </div>
+      )}
       <div className="box owner-box">
         <div className="box-header row owner-header">
-          <span className="muted owner-count">{orgs && `${orgs.length.toLocaleString()} organizations`}</span>
+          <span className="muted owner-count">{orgs && `${orgs.length.toLocaleString()} ${orgs.length === 1 ? "organization" : "organizations"}`}</span>
           {query.isFetching && <Spinner label="Loading organizations" />}
         </div>
         {orgs && !orgs.length ? (
-          <div className="blankslate">You don't belong to any organizations this token can see.</div>
+          <div className="blankslate">No organizations.</div>
         ) : (
           orgs?.map((org) => (
             <div key={org.login} className="box-row orgs-row">
