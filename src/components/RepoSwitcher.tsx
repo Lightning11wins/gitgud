@@ -1,27 +1,17 @@
-import { useState } from "react";
 import { useNavigate } from "react-router";
-import { RepoForkedIcon, RepoIcon, RepoLockedIcon, TriangleDownIcon } from "@primer/octicons-react";
+import { RepoForkedIcon, RepoIcon, RepoLockedIcon } from "@primer/octicons-react";
 import { useOwner, type OwnerRepo } from "@/features/owner/ownerData";
 import { repoPath } from "@/lib/githubUrl";
+import { CrumbMenu } from "./CrumbMenu";
 import { SelectMenu } from "./SelectMenu";
-import { tooltip } from "@/lib/tooltip";
 
 /** Caret next to the repo crumb that opens a menu of the owner's other repos. */
 export function RepoSwitcher({ owner, repo }: { owner: string; repo: string }) {
-  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   return (
-    <>
-      <button
-        type="button"
-        className="crumb-menu"
-        {...tooltip("Switch repository", "label")}
-        aria-expanded={!!anchor}
-        onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
-      >
-        <TriangleDownIcon size={16} />
-      </button>
-      {anchor && <RepoMenu anchor={anchor} owner={owner} repo={repo} onClose={() => setAnchor(null)} />}
-    </>
+    <CrumbMenu
+      label="Switch repository"
+      menu={(anchor, close) => <RepoMenu anchor={anchor} owner={owner} repo={repo} onClose={close} />}
+    />
   );
 }
 

@@ -1,6 +1,6 @@
-import { CheckIcon, CommentIcon, LinkExternalIcon } from "@primer/octicons-react";
+import { CheckIcon, CommentIcon, GitPullRequestIcon, IssueOpenedIcon, LinkExternalIcon } from "@primer/octicons-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { rateLimits } from "@/api/rateLimit";
 import { auth, signOut } from "@/auth/token";
 import { copyText } from "@/lib/clipboard";
@@ -9,11 +9,13 @@ import { useHotkey } from "@/lib/hotkeys";
 import { settings } from "@/lib/settings";
 import { useStore } from "@/lib/store";
 import { Avatar } from "./Avatar";
+import { CrumbMenu } from "./CrumbMenu";
 import { Dialog } from "./Dialog";
 import { NotFound } from "./NotFound";
 import { Popover } from "./Popover";
 import { JumpBox } from "./JumpBox";
 import { RepoSwitcher } from "./RepoSwitcher";
+import { SelectMenu } from "./SelectMenu";
 import { tooltip } from "@/lib/tooltip";
 
 /** owner/repo from the current path, when the path is inside a repo. */
@@ -50,14 +52,54 @@ function useRememberListQuery(segments: string[], search: string) {
   }, [owner, repo, list, extra, search]);
 }
 
-/** The list crumb on issue and PR pages, linking back with the last query used for that list. */
-function listCrumb(segments: string[]): { to: string; label: string } | null {
-  const [owner, repo, kind, num] = segments;
-  if (!/^\d+$/.test(num ?? "")) return null;
-  const list = kind === "issues" ? "issues" : kind === "pull" ? "pulls" : null;
-  if (!list) return null;
-  const search = readListQueries()[`${owner}/${repo}:${list}`] ?? "";
-  return { to: `/${owner}/${repo}/${list}${search}`, label: list === "issues" ? "Issues" : "Pull requests" };
+const SECTIONS = [
+  { list: "issues", label: "Issues", icon: IssueOpenedIcon, paths: ["issues"] },
+  { list: "pulls", label: "Pull requests", icon: GitPullRequestIcon, paths: ["pulls", "pull", "compare"] },
+] as const;
+type Section = (typeof SECTIONS)[number];
+
+/** Link to a section's list, with the last query used for that list. */
+function sectionLink(owner: string, repo: string, section: Section): string {
+  return `/${owner}/${repo}/${section.list}${readListQueries()[`${owner}/${repo}:${section.list}`] ?? ""}`;
+}
+
+/** Crumb after the repo for the section the page is in, with a caret to switch sections. */
+function SectionCrumb({ owner, repo, kind, current }: { owner: string; repo: string; kind: string | undefined; current: string }) {
+  const section = SECTIONS.find((s) => (s.paths as readonly string[]).includes(kind ?? ""));
+  const navigate = useNavigate();
+  if (!section) return null;
+  return (
+    <>
+      <span className="muted">/</span>
+      <span className="crumb-split">
+        <Crumb to={sectionLink(owner, repo, section)} current={current}>
+          {section.label}
+        </Crumb>
+        <CrumbMenu
+          label="Switch section"
+          menu={(anchor, close) => (
+            <SelectMenu<Section>
+              anchor={anchor}
+              title="Switch section"
+              items={[...SECTIONS]}
+              getKey={(s) => s.list}
+              getText={(s) => s.label}
+              renderItem={(s) => (
+                <>
+                  <s.icon className="muted" />
+                  {s.label}
+                </>
+              )}
+              initial={[section.list]}
+              filterable={false}
+              onApply={(keys) => navigate(sectionLink(owner, repo, SECTIONS.find((s) => s.list === keys[0]) ?? section))}
+              onClose={close}
+            />
+          )}
+        />
+      </span>
+    </>
+  );
 }
 
 /** Repo that the Feedback button files issues in, as owner/repo. */
@@ -73,7 +115,6 @@ export function Layout() {
   const [help, setHelp] = useState(false);
   useHotkey("?", () => setHelp(true));
   useRememberListQuery(repo ? segments : [], search);
-  const list = repo && listCrumb(segments);
   const onFeedback = pathname.toLowerCase() === `/${FEEDBACK_REPO}/issues/new`.toLowerCase();
   const wide = /\/pull\/\d+\/(files|commits\/[0-9a-f]+)/.test(pathname);
 
@@ -101,14 +142,7 @@ export function Layout() {
                   </span>
                 </>
               )}
-              {list && (
-                <>
-                  <span className="muted">/</span>
-                  <Crumb to={list.to} current={pathname}>
-                    {list.label}
-                  </Crumb>
-                </>
-              )}
+              {repo && <SectionCrumb owner={repo.owner} repo={repo.repo} kind={segments[2]} current={pathname} />}
             </nav>
           )}
         </div>
@@ -139,10 +173,10 @@ export function Layout() {
   );
 }
 
-/** Breadcrumb link, or plain text when it points at the current page. */
+/** Breadcrumb link, or plain text when it points at the current page (whatever the query). */
 function Crumb({ to, current, bold, children }: { to: string; current: string; bold?: boolean; children: ReactNode }) {
   const style = bold ? { fontWeight: 600 } : undefined;
-  if (current.replace(/\/$/, "") === to)
+  if (current.replace(/\/$/, "") === to.split("?")[0])
     return (
       <span aria-current="page" style={style}>
         {children}
