@@ -1,21 +1,20 @@
 import { useRef, useState } from "react";
 import { gql } from "@/api/client";
-import type { ReactionContent, ReactionGroup } from "@/api/types";
+import { REACTION_FIELDS, type ReactionContent, type ReactionGroup } from "@/api/types";
 
-const GROUP_FIELDS = `reactionGroups { content viewerHasReacted reactors { totalCount } }`;
-const ADD = `mutation AddReaction($id: ID!, $content: ReactionContent!) { addReaction(input: { subjectId: $id, content: $content }) { ${GROUP_FIELDS} } }`;
-const REMOVE = `mutation RemoveReaction($id: ID!, $content: ReactionContent!) { removeReaction(input: { subjectId: $id, content: $content }) { ${GROUP_FIELDS} } }`;
+const ADD = `mutation AddReaction($id: ID!, $content: ReactionContent!) { addReaction(input: { subjectId: $id, content: $content }) { ${REACTION_FIELDS} } }`;
+const REMOVE = `mutation RemoveReaction($id: ID!, $content: ReactionContent!) { removeReaction(input: { subjectId: $id, content: $content }) { ${REACTION_FIELDS} } }`;
 
 type AddData = { addReaction: { reactionGroups: ReactionGroup[] } };
 type RemoveData = { removeReaction: { reactionGroups: ReactionGroup[] } };
 
 function toggled(groups: ReactionGroup[], content: ReactionContent): ReactionGroup[] {
   const has = groups.some((g) => g.content === content);
-  const list = has ? groups : [...groups, { content, viewerHasReacted: false, reactors: { totalCount: 0 } }];
+  const list = has ? groups : [...groups, { content, viewerHasReacted: false, reactors: { totalCount: 0, nodes: [] } }];
   return list.map((g) =>
     g.content !== content
       ? g
-      : { ...g, viewerHasReacted: !g.viewerHasReacted, reactors: { totalCount: g.reactors.totalCount + (g.viewerHasReacted ? -1 : 1) } },
+      : { ...g, viewerHasReacted: !g.viewerHasReacted, reactors: { ...g.reactors, totalCount: g.reactors.totalCount + (g.viewerHasReacted ? -1 : 1) } },
   );
 }
 

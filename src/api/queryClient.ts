@@ -8,7 +8,7 @@ import { syncSubjects } from "./subjects";
 const cacheDb = createStore("gitgud-cache", "queries");
 
 /** Bump to discard every persisted query after a breaking change to cached data shapes. */
-const CACHE_VERSION = "1";
+const CACHE_VERSION = "2";
 const MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
 
 const persister = experimental_createQueryPersister<PersistedQuery>({

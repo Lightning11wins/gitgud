@@ -1,7 +1,5 @@
 // GraphQL documents for the conversation timeline. Relative `.ts` imports let scripts/check-conversation-queries.ts load this file in Node.
-import { ACTOR_FIELDS } from "../../api/types.ts";
-
-export const REACTION_FIELDS = `reactionGroups { content viewerHasReacted reactors { totalCount } }`;
+import { ACTOR_FIELDS, REACTION_FIELDS } from "../../api/types.ts";
 
 const ISSUE_REF = `__typename number title url state stateReason repository { nameWithOwner }`;
 

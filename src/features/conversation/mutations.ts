@@ -65,11 +65,11 @@ export async function setReaction(subjectId: string, content: ReactionContent, a
 /** Reaction groups after the viewer adds or removes `content`. */
 export function applyReaction(groups: ReactionGroup[], content: ReactionContent, add: boolean): ReactionGroup[] {
   const found = groups.some((g) => g.content === content);
-  const list = found ? groups : [...groups, { content, viewerHasReacted: false, reactors: { totalCount: 0 } }];
+  const list = found ? groups : [...groups, { content, viewerHasReacted: false, reactors: { totalCount: 0, nodes: [] } }];
   return list.map((g) =>
     g.content !== content || g.viewerHasReacted === add
       ? g
-      : { ...g, viewerHasReacted: add, reactors: { totalCount: Math.max(0, g.reactors.totalCount + (add ? 1 : -1)) } },
+      : { ...g, viewerHasReacted: add, reactors: { ...g.reactors, totalCount: Math.max(0, g.reactors.totalCount + (add ? 1 : -1)) } },
   );
 }
 

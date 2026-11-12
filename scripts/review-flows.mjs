@@ -80,14 +80,14 @@ if (await rb().count()) {
   console.log(`resolve: ${before} -> ${mid} -> ${await txt()}`);
 } else console.log("no resolve button");
 const rc = page.locator(".rt-comment").first();
-const eyes = () => rc.locator(".reaction-pill[title='eyes']");
+const eyes = () => rc.locator(".reaction-pill[data-tooltip$='eyes emoji']");
 const eyesBefore = await eyes().count();
 await rc.locator(".reaction-pill.add").click();
-await page.locator(".reaction-picker button[title='eyes']").click();
+await page.locator(".reaction-picker button[data-tooltip='eyes']").click();
 await page.waitForTimeout(2500);
 check("reaction toggled on review comment", (await eyes().count()) !== eyesBefore || (await eyes().getAttribute("aria-pressed")) !== null);
 await rc.locator(".reaction-pill.add").click();
-await page.locator(".reaction-picker button[title='eyes']").click();
+await page.locator(".reaction-picker button[data-tooltip='eyes']").click();
 await page.waitForTimeout(2500);
 check("reaction restored", (await eyes().count()) === eyesBefore);
 await browser.close();

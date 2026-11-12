@@ -1,6 +1,8 @@
 import { SmileyIcon } from "@primer/octicons-react";
 import { memo, useState } from "react";
 import type { ReactionContent, ReactionGroup } from "@/api/types";
+import { auth } from "@/auth/token";
+import { useStore } from "@/lib/store";
 import { Popover } from "./Popover";
 import "./reactions.css";
 import { tooltip } from "@/lib/tooltip";
@@ -16,6 +18,17 @@ export const REACTION_EMOJI: [ReactionContent, string][] = [
   ["EYES", "👀"],
 ];
 
+const reactionName = (content: ReactionContent) => content.toLowerCase().replace("_", " ");
+
+/** Who reacted, like GitHub's tooltip: "You, alice, and 3 more reacted with eyes emoji". */
+export function reactorsLabel(group: ReactionGroup, viewerLogin: string | undefined): string {
+  const others = group.reactors.nodes.map((n) => n.login).filter((l) => l !== viewerLogin);
+  const names = group.viewerHasReacted ? ["You", ...others] : others;
+  const more = group.reactors.totalCount - names.length;
+  const list = new Intl.ListFormat("en", { type: "conjunction" }).format(more > 0 ? [...names, `${more} more`] : names);
+  return `${list} reacted with ${reactionName(group.content)} emoji`;
+}
+
 export interface ReactionBarProps {
   groups: ReactionGroup[];
   canReact: boolean;
@@ -26,6 +39,7 @@ export interface ReactionBarProps {
 
 /** Reaction counts plus an emoji picker, like GitHub's comment footer. */
 export const ReactionBar = memo(function ReactionBar({ groups, canReact, onToggle, error }: ReactionBarProps) {
+  const viewerLogin = useStore(auth).viewer?.login;
   const shown = REACTION_EMOJI.filter(([c]) => (groups.find((g) => g.content === c)?.reactors.totalCount ?? 0) > 0);
   if (!shown.length && !canReact && !error) return null;
   return (
@@ -39,7 +53,7 @@ export const ReactionBar = memo(function ReactionBar({ groups, canReact, onToggl
             className={`reaction-pill ${g.viewerHasReacted ? "reacted" : ""}`}
             disabled={!canReact}
             aria-pressed={g.viewerHasReacted}
-            {...tooltip(content.toLowerCase().replace("_", " "))}
+            {...tooltip(reactorsLabel(g, viewerLogin))}
             onClick={() => onToggle(content, !g.viewerHasReacted)}
           >
             <span>{emoji}</span>
@@ -69,7 +83,7 @@ export function ReactionPicker({ groups, onToggle }: Pick<ReactionBarProps, "gro
                   key={content}
                   className={`btn invisible sm icon ${reacted ? "reacted" : ""}`}
                   aria-pressed={reacted}
-                  {...tooltip(content.toLowerCase().replace("_", " "), "label")}
+                  {...tooltip(reactionName(content), "label")}
                   onClick={() => {
                     onToggle(content, !reacted);
                     setAnchor(null);

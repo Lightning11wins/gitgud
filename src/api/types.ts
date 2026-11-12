@@ -48,8 +48,11 @@ export type ReactionContent =
 export interface ReactionGroup {
   content: ReactionContent;
   viewerHasReacted: boolean;
-  reactors: { totalCount: number };
+  /** The first few reactors; `totalCount` counts them all. */
+  reactors: { totalCount: number; nodes: { login: string }[] };
 }
+
+export const REACTION_FIELDS = `reactionGroups { content viewerHasReacted reactors(first: 10) { totalCount nodes { ... on Actor { login } } } }`;
 
 export type IssueState = "OPEN" | "CLOSED";
 export type IssueStateReason = "COMPLETED" | "NOT_PLANNED" | "DUPLICATE" | "REOPENED" | null;
@@ -100,7 +103,7 @@ export const SUBJECT_META_FIELDS = `
   labels(first: 100) { nodes { id name color description } }
   assignees(first: 50) { nodes { id ${ACTOR_FIELDS} name } }
   milestone { id number title dueOn state }
-  reactionGroups { content viewerHasReacted reactors { totalCount } }
+  ${REACTION_FIELDS}
   repository { id nameWithOwner viewerPermission }
 `;
 
@@ -164,7 +167,7 @@ export interface ReviewComment {
 export const REVIEW_COMMENT_FIELDS = `
   id databaseId author { ${ACTOR_FIELDS} } authorAssociation body bodyHTML createdAt lastEditedAt url
   diffHunk state isMinimized minimizedReason viewerCanUpdate viewerCanDelete viewerCanReact
-  reactionGroups { content viewerHasReacted reactors { totalCount } }
+  ${REACTION_FIELDS}
   pullRequestReview { id state }
   replyTo { id }
 `;
