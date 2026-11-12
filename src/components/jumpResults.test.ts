@@ -55,6 +55,15 @@ describe("jumpRows", () => {
     expect(paths(jumpRows("auth login", repo, cached))).toEqual(["/cli/cli/issues/9789", "/cli/cli/pull/14679"]);
     expect(paths(jumpRows("auth login", null, cached))).toEqual([]);
   });
+
+  it("lists the current repo's issues and pull requests above other repos", () => {
+    const live: JumpHits = {
+      repos: [{ owner: "acme", name: "auth-login" }],
+      owners: [{ login: "authlogin", avatarUrl: "" }],
+      subjects: [{ repo: "cli/cli", number: 9789, title: "gh auth login hangs", state: "OPEN", isPull: false }],
+    };
+    expect(paths(jumpRows("auth login", repo, none, live))).toEqual(["/cli/cli/issues/9789", "/acme/auth-login", "/authlogin"]);
+  });
 });
 
 describe("cachedHits", () => {

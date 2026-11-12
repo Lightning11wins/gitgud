@@ -60,8 +60,8 @@ export function jumpTarget(text: string, repo: RepoRef | null): { path: string; 
 }
 
 /**
- * Suggestions for the jump box, best first: the jump target, then repos, owners, and the current
- * repo's issues and PRs. Within each group, `cached` hits that match `text` come before `live`
+ * Suggestions for the jump box, best first: the jump target, the current repo's issues and PRs,
+ * then repos and owners. Within each group, `cached` hits that match `text` come before `live`
  * hits, which are already search results and show unfiltered.
  */
 export function jumpRows(text: string, repo: RepoRef | null, cached: JumpHits, live?: JumpHits): JumpRow[] {
@@ -80,8 +80,6 @@ export function jumpRows(text: string, repo: RepoRef | null, cached: JumpHits, l
   const target = jumpTarget(text, repo);
   const groups: [JumpRow[], number][] = [
     [target ? [{ kind: "jump", ...target }] : [], 1],
-    [pick(cached.repos, live?.repos, (r) => [r.name, `${r.owner}/${r.name}`]).map((r) => ({ kind: "repo", path: repoPath(r.owner, r.name), ...r })), MAX_REPOS],
-    [pick(cached.owners, live?.owners, (o) => [o.login]).map((o) => ({ kind: "owner", path: `/${o.login}`, ...o })), MAX_OWNERS],
     [
       pick(cached.subjects.filter(inRepo), live?.subjects, (s) => [s.title, `#${s.number}`]).map((s) => ({
         kind: "subject",
@@ -90,6 +88,8 @@ export function jumpRows(text: string, repo: RepoRef | null, cached: JumpHits, l
       })),
       MAX_SUBJECTS,
     ],
+    [pick(cached.repos, live?.repos, (r) => [r.name, `${r.owner}/${r.name}`]).map((r) => ({ kind: "repo", path: repoPath(r.owner, r.name), ...r })), MAX_REPOS],
+    [pick(cached.owners, live?.owners, (o) => [o.login]).map((o) => ({ kind: "owner", path: `/${o.login}`, ...o })), MAX_OWNERS],
   ];
 
   const seen = new Set<string>();
