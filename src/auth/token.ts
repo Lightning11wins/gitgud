@@ -16,6 +16,8 @@ export interface AuthState {
   viewer: Viewer | null;
   /** The user whose token GitHub rejected; the sign-in screen asks them for a new one. */
   rejected?: Viewer | null;
+  /** Why signing out couldn't erase this browser's data, shown on the sign-in screen. */
+  eraseError?: string;
 }
 
 export const auth = createStore<AuthState>({ status: "loading", token: null, viewer: null });
@@ -96,7 +98,12 @@ export async function signIn(token: string) {
   const viewer = body?.data?.viewer as Viewer | undefined;
   if (!viewer) throw new Error(`Failed to sign in: ${body?.errors?.[0]?.message ?? "no viewer returned"}.`);
   const previous = auth.get().rejected ?? (await get<Viewer>("viewer", authDb).catch(() => undefined));
-  if (previous?.login !== viewer.login) await clearLocalData();
+  if (previous?.login !== viewer.login) {
+    // Another account's cache and drafts must never show to this one.
+    await clearLocalData().catch((e) => {
+      throw new Error(`Failed to sign in: the previous account's data couldn't be erased from this browser (${e instanceof Error ? e.message : e}).`, { cause: e });
+    });
+  }
   await Promise.all([saveToken(token), set("viewer", viewer, authDb)]);
   auth.set({ status: "signed-in", token, viewer });
   // Best effort: keep the cache from being evicted under storage pressure.
@@ -105,9 +112,15 @@ export async function signIn(token: string) {
 
 export async function signOut() {
   // Drop the token first so in-flight requests can't persist into the wiped cache.
-  auth.set({ status: "signed-out", token: null, viewer: null });
-  await Promise.all([del("token", authDb), del("key", authDb), del("viewer", authDb)]);
-  await clearLocalData();
+  const session: AuthState = { status: "signed-out", token: null, viewer: null };
+  auth.set(session);
+  try {
+    await Promise.all([del("token", authDb), del("key", authDb), del("viewer", authDb)]);
+    await clearLocalData();
+  } catch (e) {
+    const message = `Failed to erase your token, cache, or drafts from this browser: ${e instanceof Error ? e.message : e}. Clear this site's data in the browser's settings.`;
+    if (auth.get() === session) auth.set({ ...session, eraseError: message });
+  }
 }
 
 async function clearLocalData() {

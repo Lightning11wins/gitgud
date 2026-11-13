@@ -23,7 +23,7 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 import { Markdown } from "@/components/Markdown";
 import { Spinner } from "@/components/Spinner";
 import { StateIcon } from "@/components/StateBadge";
-import { drafts } from "@/lib/drafts";
+import { drafts, useDraftError } from "@/lib/drafts";
 import { useMentionSuggestions, useRefSuggestions, type MentionCandidate, type RefCandidate } from "./autocomplete";
 import { code, findTrigger, insert, link, prefixLines, suggestion, wrap, type Edit, type Trigger } from "./format";
 import "./composer.css";
@@ -81,6 +81,7 @@ export function Composer(props: ComposerProps) {
   const [tab, setTab] = useState<"write" | "preview">("write");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const draftError = useDraftError(draftKey);
   const [imageNotice, setImageNotice] = useState(false);
   const [trigger, setTrigger] = useState<Trigger | null>(null);
   const [active, setActive] = useState(0);
@@ -362,6 +363,7 @@ export function Composer(props: ComposerProps) {
         </div>
       )}
       {error != null && <ErrorBanner error={error} />}
+      {draftError && <ErrorBanner error={draftError} />}
       {!hideSubmit && (
         <div className="composer-actions row">
           <span className="grow muted composer-hint">Markdown supported · Ctrl+Enter to submit</span>

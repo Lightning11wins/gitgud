@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+let failClear = false;
 const stores = new Map<string, Map<string, unknown>>();
 const store = (name: string) => stores.get(name) ?? stores.set(name, new Map()).get(name)!;
 vi.mock("idb-keyval", () => ({
@@ -8,11 +9,14 @@ vi.mock("idb-keyval", () => ({
   set: async (key: string, value: unknown, s: string) => void store(s).set(key, value),
   del: async (key: string, s: string) => void store(s).delete(key),
   update: async (key: string, fn: (v: unknown) => unknown, s: string) => void store(s).set(key, fn(store(s).get(key))),
-  clear: async (s: string) => store(s).clear(),
+  clear: async (s: string) => {
+    if (failClear) throw new Error("storage blocked");
+    store(s).clear();
+  },
   entries: async (s: string) => [...store(s).entries()],
 }));
 
-const { auth, loadAuth, signIn, tokenRejected } = await import("./token");
+const { auth, loadAuth, signIn, signOut, tokenRejected } = await import("./token");
 const { drafts } = await import("@/lib/drafts");
 
 const viewer = (login: string) => ({ login, name: null, avatarUrl: "", url: "" });
@@ -27,7 +31,10 @@ describe("token rejection", () => {
     await signIn("t1");
     await drafts.set("k", "draft");
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    failClear = false;
+    vi.unstubAllGlobals();
+  });
 
   it("signs out and remembers who was rejected", () => {
     tokenRejected(auth.get());
@@ -54,6 +61,20 @@ describe("token rejection", () => {
     await signIn("t3");
     expect(auth.get().viewer?.login).toBe("bob");
     expect(await drafts.get("k")).toBeUndefined();
+  });
+
+  it("refuses a different user when the previous user's drafts can't be erased", async () => {
+    tokenRejected(auth.get());
+    mockViewer("bob");
+    failClear = true;
+    await expect(signIn("t3")).rejects.toThrow(/^Failed to sign in: .*storage blocked/);
+    expect(auth.get().status).toBe("signed-out");
+  });
+
+  it("says so on the sign-in screen when signing out can't erase local data", async () => {
+    failClear = true;
+    await signOut();
+    expect(auth.get()).toMatchObject({ status: "signed-out", token: null, eraseError: expect.stringMatching(/^Failed to erase .*storage blocked/) });
   });
 });
 

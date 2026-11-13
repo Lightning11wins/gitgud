@@ -8,7 +8,7 @@ const TOKEN_URL =
 
 export function Login() {
   useTitle("Sign in");
-  const { rejected } = useStore(auth);
+  const { rejected, eraseError } = useStore(auth);
   const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,6 +37,7 @@ export function Login() {
             new token to continue where you left off.
           </div>
         )}
+        {eraseError && <div className="flash error" role="alert">{eraseError}</div>}
         <label htmlFor="token" className="login-label">
           Personal access token
         </label>
