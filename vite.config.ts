@@ -10,5 +10,5 @@ export default defineConfig({
   },
   worker: { format: "es" },
   build: { target: "es2022", sourcemap: true },
-  test: { environment: "node", include: ["src/**/*.test.ts"] },
+  test: { environment: "node", include: ["src/**/*.test.{ts,tsx}"] },
 });

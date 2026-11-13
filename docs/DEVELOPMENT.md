@@ -8,6 +8,10 @@ pnpm test
 pnpm build
 ```
 
+## Flow tests
+
+`src/test/*.test.tsx` render the whole app in happy-dom against a fake GitHub (`src/test/fakeGitHub.ts`) and a fake repository whose queries share one state (`src/test/world.ts`), so a change made through one query shows in the others. Requests no handler answers stay pending. Use them for behavior that spans the cache and several pages; keep them few and fast.
+
 ## Browser scripts
 
 The scripts in `scripts/` drive the app in headless Chromium, signed in with the `gh` CLI's token. Each starts its own Vite dev server. Usage is in each file's header.
