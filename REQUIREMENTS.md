@@ -4,7 +4,7 @@ A fast replacement for GitHub's issue and PR web flows, backed by the GitHub API
 
 ## Architecture
 - Browser-only SPA. The server only serves static files and never sees tokens or user data.
-- Each user pastes their own GitHub token. It's stored plainly in IndexedDB. Sign out wipes the token and the cache.
+- Each user pastes their own GitHub token. It's stored in IndexedDB, encrypted with a non-extractable key stored beside it, so it never sits on disk as plain text (page scripts can still decrypt it). Sign out wipes the token and the cache.
 - All API calls go from the browser straight to api.github.com (GraphQL for bulk reads, REST where needed).
 - Cache in IndexedDB, with `navigator.storage.persist()` requested.
 - Stack: React + TypeScript + Vite, TanStack Virtual for long lists.
