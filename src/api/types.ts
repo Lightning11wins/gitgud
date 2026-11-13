@@ -58,8 +58,12 @@ export type IssueState = "OPEN" | "CLOSED";
 export type IssueStateReason = "COMPLETED" | "NOT_PLANNED" | "DUPLICATE" | "REOPENED" | null;
 export type PullState = "OPEN" | "CLOSED" | "MERGED";
 
-/** Fields shared by issues and PRs: everything the header and metadata sidebar need. */
-export interface SubjectMeta {
+/**
+ * Fields every cached copy of an issue or PR carries, in list rows and on its own page. `api/subjects.ts`
+ * spreads the newest copy's `SUBJECT_HEADER_KEYS` to the other copies, so a field added here and to
+ * `SUBJECT_HEADER_FIELDS` stays consistent everywhere it shows.
+ */
+export interface SubjectHeader {
   __typename: "Issue" | "PullRequest";
   id: string;
   number: number;
@@ -68,6 +72,20 @@ export interface SubjectMeta {
   state: IssueState | PullState;
   createdAt: string;
   updatedAt: string;
+  labels: { nodes: Label[] };
+  assignees: { nodes: User[] };
+  repository: { nameWithOwner: string };
+  /** Issues only (`ISSUE_HEADER_FIELDS`). */
+  stateReason?: IssueStateReason;
+  /** PRs only (`PULL_HEADER_FIELDS`). */
+  isDraft?: boolean;
+}
+
+/** The header fields that change over an issue or PR's life, which a copy takes from a newer one. */
+export const SUBJECT_HEADER_KEYS = ["title", "state", "stateReason", "isDraft", "labels", "assignees"] as const;
+
+/** Fields shared by issues and PRs: everything the header and metadata sidebar need. */
+export interface SubjectMeta extends SubjectHeader {
   author: Actor | null;
   authorAssociation: string;
   body: string;
@@ -76,17 +94,11 @@ export interface SubjectMeta {
   viewerCanUpdate: boolean;
   viewerDidAuthor: boolean;
   locked: boolean;
-  labels: { nodes: Label[] };
-  assignees: { nodes: User[] };
   milestone: Milestone | null;
   reactionGroups: ReactionGroup[];
   repository: { id: string; nameWithOwner: string; viewerPermission: RepoPermission | null };
   /** Issues only. */
-  stateReason?: IssueStateReason;
   issueType?: IssueType | null;
-  /** PRs only. */
-  isDraft?: boolean;
-  merged?: boolean;
 }
 
 export type RepoPermission = "ADMIN" | "MAINTAIN" | "WRITE" | "TRIAGE" | "READ";
@@ -95,20 +107,27 @@ export const ACTOR_FIELDS = `__typename login avatarUrl(size: 80) url`;
 
 export const isBot = (a: { __typename?: string } | null | undefined) => a?.__typename === "Bot";
 
-/** Selection set valid on both Issue and PullRequest, producing {@link SubjectMeta}. */
-export const SUBJECT_META_FIELDS = `
-  __typename id number title url state createdAt updatedAt body bodyHTML lastEditedAt
-  viewerCanUpdate viewerDidAuthor locked
-  author { ${ACTOR_FIELDS} } authorAssociation
+/** Selection set valid on both Issue and PullRequest, producing {@link SubjectHeader} with the issue or PR fields below. */
+export const SUBJECT_HEADER_FIELDS = `
+  __typename id number title url state createdAt updatedAt
   labels(first: 100) { nodes { id name color description } }
   assignees(first: 50) { nodes { id ${ACTOR_FIELDS} name } }
+  repository { nameWithOwner }
+`;
+export const ISSUE_HEADER_FIELDS = `stateReason`;
+export const PULL_HEADER_FIELDS = `isDraft`;
+
+/** Selection set valid on both Issue and PullRequest, producing {@link SubjectMeta}. */
+export const SUBJECT_META_FIELDS = `
+  ${SUBJECT_HEADER_FIELDS}
+  body bodyHTML lastEditedAt viewerCanUpdate viewerDidAuthor locked
+  author { ${ACTOR_FIELDS} } authorAssociation
   milestone { id number title dueOn state }
   ${REACTION_FIELDS}
   repository { id nameWithOwner viewerPermission }
 `;
 
-export const ISSUE_ONLY_FIELDS = `stateReason issueType { id name color description }`;
-export const PULL_ONLY_FIELDS = `isDraft merged`;
+export const ISSUE_ONLY_FIELDS = `${ISSUE_HEADER_FIELDS} issueType { id name color description }`;
 
 export function canWrite(perm: RepoPermission | null | undefined): boolean {
   return perm === "ADMIN" || perm === "MAINTAIN" || perm === "WRITE";

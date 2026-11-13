@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { navigate, openApp, reload, useFakeGitHub } from "./app";
 import { fakeRepo } from "./world";
@@ -51,17 +51,19 @@ describe("issue lists and pages", () => {
     expect(await screen.findByText("Crash on launch")).toBeTruthy();
   });
 
-  it("shows a newer list row's title on a cached issue page", async () => {
+  it("shows a newer list row's title and labels on a cached issue page", async () => {
     const repo = fakeRepo(github());
     const issue = repo.addIssue({ title: "Crash on start" });
     openApp("/acme/app/issues/1");
     await screen.findByRole("heading", { name: /Crash on start/ });
     issue.title = "Crash on launch";
+    issue.labels = [{ id: "L1", name: "regression", color: "d73a4a", description: null }];
     repo.touch(issue);
     await navigate("/acme/app");
     await screen.findByText("Crash on launch");
     github().hold("IssueMeta");
     await navigate("/acme/app/issues/1");
     expect(await screen.findByRole("heading", { name: /Crash on launch/ })).toBeTruthy();
+    expect(within(document.querySelector(".issue-layout")!).getByText("regression")).toBeTruthy();
   });
 });

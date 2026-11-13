@@ -2,25 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { GitHubError, gql, gqlPartial } from "@/api/client";
 import { keys } from "@/api/keys";
+import { ISSUE_HEADER_FIELDS, PULL_HEADER_FIELDS, SUBJECT_HEADER_FIELDS, type SubjectHeader } from "@/api/types";
 import { persistedData, queryClient } from "@/api/queryClient";
 import { warmRows } from "./warmRows";
 
-export interface ListItem {
-  __typename: "Issue" | "PullRequest";
-  id: string;
-  number: number;
-  title: string;
-  url: string;
-  state: string;
-  stateReason?: "COMPLETED" | "NOT_PLANNED" | "DUPLICATE" | "REOPENED" | null;
-  isDraft?: boolean;
+/** A search result row: the shared header plus what only lists show. */
+export interface ListItem extends SubjectHeader {
   reviewDecision?: "APPROVED" | "CHANGES_REQUESTED" | "REVIEW_REQUIRED" | null;
-  createdAt: string;
-  updatedAt: string;
   author: { login: string; avatarUrl: string } | null;
-  repository: { nameWithOwner: string };
-  labels: { nodes: { name: string; color: string; description?: string | null }[] };
-  assignees: { nodes: { login: string; avatarUrl: string }[] };
   comments: { totalCount: number };
   /** Pull requests only: comments including review comments. */
   totalCommentsCount?: number;
@@ -71,12 +60,9 @@ export interface ListData extends Page<ListItem> {
 /** Check summaries of a list's pull requests, keyed by node id. `null` means the PR has no checks. */
 export type ListChecks = Record<string, CheckSummary | null>;
 
-const COMMON = `
-  id number title url state createdAt updatedAt
+/** Fields lists show besides the header. */
+const ROW_FIELDS = `
   author { login avatarUrl(size: 40) }
-  repository { nameWithOwner }
-  labels(first: 10) { nodes { name color description } }
-  assignees(first: 5) { nodes { login avatarUrl(size: 40) } }
   comments { totalCount }
 `;
 
@@ -88,11 +74,11 @@ query SearchList($q: String!, $first: Int!, $after: String) {
     nodes {
       __typename
       ... on Issue {
-        ${COMMON} stateReason
+        ${SUBJECT_HEADER_FIELDS} ${ISSUE_HEADER_FIELDS} ${ROW_FIELDS}
         linkedPrs: closedByPullRequestsReferences(first: 5, includeClosedPrs: true) { totalCount nodes { state isDraft } }
       }
       ... on PullRequest {
-        ${COMMON} isDraft reviewDecision totalCommentsCount
+        ${SUBJECT_HEADER_FIELDS} ${PULL_HEADER_FIELDS} ${ROW_FIELDS} reviewDecision totalCommentsCount
       }
     }
   }

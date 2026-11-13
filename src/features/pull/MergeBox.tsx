@@ -493,7 +493,7 @@ function MergeConfirm({ pull, owner, repo, method, onCancel }: { pull: PullMeta;
       setBusy(false);
       return;
     }
-    await markMerged(owner, repo, pull.number, { ...merged, state: "MERGED", merged: true });
+    await markMerged(owner, repo, pull.number, { ...merged, state: "MERGED" });
   };
   const confirmLabel = METHODS.find((m) => m.method === method)!.confirm;
   return (

@@ -3,7 +3,7 @@ import { GitHubError, gql, gqlAll, gqlPartial, rest } from "@/api/client";
 import { keys } from "@/api/keys";
 import { registerPathPrefetcher, registerPrefetcher, speculate } from "@/api/prefetch";
 import { queryClient } from "@/api/queryClient";
-import { ACTOR_FIELDS, PULL_ONLY_FIELDS, SUBJECT_META_FIELDS, type Actor, type SubjectMeta } from "@/api/types";
+import { ACTOR_FIELDS, PULL_HEADER_FIELDS, SUBJECT_META_FIELDS, type Actor, type SubjectMeta } from "@/api/types";
 import { getToken } from "@/auth/token";
 import { prefetchTimeline } from "@/features/conversation/timeline";
 import { prefetchReviewThreads } from "@/features/review/threads";
@@ -128,7 +128,7 @@ export const pullQuery = (withChecks: boolean) => `query PullMeta($owner: String
   repository(owner: $owner, name: $repo) {
     isPrivate mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed deleteBranchOnMerge viewerDefaultMergeMethod
     pullRequest(number: $number) {
-      ${SUBJECT_META_FIELDS} ${PULL_ONLY_FIELDS}
+      ${SUBJECT_META_FIELDS} ${PULL_HEADER_FIELDS}
       baseRefName headRefName headRefOid baseRefOid isCrossRepository
       headRepository { id name owner { login } }
       headRef { id }
@@ -410,9 +410,9 @@ export function setDraft(pullId: string, draft: boolean) {
 }
 
 export async function mergePull(input: { pullRequestId: string; mergeMethod: MergeMethod; commitHeadline?: string; commitBody?: string; expectedHeadOid: string }) {
-  type Merged = Pick<PullMeta, "state" | "merged" | "mergedAt" | "mergedBy" | "closedAt">;
+  type Merged = Pick<PullMeta, "state" | "mergedAt" | "mergedBy" | "closedAt">;
   const data = await gql<{ mergePullRequest: { pullRequest: Merged } }>(
-    `mutation MergePull($input: MergePullRequestInput!) { mergePullRequest(input: $input) { pullRequest { state merged mergedAt mergedBy { ${ACTOR_FIELDS} } closedAt } } }`,
+    `mutation MergePull($input: MergePullRequestInput!) { mergePullRequest(input: $input) { pullRequest { state mergedAt mergedBy { ${ACTOR_FIELDS} } closedAt } } }`,
     { input },
   );
   return data.mergePullRequest.pullRequest;
