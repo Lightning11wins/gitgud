@@ -150,9 +150,10 @@ async function fetchItems(
 }
 
 /**
- * Loads the timeline for a new `stamp`, or for a `recheck` of an unchanged one. Resumes after the cached
- * end cursor when the cache is recent or rechecked, and falls back to a full reload when the item counts
- * don't add up (e.g. deletions).
+ * Loads the timeline for a new `stamp`, or for a `recheck` of an unchanged one. A cached timeline that
+ * fits in one page reloads whole, which costs the same as resuming and catches items GitHub inserted
+ * before the cursor. A longer one resumes after its end cursor when the cache is recent or rechecked,
+ * and falls back to a full reload when the item counts don't add up (e.g. deletions).
  */
 async function loadTimeline(subject: Subject, stamp: string, maxPages: number, recheck = false): Promise<TimelineData> {
   const key = keys.timeline(subject.owner, subject.repo, subject.number);
@@ -174,7 +175,7 @@ async function loadTimeline(subject: Subject, stamp: string, maxPages: number, r
       edited: current?.edited,
     });
   };
-  if (cached?.endCursor && (recheck || startedAt - cached.fullAt < FULL_RELOAD_MS)) {
+  if (cached?.endCursor && cached.items.length >= PAGE_SIZE && (recheck || startedAt - cached.fullAt < FULL_RELOAD_MS)) {
     const next = resumed(cached, await fetchItems(subject, cached, maxPages, onProgress), stamp);
     if (next) return { ...next, checkedAt: startedAt };
     // Progress may have moved the cursor past the change, so a failed reload must not resume.

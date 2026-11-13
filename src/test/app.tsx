@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, configure, render } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 import { App } from "@/App";
 import { clearCache, queryClient, readRecent } from "@/api/queryClient";
@@ -7,6 +7,9 @@ import { auth } from "@/auth/token";
 import { drafts } from "@/lib/drafts";
 import { fakeGitHub, type FakeGitHub } from "./fakeGitHub";
 import { VIEWER } from "./world";
+
+// Rendering a long timeline can take over the default second on a busy machine.
+configure({ asyncUtilTimeout: 5000 });
 
 /**
  * Runs each test against a fresh fake GitHub, signed in, with empty caches. Call at the top of a

@@ -46,7 +46,7 @@ Fixtures the scripts expect:
 
 ## Known issues
 
-- A timeline can miss a commit when one commit was dropped and another added without a force push.
+- A timeline over 100 items can miss a commit when one commit was dropped and another added without a force push, until its next full reload (30 minutes). Shorter timelines reload whole.
 - The close-with-comment retry state doesn't survive a reload.
 - A saved body draft wins over a `?body=` URL parameter.
 - The TanStack persister logs an unhandled rejection after a failed refetch.
