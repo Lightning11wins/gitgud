@@ -9,6 +9,9 @@ export interface StateInfo {
   isDraft?: boolean;
 }
 
+/** Every icon `stateStyle` returns. */
+export const STATE_ICONS = [GitMergeIcon, GitPullRequestClosedIcon, GitPullRequestDraftIcon, GitPullRequestIcon, IssueClosedIcon, IssueOpenedIcon, SkipIcon];
+
 /** Icon, color class, and text for an issue/PR state, matching GitHub's conventions. */
 export function stateStyle({ kind, state, stateReason, isDraft }: StateInfo) {
   if (kind === "pull") {

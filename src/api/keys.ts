@@ -17,6 +17,8 @@ export const keys = {
   recentPushes: (owner: string, repo: string) => ["recent-pushes", owner, repo] as const,
   issue: (owner: string, repo: string, number: number) => ["issue", owner, repo, number] as const,
   pull: (owner: string, repo: string, number: number) => ["pull", owner, repo, number] as const,
+  /** An issue or PR's title and state, for references to it in markdown. */
+  reference: (owner: string, repo: string, number: number) => ["reference", owner, repo, number] as const,
   timeline: (owner: string, repo: string, number: number) => ["timeline", owner, repo, number] as const,
   reviewThreads: (owner: string, repo: string, number: number) => ["review-threads", owner, repo, number] as const,
   pullFiles: (owner: string, repo: string, number: number) => ["pull-files", owner, repo, number] as const,

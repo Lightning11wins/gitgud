@@ -1,16 +1,21 @@
 import DOMPurify from "dompurify";
 import { CheckIcon, CopyIcon } from "@primer/octicons-react";
+import { useQueries } from "@tanstack/react-query";
 import { memo, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { useNavigate } from "react-router";
 import { freshBodyHtml } from "@/api/bodyHtml";
+import { keys } from "@/api/keys";
 import { copyText } from "@/lib/clipboard";
 import { toAppPath } from "@/lib/githubUrl";
 import { attachmentUrl, isSignedMedia, signedExpiry } from "@/lib/signedMedia";
 import { useDark } from "@/lib/theme";
 import { mermaidHtml } from "@/lib/trustedTypes";
 import { cachedMermaid, renderMermaid } from "@/components/mermaid";
+import { fetchReference, parseReference, type IssueRef, type Reference } from "@/components/references";
+import { STATE_ICONS, stateStyle } from "@/components/StateBadge";
+import { titleParts } from "@/components/TitleText";
 
 DOMPurify.addHook("uponSanitizeElement", (node, data) => {
   if (data.tagName !== "input") return;
@@ -56,6 +61,7 @@ function iconElement(icon: ReactElement): Element {
 // Rendered at load: flushSync can't render while React is committing.
 const COPY_ICON = iconElement(<CopyIcon size={16} />);
 const CHECK_ICON = iconElement(<CheckIcon size={16} />);
+const STATE_ICON_ELEMENTS = new Map(STATE_ICONS.map((Icon) => [Icon, iconElement(<Icon size={16} />)]));
 
 /** Replaces GitHub's script-filled embeds (Mermaid, GeoJSON, STL) with their source code block. */
 function unwrapEnrichments(root: HTMLElement) {
@@ -74,6 +80,51 @@ function unwrapThemeLinks(root: HTMLElement) {
     span.append(...a.childNodes);
     a.replaceWith(span);
   }
+}
+
+/** Text GitHub gives a bare reference link: `#123` or `owner/repo#123`. */
+const REFERENCE_TEXT = /^(?:[\w.-]+\/[\w.-]+)?#\d+$/;
+
+const refKey = (r: IssueRef) => `${r.owner}/${r.repo}#${r.number}`;
+
+/** Bare issue and PR links in list items, which GitHub shows with their state and title. */
+function listReferences(root: HTMLElement): { a: HTMLAnchorElement; ref: IssueRef }[] {
+  return [...root.querySelectorAll<HTMLAnchorElement>("li a.issue-link")].flatMap((a) => {
+    const ref = parseReference(a.getAttribute("href") ?? "");
+    return ref && REFERENCE_TEXT.test(a.dataset.refText ?? a.textContent ?? "") ? [{ a, ref }] : [];
+  });
+}
+
+/** Shows a reference link as its state icon, title, and number, or as plain text again when `info` is null. */
+function showReference(a: HTMLAnchorElement, info: Reference | null) {
+  const text = (a.dataset.refText ??= a.textContent ?? "");
+  if (!info) {
+    a.classList.remove("rich-ref");
+    a.replaceChildren(text);
+    return;
+  }
+  const { Icon, color, text: stateText } = stateStyle(info);
+  const icon = document.createElement("span");
+  icon.className = "rich-ref-icon";
+  icon.style.color = color;
+  icon.setAttribute("role", "img");
+  icon.setAttribute("aria-label", stateText);
+  icon.dataset.tooltip = stateText;
+  icon.append(STATE_ICON_ELEMENTS.get(Icon)!.cloneNode(true));
+  const title = document.createElement("span");
+  title.className = "rich-ref-title";
+  titleParts(info.title).forEach((part, i) => {
+    if (i % 2 === 0) return title.append(part);
+    const code = document.createElement("code");
+    code.className = "title-code";
+    code.textContent = part;
+    title.append(code);
+  });
+  const number = document.createElement("span");
+  number.className = "rich-ref-number";
+  number.textContent = text;
+  a.classList.add("rich-ref");
+  a.replaceChildren(icon, title, " ", number);
 }
 
 /** Draws each Mermaid code block as a diagram, keeping the code block for copying and as a fallback. */
@@ -156,12 +207,28 @@ export const Markdown = memo(function Markdown({ html, className, nodeId }: Mark
   const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   const dark = useDark();
+  const [refs, setRefs] = useState<IssueRef[]>([]);
+  const refQueries = useQueries({
+    queries: refs.map((r) => ({ queryKey: keys.reference(r.owner, r.repo, r.number), queryFn: () => fetchReference(r), staleTime: 60_000 })),
+  });
+  const refInfo = new Map(refs.map((r, i) => [refKey(r), refQueries[i].data]));
+  const refVersion = refQueries.map((q) => q.dataUpdatedAt).join();
   useLayoutEffect(() => {
     if (!ref.current) return;
     unwrapEnrichments(ref.current);
     unwrapThemeLinks(ref.current);
     addCopyButtons(ref.current);
+    const found = [...new Map(listReferences(ref.current).map(({ ref: target }) => [refKey(target), target])).values()];
+    setRefs((prev) => (prev.map(refKey).join() === found.map(refKey).join() ? prev : found));
   }, [clean]);
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    for (const { a, ref: target } of listReferences(ref.current)) {
+      const info = refInfo.get(refKey(target));
+      if (info !== undefined) showReference(a, info);
+    }
+    // refInfo is rebuilt each render; refVersion changes when its data does.
+  }, [clean, refVersion]);
   useLayoutEffect(() => {
     if (!ref.current) return;
     let live = true;

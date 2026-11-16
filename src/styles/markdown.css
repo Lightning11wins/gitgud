@@ -372,3 +372,19 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* Issue and PR references in lists, shown with their state and title like GitHub. */
+.markdown-body .rich-ref-icon {
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: text-bottom;
+}
+.markdown-body .rich-ref-icon svg {
+  display: block;
+}
+.markdown-body .rich-ref-title {
+  font-weight: 600;
+}
+.markdown-body .rich-ref-number {
+  color: var(--fg-muted);
+}
