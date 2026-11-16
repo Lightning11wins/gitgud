@@ -563,6 +563,13 @@ textarea.input {
   line-height: 18px;
   text-align: center;
 }
+/* A spinner in place of the number, centered on the number's line. */
+.counter:has(> .spinner) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1lh;
+}
 .avatar {
   border-radius: 50%;
   flex-shrink: 0;
