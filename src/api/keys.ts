@@ -8,6 +8,8 @@ export const keys = {
   dashboard: (section: string) => ["dashboard", section] as const,
   owner: (login: string) => ["owner", login] as const,
   repoList: (owner: string, repo: string, query: string) => ["repo-list", owner, repo, query] as const,
+  /** Prefix of every `repoList` key of a repo. */
+  repoLists: (owner: string, repo: string) => ["repo-list", owner, repo] as const,
   /** Check summaries for the pull requests in the list at `list`. */
   listChecks: (list: QueryKey) => ["list-checks", ...list] as const,
   repoMeta: (owner: string, repo: string) => ["repo", owner, repo] as const,

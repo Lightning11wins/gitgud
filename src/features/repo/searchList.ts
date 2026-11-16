@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
+import { hashKey, useQuery, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { GitHubError, gql, gqlPartial } from "@/api/client";
 import { gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { ISSUE_HEADER_FIELDS, PULL_HEADER_FIELDS, SUBJECT_HEADER_FIELDS, type SubjectHeader } from "@/api/types";
 import { persistedData, queryClient } from "@/api/queryClient";
+import { narrowList } from "./localSearch";
 import { warmRows } from "./warmRows";
 
 /** A search result row: the shared header plus what only lists show. */
@@ -247,10 +248,35 @@ export function overlay(fresh: ListData, cached: ListData, key: ((i: ListItem) =
   return { ...cached, items: [...fresh.items, ...cached.items.filter((i) => !ids.has(i.id) && key(i) > bound)] };
 }
 
-/** Lists whose rows can show while a list loads: the mixed list for a kind list, or both kind lists for a mixed one. */
-export type StandIn = { kind: "issue" | "pr"; all: QueryKey } | { issues: QueryKey; pulls: QueryKey };
+/**
+ * Lists whose rows can show while a list loads: the mixed list for a kind list, both kind lists for a
+ * mixed one, or the cached list under the `family` key prefix whose rows best stand in for a narrower
+ * search (`narrowList`). `searchOf` reads a list's search from its key.
+ */
+export type StandIn =
+  | { kind: "issue" | "pr"; all: QueryKey }
+  | { issues: QueryKey; pulls: QueryKey }
+  | { family: QueryKey; searchOf: (key: QueryKey) => string | undefined };
 
-function resolveStandIn(qc: QueryClient, s: StandIn, key: ((i: ListItem) => number) | undefined) {
+type Borrowed = { data: ListData; updatedAt: number; checks: ListChecks | undefined };
+
+/** The cached list under `family` whose rows narrowed to `search` keep the most rows. */
+function narrowCached(qc: QueryClient, s: Extract<StandIn, { family: QueryKey }>, queryKey: QueryKey, search: string) {
+  let best: Borrowed | undefined;
+  for (const q of qc.getQueryCache().findAll({ queryKey: s.family })) {
+    const data = q.state.data as ListData | undefined;
+    const source = s.searchOf(q.queryKey);
+    if (!data || source === undefined || q.queryHash === hashKey(queryKey)) continue;
+    const narrowed = narrowList(data, source, search);
+    if (narrowed && narrowed.items.length >= (best?.data.items.length ?? 0)) {
+      best = { data: narrowed, updatedAt: q.state.dataUpdatedAt, checks: qc.getQueryData<ListChecks>(keys.listChecks(q.queryKey)) };
+    }
+  }
+  return best;
+}
+
+function resolveStandIn(qc: QueryClient, s: StandIn, key: ((i: ListItem) => number) | undefined, queryKey: QueryKey, search: string): Borrowed | undefined {
+  if ("family" in s) return narrowCached(qc, s, queryKey, search);
   if ("all" in s) {
     const all = qc.getQueryState<ListData>(s.all);
     const data = kindSubset(all?.data, s.kind);
@@ -268,9 +294,10 @@ function resolveStandIn(qc: QueryClient, s: StandIn, key: ((i: ListItem) => numb
  * Pages of a GitHub search as one cached list. Revalidation refetches as many items as were
  * loaded, so stale rows (e.g. closed issues in an is:open list) drop out; `loadMore` appends the next page.
  * `checks` holds the pull requests' check summaries, fetched in parallel by `CHECKS_QUERY`.
- * `standIn` names lists whose rows show until the first fetch lands, and over older cached rows while it runs.
+ * `standIns` names lists whose rows show until the first fetch lands, and over older cached rows while it
+ * runs; the first that has rows wins.
  */
-export function useSearchList(queryKey: QueryKey, search: string, standIn?: StandIn) {
+export function useSearchList(queryKey: QueryKey, search: string, standIns: StandIn[] = []) {
   const qc = useQueryClient();
   const keyRef = useRef(queryKey);
   keyRef.current = queryKey;
@@ -279,12 +306,17 @@ export function useSearchList(queryKey: QueryKey, search: string, standIn?: Stan
   const inFlight = useRef(false);
   const withChecks = hasPulls(search);
   const order = sortKey(getSort(search));
-  const borrow = () => (standIn ? resolveStandIn(qc, standIn, order) : undefined);
+  const borrow = () => {
+    for (const s of standIns) {
+      const found = resolveStandIn(qc, s, order, queryKey, search);
+      if (found) return found;
+    }
+  };
 
   const query = useQuery({
     queryKey,
     queryFn: listQueryFn(queryKey, search),
-    placeholderData: standIn && (() => borrow()?.data),
+    placeholderData: () => borrow()?.data,
   });
 
   const checksKey = keys.listChecks(queryKey);
@@ -292,7 +324,7 @@ export function useSearchList(queryKey: QueryKey, search: string, standIn?: Stan
     queryKey: checksKey,
     queryFn: checksQueryFn(queryKey, search),
     enabled: withChecks,
-    placeholderData: standIn && (() => borrow()?.checks),
+    placeholderData: () => borrow()?.checks,
   });
 
   useEffect(() => setMoreError(null), [search]);

@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, type QueryKey } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router";
 import { CheckIcon, CodeIcon, IssueOpenedIcon, GitPullRequestIcon, LockIcon, RepoIcon } from "@primer/octicons-react";
 import { gql } from "@/api/client";
@@ -69,6 +69,12 @@ function listKey(owner: string, repo: string, kind: Kind, q: string) {
   return { key: keys.repoList(owner, repo, `${kind ?? "all"}:${search}`), search };
 }
 
+/** The search of a list keyed by `listKey`. */
+function listSearch(key: QueryKey): string | undefined {
+  const query = key[3];
+  return typeof query === "string" ? query.slice(query.indexOf(":") + 1) : undefined;
+}
+
 /** Warms a repo list page: its counts and its first rows. */
 function prefetchRepoList(owner: string, repo: string, kind: Kind, q: string) {
   const { key, search } = listKey(owner, repo, kind, q);
@@ -108,10 +114,11 @@ export function RepoPage({ kind }: { kind?: Kind }) {
   });
 
   const { key: listQueryKey, search } = listKey(owner, repo, kind, q);
-  const standIn = kind
-    ? { kind, all: listKey(owner, repo, undefined, q).key }
-    : { issues: listKey(owner, repo, "issue", q).key, pulls: listKey(owner, repo, "pr", q).key };
-  const list = useSearchList(listQueryKey, search, standIn);
+  const standIns = [
+    kind ? { kind, all: listKey(owner, repo, undefined, q).key } : { issues: listKey(owner, repo, "issue", q).key, pulls: listKey(owner, repo, "pr", q).key },
+    { family: keys.repoLists(owner, repo), searchOf: listSearch },
+  ];
+  const list = useSearchList(listQueryKey, search, standIns);
 
   const c = counts.data;
   // Counts kept from the previous search belong to a different query.
