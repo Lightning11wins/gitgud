@@ -103,7 +103,7 @@ function showReference(a: HTMLAnchorElement, info: Reference | null) {
     a.replaceChildren(text);
     return;
   }
-  const { Icon, color, text: stateText } = stateStyle(info);
+  const { Icon, color, text: stateText } = stateStyle({ ...info, kind: info.__typename === "PullRequest" ? "pull" : "issue" });
   const icon = document.createElement("span");
   icon.className = "rich-ref-icon";
   icon.style.color = color;
@@ -208,11 +208,12 @@ export const Markdown = memo(function Markdown({ html, className, nodeId }: Mark
   const ref = useRef<HTMLDivElement>(null);
   const dark = useDark();
   const [refs, setRefs] = useState<IssueRef[]>([]);
-  const refQueries = useQueries({
+  // Structurally shared, so it changes only when some reference's data does, including syncs that keep
+  // the fetch time (`api/subjects.ts`).
+  const refData = useQueries({
     queries: refs.map((r) => ({ queryKey: keys.reference(r.owner, r.repo, r.number), queryFn: () => fetchReference(r), staleTime: 60_000 })),
+    combine: (results) => results.map((q) => q.data),
   });
-  const refInfo = new Map(refs.map((r, i) => [refKey(r), refQueries[i].data]));
-  const refVersion = refQueries.map((q) => q.dataUpdatedAt).join();
   useLayoutEffect(() => {
     if (!ref.current) return;
     unwrapEnrichments(ref.current);
@@ -223,12 +224,12 @@ export const Markdown = memo(function Markdown({ html, className, nodeId }: Mark
   }, [clean]);
   useLayoutEffect(() => {
     if (!ref.current) return;
+    const refInfo = new Map(refs.map((r, i) => [refKey(r), refData[i]]));
     for (const { a, ref: target } of listReferences(ref.current)) {
       const info = refInfo.get(refKey(target));
       if (info !== undefined) showReference(a, info);
     }
-    // refInfo is rebuilt each render; refVersion changes when its data does.
-  }, [clean, refVersion]);
+  }, [clean, refs, refData]);
   useLayoutEffect(() => {
     if (!ref.current) return;
     let live = true;

@@ -1,5 +1,5 @@
 import { gqlPartial } from "@/api/client";
-import type { IssueStateReason } from "@/api/types";
+import { ISSUE_HEADER_FIELDS, PULL_HEADER_FIELDS, SUBJECT_HEADER_FIELDS, type SubjectHeader } from "@/api/types";
 
 export interface IssueRef {
   owner: string;
@@ -7,14 +7,8 @@ export interface IssueRef {
   number: number;
 }
 
-/** What an issue or PR reference shows: its title and state. */
-export interface Reference {
-  kind: "issue" | "pull";
-  title: string;
-  state: string;
-  stateReason?: IssueStateReason;
-  isDraft?: boolean;
-}
+/** The issue or PR a reference shows. `api/subjects.ts` keeps it in sync with other cached copies. */
+export type Reference = SubjectHeader;
 
 /** The issue or PR a github.com URL points to, or null for any other URL. */
 export function parseReference(href: string): IssueRef | null {
@@ -29,7 +23,7 @@ type Waiter = { ref: IssueRef; resolve: (r: Reference | null) => void; reject: (
 let queue: Waiter[] = [];
 
 /**
- * Loads an issue or PR's title and state, or null when it can't be seen. Calls made in the same
+ * Loads an issue or PR's header, or null when it can't be seen. Calls made in the same
  * task share one request.
  */
 export function fetchReference(ref: IssueRef): Promise<Reference | null> {
@@ -45,28 +39,22 @@ function flush() {
   for (let i = 0; i < waiters.length; i += BATCH_SIZE) fetchBatch(waiters.slice(i, i + BATCH_SIZE));
 }
 
-type Node = { __typename: "Issue" | "PullRequest"; title: string; state: string; stateReason?: IssueStateReason; isDraft?: boolean };
-
 async function fetchBatch(waiters: Waiter[]) {
   const params = waiters.map((_, i) => `$o${i}: String!, $r${i}: String!, $n${i}: Int!`).join(", ");
   const parts = waiters.map(
     (_, i) => `i${i}: repository(owner: $o${i}, name: $r${i}) { issueOrPullRequest(number: $n${i}) {
-      __typename
-      ... on Issue { title state stateReason }
-      ... on PullRequest { title state isDraft }
+      ... on Issue { ${SUBJECT_HEADER_FIELDS} ${ISSUE_HEADER_FIELDS} }
+      ... on PullRequest { ${SUBJECT_HEADER_FIELDS} ${PULL_HEADER_FIELDS} }
     } }`,
   );
   const vars = Object.fromEntries(waiters.flatMap(({ ref }, i) => [[`o${i}`, ref.owner], [`r${i}`, ref.repo], [`n${i}`, ref.number]]));
   try {
-    const { data } = await gqlPartial<Record<string, { issueOrPullRequest: Node | null } | null>>(
+    const { data } = await gqlPartial<Record<string, { issueOrPullRequest: Reference | null } | null>>(
       `query References(${params}) {\n${parts.join("\n")}\n}`,
       vars,
     );
     waiters.forEach(({ resolve }, i) => {
-      const node = data[`i${i}`]?.issueOrPullRequest;
-      if (!node) return resolve(null);
-      const { __typename, ...rest } = node;
-      resolve({ kind: __typename === "PullRequest" ? "pull" : "issue", ...rest });
+      resolve(data[`i${i}`]?.issueOrPullRequest ?? null);
     });
   } catch (e) {
     for (const { reject } of waiters) reject(e);

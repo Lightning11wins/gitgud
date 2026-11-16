@@ -21,6 +21,7 @@ const header = (over: Partial<SubjectHeader> = {}): SubjectHeader => ({
 
 const row = (over: Partial<SubjectHeader> = {}) => ({ kind: "row" as const, data: header(over) });
 const meta = (over: Partial<SubjectHeader> = {}) => ({ kind: "meta" as const, data: header(over) });
+const ref = (over: Partial<SubjectHeader> = {}) => ({ kind: "ref" as const, data: header(over) });
 const LATER = "2026-01-02T00:00:00Z";
 const bug = { nodes: [{ id: "L1", name: "bug", color: "f00", description: null }] };
 
@@ -59,6 +60,28 @@ describe("patchCopy", () => {
   });
 });
 
+describe("patchCopy with references", () => {
+  it("gives a row the header and updatedAt of a newer reference, keeping the row's own fields", () => {
+    const r = { kind: "row" as const, data: { ...header(), comments: { totalCount: 3 } } };
+    const patched = patchCopy(r, ref({ title: "New", state: "CLOSED", labels: bug, updatedAt: LATER }));
+    expect(patched).toMatchObject({ title: "New", state: "CLOSED", labels: bug, updatedAt: LATER, comments: { totalCount: 3 } });
+  });
+
+  it("gives a reference the header and updatedAt of a newer row", () => {
+    const patched = patchCopy(ref(), row({ title: "New", updatedAt: LATER }));
+    expect(patched).toMatchObject({ title: "New", updatedAt: LATER });
+  });
+
+  it("gives a reference local edits to metadata of the same age", () => {
+    expect(patchCopy(ref(), meta({ state: "CLOSED" })).state).toBe("CLOSED");
+  });
+
+  it("keeps a reference when the other copy is the same age", () => {
+    const r = ref();
+    expect(patchCopy(r, row({ title: "Same time" }))).toBe(r.data);
+  });
+});
+
 describe("syncSubjects", () => {
   it("patches other cached copies and keeps their fetch time", () => {
     const client = new QueryClient();
@@ -68,5 +91,15 @@ describe("syncSubjects", () => {
     expect(client.getQueryData<{ items: SubjectHeader[] }>(["repo-list", "o", "r"])?.items[0].title).toBe("Renamed");
     expect(client.getQueryState(["repo-list", "o", "r"])?.dataUpdatedAt).toBe(1000);
     expect(findListRow(client, "O", "R", 1)?.title).toBe("Renamed");
+  });
+
+  it("keeps references in sync both ways", () => {
+    const client = new QueryClient();
+    syncSubjects(client);
+    client.setQueryData(["reference", "o", "r", 1], header({ __typename: "PullRequest" }));
+    client.setQueryData(["pull", "o", "r", 1], header({ __typename: "PullRequest", state: "MERGED", updatedAt: LATER }));
+    expect(client.getQueryData<SubjectHeader>(["reference", "o", "r", 1])?.state).toBe("MERGED");
+    client.setQueryData(["reference", "o", "r", 1], header({ __typename: "PullRequest", title: "Renamed", state: "MERGED", updatedAt: "2026-01-03T00:00:00Z" }));
+    expect(client.getQueryData<SubjectHeader>(["pull", "o", "r", 1])?.title).toBe("Renamed");
   });
 });

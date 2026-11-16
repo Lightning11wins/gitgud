@@ -2,30 +2,33 @@ import type { Query, QueryClient, QueryKey } from "@tanstack/react-query";
 import { SUBJECT_HEADER_KEYS, type SubjectHeader } from "./types";
 
 /**
- * Keeps each issue and PR consistent across cached queries. Lists and issue/PR pages each cache their
- * own copy, so a page renders from one cached record; when one query gets a newer copy, the others take
- * its header (`SUBJECT_HEADER_KEYS`), so a change seen anywhere shows everywhere without waiting for
- * each page to refetch.
+ * Keeps each issue and PR consistent across cached queries. Lists, issue/PR pages, and references in
+ * markdown each cache their own copy, so a page renders from one cached record; when one query gets a
+ * newer copy, the others take its header (`SUBJECT_HEADER_KEYS`), so a change seen anywhere shows
+ * everywhere without waiting for each page to refetch.
  */
 
 /** Query key roots whose data is a search list (`{ items: SubjectHeader[] }`). */
 const LIST_ROOTS = new Set(["repo-list", "dashboard"]);
 /** Query key roots whose data is one issue or PR's metadata. */
 const META_ROOTS = new Set(["issue", "pull"]);
+/** Query key root whose data is one reference in markdown (`Reference` in `components/references.ts`). */
+const REF_ROOT = "reference";
 
-/** A cached copy: a list row, or a page's metadata. */
-export type Copy = { kind: "row" | "meta"; data: SubjectHeader };
+/** A cached copy: a list row, a page's metadata, or a reference. */
+export type Copy = { kind: "row" | "meta" | "ref"; data: SubjectHeader };
 
 function kindOf(query: Query): Copy["kind"] | undefined {
   const root = query.queryKey[0];
   if (typeof root !== "string") return undefined;
   if (LIST_ROOTS.has(root) && Array.isArray((query.state.data as { items?: unknown })?.items)) return "row";
   if (META_ROOTS.has(root) && (query.state.data as { id?: unknown })?.id) return "meta";
+  if (root === REF_ROOT && (query.state.data as { id?: unknown })?.id) return "ref";
   return undefined;
 }
 
 function copiesIn(query: Query, kind: Copy["kind"]): Copy[] {
-  if (kind === "meta") return [{ kind, data: query.state.data as SubjectHeader }];
+  if (kind !== "row") return [{ kind, data: query.state.data as SubjectHeader }];
   return (query.state.data as { items: SubjectHeader[] }).items.map((data) => ({ kind, data }));
 }
 
@@ -34,15 +37,16 @@ function copiesIn(query: Query, kind: Copy["kind"]): Copy[] {
  * `updatedAt`.
  */
 function isNewer(a: Copy, b: Copy): boolean {
-  return a.data.updatedAt > b.data.updatedAt || (a.data.updatedAt === b.data.updatedAt && a.kind === "meta" && b.kind === "row");
+  return a.data.updatedAt > b.data.updatedAt || (a.data.updatedAt === b.data.updatedAt && a.kind === "meta" && b.kind !== "meta");
 }
 
 const sameValue = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * `target` updated from a newer copy, or `target.data` itself when it is the newest or nothing differs.
- * A row takes a newer row whole; otherwise the copy takes the header, and a row also takes `updatedAt`.
- * Metadata keeps its own `updatedAt`, which also versions its body and timeline that rows don't carry.
+ * A row takes a newer row whole; otherwise the copy takes the header, and a row or reference also takes
+ * `updatedAt`. Metadata keeps its own `updatedAt`, which also versions its body and timeline that rows
+ * don't carry.
  */
 export function patchCopy<T extends SubjectHeader>(target: { kind: Copy["kind"]; data: T }, from: Copy): T {
   if (!isNewer(from, target)) return target.data;
@@ -54,7 +58,7 @@ export function patchCopy<T extends SubjectHeader>(target: { kind: Copy["kind"];
     (next as SubjectHeader)[key] = from.data[key] as never;
     changed = true;
   }
-  if (target.kind === "row" && next.updatedAt !== from.data.updatedAt) {
+  if (target.kind !== "meta" && next.updatedAt !== from.data.updatedAt) {
     next.updatedAt = from.data.updatedAt;
     changed = true;
   }
@@ -65,10 +69,10 @@ export function patchCopy<T extends SubjectHeader>(target: { kind: Copy["kind"];
 function apply(client: QueryClient, query: Query, kind: Copy["kind"], best: Map<string, Copy>) {
   const data = query.state.data;
   let next: unknown = data;
-  if (kind === "meta") {
-    const meta = data as SubjectHeader;
-    const from = best.get(meta.id);
-    if (from) next = patchCopy({ kind, data: meta }, from);
+  if (kind !== "row") {
+    const copy = data as SubjectHeader;
+    const from = best.get(copy.id);
+    if (from) next = patchCopy({ kind, data: copy }, from);
   } else {
     const list = data as { items: SubjectHeader[] };
     let changed = false;
