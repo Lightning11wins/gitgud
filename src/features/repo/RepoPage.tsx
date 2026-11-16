@@ -7,6 +7,7 @@ import { intentHandlers, registerPathPrefetcher, speculate } from "@/api/prefetc
 import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/keys";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { Spinner } from "@/components/Spinner";
 import { FilterInput } from "./FilterInput";
 import { DEFAULT_SORT, ListFilters } from "./ListFilters";
 import { RecentPushes } from "./RecentPushes";
@@ -113,13 +114,15 @@ export function RepoPage({ kind }: { kind?: Kind }) {
   const list = useSearchList(listQueryKey, search, standIn);
 
   const c = counts.data;
+  // Counts kept from the previous search belong to a different query.
+  const n = counts.isPlaceholderData ? undefined : c;
   const state = getState(q);
   const sort = getSort(q) ?? DEFAULT_SORT;
   const tabQuery = params.toString() ? `?${params.toString()}` : "";
   const tabs = [
-    { to: `/${slug}${tabQuery}`, label: "All", icon: null, kind: undefined, count: c && c.iOpen + c.pOpen },
-    { to: `/${slug}/issues${tabQuery}`, label: "Issues", icon: <IssueOpenedIcon size={16} />, kind: "issue", count: c?.iOpen },
-    { to: `/${slug}/pulls${tabQuery}`, label: "Pull requests", icon: <GitPullRequestIcon size={16} />, kind: "pr", count: c?.pOpen },
+    { to: `/${slug}${tabQuery}`, label: "All", icon: null, kind: undefined, count: n && n.iOpen + n.pOpen },
+    { to: `/${slug}/issues${tabQuery}`, label: "Issues", icon: <IssueOpenedIcon size={16} />, kind: "issue", count: n?.iOpen },
+    { to: `/${slug}/pulls${tabQuery}`, label: "Pull requests", icon: <GitPullRequestIcon size={16} />, kind: "pr", count: n?.pOpen },
   ] as const;
 
   return (
@@ -151,7 +154,11 @@ export function RepoPage({ kind }: { kind?: Kind }) {
             {t.count !== undefined ? (
               <span className="counter">{t.count.toLocaleString()}</span>
             ) : (
-              counts.isPending && <span className="counter skeleton" aria-hidden="true">000</span>
+              counts.isFetching && (
+                <span className="counter">
+                  <Spinner size={12} label="Loading count" />
+                </span>
+              )
             )}
           </Link>
         ))}
@@ -208,10 +215,10 @@ export function RepoPage({ kind }: { kind?: Kind }) {
               >
                 {s === "closed" ? <CheckIcon size={16} /> : kind === "pr" ? <GitPullRequestIcon size={16} /> : <IssueOpenedIcon size={16} />}
                 {s === "open" ? "Open" : "Closed"}
-                {stateCount(c, kind, s) !== undefined ? (
-                  <span className="muted">{stateCount(c, kind, s)?.toLocaleString()}</span>
+                {stateCount(n, kind, s) !== undefined ? (
+                  <span className="muted">{stateCount(n, kind, s)?.toLocaleString()}</span>
                 ) : (
-                  counts.isPending && <span className="skeleton" aria-hidden="true">000</span>
+                  counts.isFetching && <Spinner size={12} label="Loading count" />
                 )}
               </button>
             ))}

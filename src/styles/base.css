@@ -751,8 +751,6 @@ textarea.input {
   background: var(--neutral-muted);
   color: transparent;
   user-select: none;
-}
-.skeleton:not(.counter) {
   border-radius: 4px;
 }
 @keyframes spinner-in {
