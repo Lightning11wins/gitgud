@@ -274,7 +274,10 @@ registerPrefetcher("pull", (owner, repo, number) =>
 
 /** Updates the cached PR in place, e.g. for optimistic edits. */
 export function patchPull(owner: string, repo: string, number: number, patch: Partial<PullMeta>) {
-  queryClient.setQueryData<PullMeta>(keys.pull(owner, repo, number), (old) => (old ? { ...old, ...patch } : old));
+  const key = keys.pull(owner, repo, number);
+  // An in-flight refetch started before this change would overwrite it.
+  void queryClient.cancelQueries({ queryKey: key, exact: true });
+  queryClient.setQueryData<PullMeta>(key, (old) => (old ? { ...old, ...patch } : old));
 }
 
 /** Refetches the PR and its timeline after a state change. */

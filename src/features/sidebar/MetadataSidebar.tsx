@@ -409,7 +409,8 @@ function optimisticValue(field: IssueField, input: IssueFieldInput): IssueFieldV
 function IssueFields({ subject, owner, repo, onError }: { subject: SubjectMeta & IssueExtras; owner: string; repo: string; onError: (e: unknown) => void }) {
   const repoFields = useIssueFields(owner, repo);
   const [menu, setMenu] = useState<{ field: IssueField; anchor: HTMLElement } | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
+  // The field being edited and its text when editing began.
+  const [editing, setEditing] = useState<{ id: string; start: string } | null>(null);
   const values = subject.issueFieldValues.nodes;
   if (!repoFields.data) return null;
   const fields = shownFields(repoFields.data, subject.issueType?.id, values);
@@ -429,11 +430,12 @@ function IssueFields({ subject, owner, repo, onError }: { subject: SubjectMeta &
       .finally(() => invalidateSubject("issue", owner, repo, subject.number));
   };
 
-  const commitText = (field: IssueField, text: string) => {
+  const textOf = (f: IssueField) => String(valueOf(f)?.value ?? "").slice(0, f.dataType === "DATE" ? 10 : undefined);
+
+  const commitText = (field: IssueField, text: string, start: string) => {
     setEditing(null);
     const t = text.trim();
-    const old = valueOf(field)?.value;
-    if (t === String(old ?? "").slice(0, field.dataType === "DATE" ? 10 : undefined)) return;
+    if (t === start) return;
     if (!t) return set(field, { fieldId: field.id, delete: true });
     if (field.dataType === "DATE") return set(field, { fieldId: field.id, dateValue: t });
     if (field.dataType === "TEXT") return set(field, { fieldId: field.id, textValue: t });
@@ -458,14 +460,14 @@ function IssueFields({ subject, owner, repo, onError }: { subject: SubjectMeta &
               </span>
               {!editable ? (
                 <span className="sidebar-field-value">{shown}</span>
-              ) : editing === f.id ? (
+              ) : editing?.id === f.id ? (
                 <input
                   className="input sm sidebar-field-input"
                   type={f.dataType === "DATE" ? "date" : f.dataType === "NUMBER" ? "number" : "text"}
                   aria-label={f.name}
                   autoFocus
-                  defaultValue={value ? String(value.value ?? "").slice(0, f.dataType === "DATE" ? 10 : undefined) : ""}
-                  onBlur={(e) => commitText(f, e.currentTarget.value)}
+                  defaultValue={editing.start}
+                  onBlur={(e) => commitText(f, e.currentTarget.value, editing.start)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") e.currentTarget.blur();
                     if (e.key === "Escape") setEditing(null);
@@ -475,7 +477,7 @@ function IssueFields({ subject, owner, repo, onError }: { subject: SubjectMeta &
                 <button
                   className="btn invisible sm sidebar-field-value"
                   aria-label={`Edit ${f.name}`}
-                  onClick={(e) => (isSelect(f) ? setMenu(menu ? null : { field: f, anchor: e.currentTarget }) : setEditing(f.id))}
+                  onClick={(e) => (isSelect(f) ? setMenu(menu ? null : { field: f, anchor: e.currentTarget }) : setEditing({ id: f.id, start: textOf(f) }))}
                 >
                   {shown}
                 </button>

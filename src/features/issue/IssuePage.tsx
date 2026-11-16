@@ -55,6 +55,8 @@ export function IssuePage() {
 function IssueHeader({ issue, owner, repo }: { issue: IssueMeta; owner: string; repo: string }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(issue.title);
+  // The title when editing began, to tell whether the user changed it.
+  const [start, setStart] = useState(issue.title);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [stuck, setStuck] = useState(false);
@@ -70,7 +72,7 @@ function IssueHeader({ issue, owner, repo }: { issue: IssueMeta; owner: string; 
 
   const save = async () => {
     const title = draft.trim();
-    if (!title || title === issue.title) return setEditing(false);
+    if (!title || title === start) return setEditing(false);
     setBusy(true);
     setError(null);
     try {
@@ -124,6 +126,7 @@ function IssueHeader({ issue, owner, repo }: { issue: IssueMeta; owner: string; 
                   {...tooltip("Edit title", "label")}
                   onClick={() => {
                     setDraft(issue.title);
+                    setStart(issue.title);
                     setEditing(true);
                   }}
                 >

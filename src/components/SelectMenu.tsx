@@ -12,10 +12,10 @@ export interface SelectMenuProps<T> {
   getKey: (item: T) => string;
   getText: (item: T) => string;
   renderItem: (item: T) => ReactNode;
-  /** Keys selected when the menu opened. */
+  /** Keys selected now. While the menu is open, updates to this keep the user's changes on top. */
   initial: string[];
   multiple?: boolean;
-  /** Called on close with the final keys if they differ from `initial`. Single-select applies on click. */
+  /** Called on close with `initial` plus the user's changes, if they differ from `initial`. Single-select applies on click. */
   onApply: (keys: string[]) => void;
   onClose: () => void;
   /** For server-side filtering; called with the filter text as it changes. */
@@ -33,7 +33,9 @@ export interface SelectMenuProps<T> {
 export function SelectMenu<T>(props: SelectMenuProps<T>) {
   const { anchor, title, items, getKey, getText, renderItem, initial, multiple, onApply, onClose, onFilterChange, footer, filterable = true, emptyText = "No matches", placeholder = "Filter" } = props;
   const [filter, setFilter] = useState("");
-  const [selected, setSelected] = useState(() => new Set(initial));
+  // The user's changes: each toggled key's chosen state, kept on top of `initial` as it updates.
+  const [changes, setChanges] = useState<ReadonlyMap<string, boolean>>(new Map());
+  const isSelected = (key: string) => changes.get(key) ?? initial.includes(key);
   // Nothing is highlighted until the user types or moves, like GitHub; then Enter picks the highlighted row.
   const [active, setActive] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +53,7 @@ export function SelectMenu<T>(props: SelectMenuProps<T>) {
   }, [items, filter, getText, getKey, initial]);
 
   const close = () => {
-    const keys = [...selected];
+    const keys = [...new Set([...initial, ...changes.keys()])].filter(isSelected);
     const changed = keys.length !== initial.length || keys.some((k) => !initial.includes(k));
     if (multiple && changed) onApply(keys);
     onClose();
@@ -77,12 +79,7 @@ export function SelectMenu<T>(props: SelectMenuProps<T>) {
       onClose();
       return;
     }
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    setChanges((prev) => new Map(prev).set(key, !(prev.get(key) ?? initial.includes(key))));
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -147,16 +144,16 @@ export function SelectMenu<T>(props: SelectMenuProps<T>) {
               data-index={i}
               data-active={i === active}
               role="option"
-              aria-selected={selected.has(key)}
+              aria-selected={isSelected(key)}
               onMouseEnter={() => setActive(i)}
               onClick={() => toggle(item)}
             >
               {multiple ? (
-                <span className="select-menu-checkbox" data-checked={selected.has(key)}>
-                  {selected.has(key) && <CheckIcon size={12} />}
+                <span className="select-menu-checkbox" data-checked={isSelected(key)}>
+                  {isSelected(key) && <CheckIcon size={12} />}
                 </span>
               ) : (
-                <span className="check">{selected.has(key) && <CheckIcon />}</span>
+                <span className="check">{isSelected(key) && <CheckIcon />}</span>
               )}
               {renderItem(item)}
             </button>

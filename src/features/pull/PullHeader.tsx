@@ -107,7 +107,9 @@ function BranchSummary({ pull, owner, repo, compact }: Props & { compact?: boole
 }
 
 function TitleEditor({ pull, owner, repo, onDone }: { pull: PullMeta; owner: string; repo: string; onDone: () => void }) {
-  const [value, setValue] = useState(pull.title);
+  // The title when editing began, to tell whether the user changed it.
+  const [start] = useState(pull.title);
+  const [value, setValue] = useState(start);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const ref = useRef<HTMLInputElement>(null);
@@ -119,7 +121,7 @@ function TitleEditor({ pull, owner, repo, onDone }: { pull: PullMeta; owner: str
   const save = async () => {
     const title = value.trim();
     if (!title) return;
-    if (title === pull.title) return onDone();
+    if (title === start) return onDone();
     setSaving(true);
     setError(null);
     const previous = pull.title;

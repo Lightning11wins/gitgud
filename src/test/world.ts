@@ -1,5 +1,12 @@
 import type { FakeGitHub } from "./fakeGitHub";
 
+export interface FakeLabel {
+  id: string;
+  name: string;
+  color: string;
+  description: string | null;
+}
+
 /** An issue in the fake repository. Tests edit these fields to change what GitHub answers. */
 export interface FakeIssue {
   id: string;
@@ -9,7 +16,7 @@ export interface FakeIssue {
   stateReason: "COMPLETED" | "NOT_PLANNED" | "REOPENED" | null;
   createdAt: string;
   updatedAt: string;
-  labels: { id: string; name: string; color: string; description: string | null }[];
+  labels: FakeLabel[];
   /** Timeline nodes, oldest first. */
   timeline: Record<string, unknown>[];
 }
@@ -53,6 +60,7 @@ export function comment(id: string, body: string): Record<string, unknown> {
  */
 export function fakeRepo(gh: FakeGitHub, owner = "acme", name = "app") {
   const issues: FakeIssue[] = [];
+  const labels: FakeLabel[] = [];
   const slug = `${owner}/${name}`;
   const find = (number: number) => {
     const issue = issues.find((i) => i.number === number);
@@ -150,6 +158,13 @@ export function fakeRepo(gh: FakeGitHub, owner = "acme", name = "app") {
     const counts = withTotal ? { total: { filteredCount: all.length }, movable: { filteredCount: 0 } } : {};
     return { repository: { issue: { timelineItems, ...counts } } };
   });
+  gh.gql("RepoLabels", () => ({ repository: { labels: { nodes: labels, pageInfo: { hasNextPage: false, endCursor: null } } } }));
+  gh.gql("UpdateIssueMeta", ({ input: { id, labelIds } }) => {
+    const issue = issues.find((i) => i.id === id)!;
+    if (labelIds) issue.labels = labelIds.map((l: string) => labels.find((x) => x.id === l)!);
+    touch(issue);
+    return { updateIssue: { issue: { id } } };
+  });
   gh.gql("UpdateIssueTitle", ({ id, title }) => {
     const issue = issues.find((i) => i.id === id)!;
     issue.title = title;
@@ -161,6 +176,12 @@ export function fakeRepo(gh: FakeGitHub, owner = "acme", name = "app") {
     issues,
     find,
     touch,
+    /** Adds a label to the repository, for issues to use. */
+    addLabel(name: string): FakeLabel {
+      const label = { id: `L_${name}`, name, color: "d73a4a", description: null };
+      labels.push(label);
+      return label;
+    },
     /** Adds an open issue with a fresh `updatedAt`, so it sorts first. */
     addIssue(fields: Partial<FakeIssue> = {}): FakeIssue {
       const number = issues.length + 1;
