@@ -1,6 +1,7 @@
 import { auth, tokenRejected, type AuthState } from "@/auth/token";
-import { gqlDocument, type Operation } from "./operation";
+import { COST_FIELD, gqlDocument, type Operation } from "./operation";
 import { recordRateLimit, recordRequest } from "./rateLimit";
+import { recordUsage, restOperationName, type UsageResource } from "./usage";
 
 export const API_BASE = "https://api.github.com";
 
@@ -43,6 +44,15 @@ function recordScopes(session: AuthState, headers: Headers) {
  */
 export function tokenScopes(): string[] | null | undefined {
   return lastScopes && lastScopes.token === auth.get().token ? lastScopes.scopes : undefined;
+}
+
+/** Adds a response's cost to the usage ledger, on the rate limit GitHub says it counted against. */
+function recordCost(session: AuthState, headers: Headers, fallback: UsageResource, name: string, cost: Parameters<typeof recordUsage>[3]) {
+  const login = session.viewer?.login;
+  if (!login) return;
+  const header = headers.get("x-ratelimit-resource");
+  const resource = header === "core" || header === "graphql" || header === "search" ? header : fallback;
+  recordUsage(login, resource, name, cost);
 }
 
 async function failure(res: Response, what: string, session: AuthState): Promise<GitHubError> {
@@ -102,8 +112,15 @@ export async function gqlPartial<T>(op: Operation, variables: Record<string, unk
   });
   recordRateLimit(res.headers);
   recordScopes(session, res.headers);
-  if (!res.ok) throw await failure(res, `run GraphQL ${op.name}`, session);
-  const body = (await res.json()) as { data?: T | null; errors?: GqlError[] };
+  if (!res.ok) {
+    recordCost(session, res.headers, "graphql", op.name, { points: 1, estimated: true });
+    throw await failure(res, `run GraphQL ${op.name}`, session);
+  }
+  const body = (await res.json()) as { data?: (T & { [COST_FIELD]?: { cost: number } }) | null; errors?: GqlError[] };
+  const cost = body.data?.[COST_FIELD]?.cost;
+  if (body.data) delete body.data[COST_FIELD];
+  // Mutations can't select their cost, and failed queries may not report it.
+  recordCost(session, res.headers, "graphql", op.name, cost === undefined ? { points: 1, estimated: true } : { points: cost });
   const errors = body.errors ?? [];
   if (body.data == null && errors.length) throw gqlFailure(op, errors);
   return { data: body.data as T, errors };
@@ -148,6 +165,11 @@ export async function restRaw<T>(path: string, opts: RestOptions = {}): Promise<
     cache: method === "GET" && !opts.etag ? "no-cache" : "no-store",
   });
   recordRateLimit(res.headers);
+  // GitHub doesn't count unchanged (304) responses or reading the rate limit. A GET the browser
+  // revalidated from its cache shows as 200, so its point is estimated.
+  const free = res.status === 304 || url === `${API_BASE}/rate_limit`;
+  const estimated = !free && method === "GET" && !opts.etag;
+  recordCost(session, res.headers, "core", restOperationName(method, url), { points: free ? 0 : 1, free, estimated });
   if (res.status !== 304) recordScopes(session, res.headers);
   if (!res.ok && !(opts.etag && res.status === 304)) throw await failure(res, `${method} ${path}`, session);
   let data: unknown;

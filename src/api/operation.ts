@@ -20,7 +20,11 @@ export function gqlMutation(name: string, variables: string, selection: string):
   return { type: "mutation", name, variables, selection };
 }
 
-/** The GraphQL document that runs `op`. */
+/** The alias under which every query's response holds its rate limit cost, like `{ cost: 1 }`. */
+export const COST_FIELD = "gitgudCost";
+
+/** The GraphQL document that runs `op`. Queries also select their cost as `COST_FIELD`. */
 export function gqlDocument(op: Operation): string {
-  return `${op.type} ${op.name}${op.variables ? `(${op.variables})` : ""} {\n${op.selection}\n}`;
+  const shared = op.type === "query" ? `${COST_FIELD}: rateLimit { cost }\n` : "";
+  return `${op.type} ${op.name}${op.variables ? `(${op.variables})` : ""} {\n${shared}${op.selection}\n}`;
 }
