@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import { gql } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { FilterInput } from "../repo/FilterInput";
 import { SubjectList } from "../repo/SubjectList";
@@ -20,10 +21,9 @@ const FILTERS = [
 const DEFAULT_Q = "involves:@me sort:updated-desc";
 const SCOPE = { defaultSort: "updated-desc" };
 
-const COUNTS_QUERY = `
-query DashboardCounts(${FILTERS.map((_, i) => `$q${i}: String!`).join(", ")}) {
+const COUNTS_QUERY = gqlQuery("DashboardCounts", FILTERS.map((_, i) => `$q${i}: String!`).join(", "), `
   ${FILTERS.map((_, i) => `c${i}: search(type: ISSUE_ADVANCED, query: $q${i}, first: 0) { issueCount }`).join("\n  ")}
-}`;
+`);
 
 async function fetchCounts(): Promise<number[]> {
   const vars = Object.fromEntries(FILTERS.map((f, i) => [`q${i}`, buildSearch(f.q, SCOPE)]));

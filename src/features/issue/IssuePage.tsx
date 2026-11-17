@@ -2,6 +2,7 @@ import { PencilIcon } from "@primer/octicons-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { gql, isNotFound } from "@/api/client";
+import { gqlMutation } from "@/api/operation";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { NotFound } from "@/components/NotFound";
 import { RelativeTime } from "@/components/RelativeTime";
@@ -73,7 +74,7 @@ function IssueHeader({ issue, owner, repo }: { issue: IssueMeta; owner: string; 
     setBusy(true);
     setError(null);
     try {
-      await gql(`mutation UpdateIssueTitle($id: ID!, $title: String!) { updateIssue(input: { id: $id, title: $title }) { issue { id } } }`, { id: issue.id, title });
+      await gql(gqlMutation("UpdateIssueTitle", "$id: ID!, $title: String!", "updateIssue(input: { id: $id, title: $title }) { issue { id } }"), { id: issue.id, title });
       patchSubject("issue", owner, repo, issue.number, () => ({ title }));
       invalidateSubject("issue", owner, repo, issue.number);
       setEditing(false);

@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { gqlPartial } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import type { IssueStateReason } from "@/api/types";
 import type { OwnerData } from "@/features/owner/ownerData";
 import type { ListData } from "@/features/repo/searchList";
@@ -146,8 +147,7 @@ export function cachedHits(client: QueryClient): JumpHits {
   return hits;
 }
 
-const JUMP_QUERY = `
-query Jump($repos: String!, $owners: String!, $withOwners: Boolean!, $subjects: String!, $inRepo: Boolean!) {
+const JUMP_QUERY = gqlQuery("Jump", "$repos: String!, $owners: String!, $withOwners: Boolean!, $subjects: String!, $inRepo: Boolean!", `
   repos: search(type: REPOSITORY, query: $repos, first: ${MAX_REPOS}) {
     nodes { ... on Repository { name owner { login } visibility isFork } }
   }
@@ -161,7 +161,7 @@ query Jump($repos: String!, $owners: String!, $withOwners: Boolean!, $subjects: 
       ... on PullRequest { number title state isDraft }
     }
   }
-}`;
+`);
 
 type Nodes<T> = { nodes: (T | null)[] } | null | undefined;
 type JumpResponse = {

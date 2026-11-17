@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { gql } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import { useDebounced } from "@/lib/useDebounced";
 
 export interface MentionCandidate {
@@ -28,9 +29,9 @@ const REF_FIELDS = `
 
 async function fetchMentionable(owner: string, repo: string, query: string): Promise<MentionCandidate[]> {
   const d = await gql<{ repository: { mentionableUsers: { nodes: MentionCandidate[] } } }>(
-    `query MentionableUsers($owner: String!, $repo: String!, $q: String, $n: Int!) {
+    gqlQuery("MentionableUsers", "$owner: String!, $repo: String!, $q: String, $n: Int!", `
       repository(owner: $owner, name: $repo) { mentionableUsers(first: $n, query: $q) { nodes { ${USER_FIELDS} } } }
-    }`,
+    `),
     { owner, repo, q: query || null, n: query ? LIMIT : 100 },
   );
   return d.repository.mentionableUsers.nodes;
@@ -38,7 +39,7 @@ async function fetchMentionable(owner: string, repo: string, query: string): Pro
 
 async function searchRefs(owner: string, repo: string, query: string): Promise<RefCandidate[]> {
   const d = await gql<{ search: { nodes: RefCandidate[] } }>(
-    `query RefCandidates($q: String!, $n: Int!) { search(query: $q, type: ISSUE, first: $n) { nodes { ${REF_FIELDS} } } }`,
+    gqlQuery("RefCandidates", "$q: String!, $n: Int!", `search(query: $q, type: ISSUE, first: $n) { nodes { ${REF_FIELDS} } }`),
     { q: `repo:${owner}/${repo} ${query || "sort:updated-desc"}`, n: query ? LIMIT * 2 : 50 },
   );
   return d.search.nodes.filter((n) => n && "number" in n);

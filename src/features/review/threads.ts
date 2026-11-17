@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { gql, gqlAll, type PageInfo } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { queryClient } from "@/api/queryClient";
 import { REVIEW_COMMENT_FIELDS, REVIEW_THREAD_FIELDS, type ReviewComment, type ReviewThread } from "@/api/types";
 
-const THREADS_QUERY = `
-  query ReviewThreads($owner: String!, $repo: String!, $number: Int!, $after: String) {
+const THREADS_QUERY = gqlQuery("ReviewThreads", "$owner: String!, $repo: String!, $number: Int!, $after: String", `
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
         reviewThreads(first: 100, after: $after) {
@@ -14,10 +14,9 @@ const THREADS_QUERY = `
         }
       }
     }
-  }`;
+  `);
 
-const THREAD_COMMENTS_QUERY = `
-  query ReviewThreadComments($id: ID!, $after: String) {
+const THREAD_COMMENTS_QUERY = gqlQuery("ReviewThreadComments", "$id: ID!, $after: String", `
     node(id: $id) {
       ... on PullRequestReviewThread {
         comments(first: 100, after: $after) {
@@ -26,7 +25,7 @@ const THREAD_COMMENTS_QUERY = `
         }
       }
     }
-  }`;
+  `);
 
 type ThreadsData = {
   repository: { pullRequest: { reviewThreads: { pageInfo: PageInfo; nodes: ReviewThread[] } } };

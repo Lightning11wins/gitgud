@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { GitHubError, gql, gqlAll, type PageInfo } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { persistedData, queryClient } from "@/api/queryClient";
 
@@ -34,8 +35,7 @@ export interface OwnerData {
 /** A full reload catches renames, deletions, and description edits that don't change `pushedAt`. */
 const FULL_RELOAD_MS = 24 * 60 * 60 * 1000;
 
-const OWNER_QUERY = `
-query OwnerRepos($login: String!, $after: String) {
+const OWNER_QUERY = gqlQuery("OwnerRepos", "$login: String!, $after: String", `
   repositoryOwner(login: $login) {
     __typename login avatarUrl(size: 96)
     ... on User { name bio }
@@ -46,7 +46,7 @@ query OwnerRepos($login: String!, $after: String) {
       nodes { name description visibility isArchived isFork pushedAt primaryLanguage { name color } }
     }
   }
-}`;
+`);
 
 type OwnerResponse = {
   repositoryOwner: (OwnerInfo & { repositories: { totalCount: number; pageInfo: PageInfo; nodes: OwnerRepo[] } }) | null;

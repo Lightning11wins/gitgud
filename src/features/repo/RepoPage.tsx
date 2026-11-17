@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router";
 import { CheckIcon, CodeIcon, IssueOpenedIcon, GitPullRequestIcon, LockIcon, RepoIcon } from "@primer/octicons-react";
 import { gql } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import { intentHandlers, registerPathPrefetcher, speculate } from "@/api/prefetch";
 import { queryClient } from "@/api/queryClient";
 import { keys } from "@/api/keys";
@@ -19,14 +20,13 @@ const DEFAULT_Q = "is:open";
 
 type Kind = "issue" | "pr" | undefined;
 
-const COUNTS_QUERY = `
-query RepoCounts($owner: String!, $name: String!, $iOpen: String!, $iClosed: String!, $pOpen: String!, $pClosed: String!) {
+const COUNTS_QUERY = gqlQuery("RepoCounts", "$owner: String!, $name: String!, $iOpen: String!, $iClosed: String!, $pOpen: String!, $pClosed: String!", `
   repository(owner: $owner, name: $name) { nameWithOwner description isPrivate }
   iOpen: search(type: ISSUE_ADVANCED, query: $iOpen, first: 0) { issueCount }
   iClosed: search(type: ISSUE_ADVANCED, query: $iClosed, first: 0) { issueCount }
   pOpen: search(type: ISSUE_ADVANCED, query: $pOpen, first: 0) { issueCount }
   pClosed: search(type: ISSUE_ADVANCED, query: $pClosed, first: 0) { issueCount }
-}`;
+`);
 
 interface RepoCounts {
   nameWithOwner: string;

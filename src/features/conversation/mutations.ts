@@ -1,4 +1,5 @@
 import { gql } from "@/api/client";
+import { gqlMutation } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { queryClient } from "@/api/queryClient";
 import type { SubjectKind } from "@/api/prefetch";
@@ -8,9 +9,9 @@ import type { IssueCommentItem } from "./types";
 
 export async function addComment(subjectId: string, body: string): Promise<IssueCommentItem> {
   const d = await gql<{ addComment: { commentEdge: { node: IssueCommentItem } } }>(
-    `mutation AddComment($id: ID!, $body: String!) {
+    gqlMutation("AddComment", "$id: ID!, $body: String!", `
       addComment(input: { subjectId: $id, body: $body }) { commentEdge { node { __typename ${ISSUE_COMMENT_FIELDS} } } }
-    }`,
+    `),
     { id: subjectId, body },
   );
   return d.addComment.commentEdge.node;
@@ -24,23 +25,23 @@ export interface RenderedBody {
 
 export async function updateComment(id: string, body: string): Promise<RenderedBody> {
   const d = await gql<{ updateIssueComment: { issueComment: RenderedBody } }>(
-    `mutation UpdateIssueComment($id: ID!, $body: String!) {
+    gqlMutation("UpdateIssueComment", "$id: ID!, $body: String!", `
       updateIssueComment(input: { id: $id, body: $body }) { issueComment { body bodyHTML lastEditedAt } }
-    }`,
+    `),
     { id, body },
   );
   return d.updateIssueComment.issueComment;
 }
 
 export async function deleteComment(id: string) {
-  await gql(`mutation DeleteIssueComment($id: ID!) { deleteIssueComment(input: { id: $id }) { clientMutationId } }`, { id });
+  await gql(gqlMutation("DeleteIssueComment", "$id: ID!", "deleteIssueComment(input: { id: $id }) { clientMutationId }"), { id });
 }
 
 export async function updateReviewBody(id: string, body: string): Promise<RenderedBody> {
   const d = await gql<{ updatePullRequestReview: { pullRequestReview: RenderedBody } }>(
-    `mutation UpdateReview($id: ID!, $body: String!) {
+    gqlMutation("UpdateReview", "$id: ID!, $body: String!", `
       updatePullRequestReview(input: { pullRequestReviewId: $id, body: $body }) { pullRequestReview { body bodyHTML lastEditedAt } }
-    }`,
+    `),
     { id, body },
   );
   return d.updatePullRequestReview.pullRequestReview;
@@ -50,13 +51,13 @@ export type MinimizeReason = "SPAM" | "ABUSE" | "OFF_TOPIC" | "OUTDATED" | "DUPL
 
 export async function setMinimized(id: string, minimize: boolean, reason: MinimizeReason = "OUTDATED") {
   if (minimize)
-    await gql(`mutation MinimizeComment($id: ID!, $c: ReportedContentClassifiers!) { minimizeComment(input: { subjectId: $id, classifier: $c }) { clientMutationId } }`, { id, c: reason });
-  else await gql(`mutation UnminimizeComment($id: ID!) { unminimizeComment(input: { subjectId: $id }) { clientMutationId } }`, { id });
+    await gql(gqlMutation("MinimizeComment", "$id: ID!, $c: ReportedContentClassifiers!", "minimizeComment(input: { subjectId: $id, classifier: $c }) { clientMutationId }"), { id, c: reason });
+  else await gql(gqlMutation("UnminimizeComment", "$id: ID!", "unminimizeComment(input: { subjectId: $id }) { clientMutationId }"), { id });
 }
 
 export async function setReaction(subjectId: string, content: ReactionContent, add: boolean) {
   const op = add ? "addReaction" : "removeReaction";
-  await gql(`mutation ${add ? "AddReaction" : "RemoveReaction"}($id: ID!, $content: ReactionContent!) { ${op}(input: { subjectId: $id, content: $content }) { clientMutationId } }`, {
+  await gql(gqlMutation(add ? "AddReaction" : "RemoveReaction", "$id: ID!, $content: ReactionContent!", `${op}(input: { subjectId: $id, content: $content }) { clientMutationId }`), {
     id: subjectId,
     content,
   });
@@ -76,13 +77,13 @@ export function applyReaction(groups: ReactionGroup[], content: ReactionContent,
 export async function updateSubjectBody(kind: SubjectKind, id: string, body: string): Promise<RenderedBody> {
   if (kind === "issue") {
     const d = await gql<{ updateIssue: { issue: RenderedBody } }>(
-      `mutation UpdateIssueBody($id: ID!, $body: String!) { updateIssue(input: { id: $id, body: $body }) { issue { body bodyHTML lastEditedAt } } }`,
+      gqlMutation("UpdateIssueBody", "$id: ID!, $body: String!", "updateIssue(input: { id: $id, body: $body }) { issue { body bodyHTML lastEditedAt } }"),
       { id, body },
     );
     return d.updateIssue.issue;
   }
   const d = await gql<{ updatePullRequest: { pullRequest: RenderedBody } }>(
-    `mutation UpdatePullBody($id: ID!, $body: String!) { updatePullRequest(input: { pullRequestId: $id, body: $body }) { pullRequest { body bodyHTML lastEditedAt } } }`,
+    gqlMutation("UpdatePullBody", "$id: ID!, $body: String!", "updatePullRequest(input: { pullRequestId: $id, body: $body }) { pullRequest { body bodyHTML lastEditedAt } }"),
     { id, body },
   );
   return d.updatePullRequest.pullRequest;
@@ -92,23 +93,23 @@ export type CloseReason = "COMPLETED" | "NOT_PLANNED" | "DUPLICATE";
 
 export async function closeIssue(id: string, reason: CloseReason, duplicateIssueId?: string) {
   await gql(
-    `mutation CloseIssue($id: ID!, $reason: IssueClosedStateReason, $dup: ID) {
+    gqlMutation("CloseIssue", "$id: ID!, $reason: IssueClosedStateReason, $dup: ID", `
       closeIssue(input: { issueId: $id, stateReason: $reason, duplicateIssueId: $dup }) { issue { id } }
-    }`,
+    `),
     { id, reason, dup: duplicateIssueId ?? null },
   );
 }
 
 export async function reopenIssue(id: string) {
-  await gql(`mutation ReopenIssue($id: ID!) { reopenIssue(input: { issueId: $id }) { issue { id } } }`, { id });
+  await gql(gqlMutation("ReopenIssue", "$id: ID!", "reopenIssue(input: { issueId: $id }) { issue { id } }"), { id });
 }
 
 export async function closePull(id: string) {
-  await gql(`mutation ClosePullRequest($id: ID!) { closePullRequest(input: { pullRequestId: $id }) { pullRequest { id } } }`, { id });
+  await gql(gqlMutation("ClosePullRequest", "$id: ID!", "closePullRequest(input: { pullRequestId: $id }) { pullRequest { id } }"), { id });
 }
 
 export async function reopenPull(id: string) {
-  await gql(`mutation ReopenPullRequest($id: ID!) { reopenPullRequest(input: { pullRequestId: $id }) { pullRequest { id } } }`, { id });
+  await gql(gqlMutation("ReopenPullRequest", "$id: ID!", "reopenPullRequest(input: { pullRequestId: $id }) { pullRequest { id } }"), { id });
 }
 
 export function subjectKey(kind: SubjectKind, owner: string, repo: string, number: number) {

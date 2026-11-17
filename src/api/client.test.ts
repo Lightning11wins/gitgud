@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { gqlQuery } from "./operation";
 
 vi.mock("idb-keyval", () => ({ createStore: () => undefined, get: async () => undefined, set: async () => {}, del: async () => {}, clear: async () => {} }));
 
@@ -17,21 +18,21 @@ describe("tokenScopes", () => {
   it("reads a classic token's scopes from its responses", async () => {
     signIn("ghp_a");
     respond({ "X-OAuth-Scopes": "repo, read:org" });
-    await gql("query A { viewer { login } }");
+    await gql(gqlQuery("A", "", "viewer { login }"));
     expect(tokenScopes()).toEqual(["repo", "read:org"]);
   });
 
   it("is null for tokens whose responses carry no scopes", async () => {
     signIn("github_pat_b");
     respond({});
-    await gql("query B { viewer { login } }");
+    await gql(gqlQuery("B", "", "viewer { login }"));
     expect(tokenScopes()).toBeNull();
   });
 
   it("is unknown for a token that hasn't made a request", async () => {
     signIn("ghp_c");
     respond({ "X-OAuth-Scopes": "repo" });
-    await gql("query C { viewer { login } }");
+    await gql(gqlQuery("C", "", "viewer { login }"));
     signIn("ghp_d");
     expect(tokenScopes()).toBeUndefined();
   });

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { GitHubError, gql, gqlAll, gqlPartial, rest } from "@/api/client";
+import { gqlMutation, gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { registerPathPrefetcher, registerPrefetcher, speculate } from "@/api/prefetch";
 import { queryClient } from "@/api/queryClient";
@@ -124,7 +125,7 @@ const ROLLUP_FIELDS = `
   } } } } }
 `;
 
-export const pullQuery = (withChecks: boolean) => `query PullMeta($owner: String!, $repo: String!, $number: Int!) {
+export const pullQuery = (withChecks: boolean) => gqlQuery("PullMeta", "$owner: String!, $repo: String!, $number: Int!", `
   repository(owner: $owner, name: $repo) {
     isPrivate mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed deleteBranchOnMerge viewerDefaultMergeMethod
     pullRequest(number: $number) {
@@ -149,7 +150,7 @@ export const pullQuery = (withChecks: boolean) => `query PullMeta($owner: String
       ${withChecks ? ROLLUP_FIELDS : ""}
     }
   }
-}`;
+`);
 
 interface RawRollup {
   state: RollupState;
@@ -239,15 +240,14 @@ function toPullMeta(owner: string, repo: string, number: number, r: RawPullRespo
 export async function fetchPullsBatch(refs: { owner: string; repo: string; number: number }[]): Promise<{ ref: (typeof refs)[number]; pull: PullMeta }[]> {
   if (!refs.length) return [];
   const forbidden = refs.map((r) => checksForbiddenRepos.has(`${r.owner}/${r.repo}`.toLowerCase()));
-  // Each alias is `pullQuery`'s repository selection with numbered variables.
+  // Each alias is `pullQuery`'s selection with numbered variables.
   const parts = refs.map((_, i) => {
-    const body = pullQuery(!forbidden[i]);
-    const selection = body.slice(body.indexOf("repository("), body.lastIndexOf("}", body.lastIndexOf("}") - 1) + 1);
+    const { selection } = pullQuery(!forbidden[i]);
     return `p${i}: ${selection.replace(/\$owner\b/g, `$o${i}`).replace(/\$repo\b/g, `$r${i}`).replace(/\$number\b/g, `$n${i}`)}`;
   });
   const params = refs.map((_, i) => `$o${i}: String!, $r${i}: String!, $n${i}: Int!`).join(", ");
   const vars = Object.fromEntries(refs.flatMap((r, i) => [[`o${i}`, r.owner], [`r${i}`, r.repo], [`n${i}`, r.number]]));
-  const { data, errors } = await gqlPartial<Record<string, RawPullResponse["repository"]>>(`query PullMetaBatch(${params}) {\n${parts.join("\n")}\n}`, vars);
+  const { data, errors } = await gqlPartial<Record<string, RawPullResponse["repository"]>>(gqlQuery("PullMetaBatch", params, parts.join("\n")), vars);
   const failed = new Set(errors.map((e) => e.path?.[0]));
   return refs.flatMap((ref, i) => {
     if (failed.has(`p${i}`)) return [];
@@ -285,11 +285,11 @@ export function refreshPull(owner: string, repo: string, number: number) {
   ]);
 }
 
-const checksQuery = `query PullChecks($owner: String!, $repo: String!, $number: Int!, $oid: GitObjectID!, $after: String) {
+const checksQuery = gqlQuery("PullChecks", "$owner: String!, $repo: String!, $number: Int!, $oid: GitObjectID!, $after: String", `
   repository(owner: $owner, name: $repo) { object(oid: $oid) { ... on Commit { statusCheckRollup { state contexts(first: 100, after: $after) {
     totalCount pageInfo { hasNextPage endCursor } nodes { ${CHECK_CONTEXT_FIELDS} }
   } } } } }
-}`;
+`);
 
 type ChecksResponse = { repository: { object: { statusCheckRollup: RawRollup | null } | null } };
 
@@ -332,7 +332,7 @@ export interface PullCommits {
   commits: PullCommit[];
 }
 
-export const commitsQuery = (withStatus: boolean) => `query PullCommits($owner: String!, $repo: String!, $number: Int!, $after: String) {
+export const commitsQuery = (withStatus: boolean) => gqlQuery("PullCommits", "$owner: String!, $repo: String!, $number: Int!, $after: String", `
   repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
     headRefOid
     commits(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { commit {
@@ -342,7 +342,7 @@ export const commitsQuery = (withStatus: boolean) => `query PullCommits($owner: 
       ${withStatus ? "statusCheckRollup { state }" : ""}
     } } }
   } }
-}`;
+`);
 
 function commitsStamp(pull: PullMeta | undefined): string | undefined {
   return pull && `${pull.headRefOid}:${pull.rollup?.state ?? ""}`;
@@ -397,7 +397,7 @@ registerPathPrefetcher(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/checks$/, ([, owner, r
 // Mutations
 
 export function updateTitle(pullId: string, title: string) {
-  return gql(`mutation UpdatePullTitle($id: ID!, $title: String!) { updatePullRequest(input: { pullRequestId: $id, title: $title }) { clientMutationId } }`, {
+  return gql(gqlMutation("UpdatePullTitle", "$id: ID!, $title: String!", "updatePullRequest(input: { pullRequestId: $id, title: $title }) { clientMutationId }"), {
     id: pullId,
     title,
   });
@@ -405,14 +405,14 @@ export function updateTitle(pullId: string, title: string) {
 
 export function setDraft(pullId: string, draft: boolean) {
   return draft
-    ? gql(`mutation ConvertToDraft($id: ID!) { convertPullRequestToDraft(input: { pullRequestId: $id }) { clientMutationId } }`, { id: pullId })
-    : gql(`mutation MarkReady($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { clientMutationId } }`, { id: pullId });
+    ? gql(gqlMutation("ConvertToDraft", "$id: ID!", "convertPullRequestToDraft(input: { pullRequestId: $id }) { clientMutationId }"), { id: pullId })
+    : gql(gqlMutation("MarkReady", "$id: ID!", "markPullRequestReadyForReview(input: { pullRequestId: $id }) { clientMutationId }"), { id: pullId });
 }
 
 export async function mergePull(input: { pullRequestId: string; mergeMethod: MergeMethod; commitHeadline?: string; commitBody?: string; expectedHeadOid: string }) {
   type Merged = Pick<PullMeta, "state" | "mergedAt" | "mergedBy" | "closedAt">;
   const data = await gql<{ mergePullRequest: { pullRequest: Merged } }>(
-    `mutation MergePull($input: MergePullRequestInput!) { mergePullRequest(input: $input) { pullRequest { state mergedAt mergedBy { ${ACTOR_FIELDS} } closedAt } } }`,
+    gqlMutation("MergePull", "$input: MergePullRequestInput!", `mergePullRequest(input: $input) { pullRequest { state mergedAt mergedBy { ${ACTOR_FIELDS} } closedAt } }`),
     { input },
   );
   return data.mergePullRequest.pullRequest;
@@ -438,10 +438,10 @@ export interface MergeMessages {
 
 export async function fetchMergeMessages(owner: string, repo: string, number: number): Promise<MergeMessages> {
   const data = await gql<{ repository: { pullRequest: Record<string, string> } }>(
-    `query MergeMessages($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
+    gqlQuery("MergeMessages", "$owner: String!, $repo: String!, $number: Int!", `repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
       mh: viewerMergeHeadlineText(mergeType: MERGE) mb: viewerMergeBodyText(mergeType: MERGE)
       sh: viewerMergeHeadlineText(mergeType: SQUASH) sb: viewerMergeBodyText(mergeType: SQUASH)
-    } } }`,
+    } }`),
     { owner, repo, number },
   );
   const p = data.repository.pullRequest;
@@ -449,7 +449,7 @@ export async function fetchMergeMessages(owner: string, repo: string, number: nu
 }
 
 export function deleteBranch(refId: string) {
-  return gql(`mutation DeleteRef($id: ID!) { deleteRef(input: { refId: $id }) { clientMutationId } }`, { id: refId });
+  return gql(gqlMutation("DeleteRef", "$id: ID!", "deleteRef(input: { refId: $id }) { clientMutationId }"), { id: refId });
 }
 
 export function restoreBranch(owner: string, repo: string, branch: string, sha: string) {
@@ -458,7 +458,7 @@ export function restoreBranch(owner: string, repo: string, branch: string, sha: 
 
 export function requestReviews(pullId: string, userIds: string[], teamIds: string[]) {
   return gql(
-    `mutation RequestReviews($id: ID!, $users: [ID!], $teams: [ID!]) { requestReviews(input: { pullRequestId: $id, userIds: $users, teamIds: $teams, union: true }) { clientMutationId } }`,
+    gqlMutation("RequestReviews", "$id: ID!, $users: [ID!], $teams: [ID!]", "requestReviews(input: { pullRequestId: $id, userIds: $users, teamIds: $teams, union: true }) { clientMutationId }"),
     { id: pullId, users: userIds, teams: teamIds },
   );
 }
@@ -485,17 +485,17 @@ export async function fetchReviewerCandidates(owner: string, repo: string): Prom
   };
   const users = gqlAll(async (after) => {
     const data = await gql<Page>(
-      `query ReviewerUsers($owner: String!, $repo: String!, $after: String) { repository(owner: $owner, name: $repo) {
+      gqlQuery("ReviewerUsers", "$owner: String!, $repo: String!, $after: String", `repository(owner: $owner, name: $repo) {
         assignableUsers(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id login name avatarUrl(size: 40) } }
-      } }`,
+      }`),
       { owner, repo, after },
     );
     return data.repository.assignableUsers;
   });
   const teams = gql<{ repository: { owner: { teams?: { nodes: { id: string; name: string; slug: string; combinedSlug: string; avatarUrl: string | null }[] } } } }>(
-    `query ReviewerTeams($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) {
+    gqlQuery("ReviewerTeams", "$owner: String!, $repo: String!", `repository(owner: $owner, name: $repo) {
       owner { ... on Organization { teams(first: 100) { nodes { id name slug combinedSlug avatarUrl(size: 40) } } } }
-    } }`,
+    }`),
     { owner, repo },
   )
     .then((d) => d.repository.owner.teams?.nodes ?? [])

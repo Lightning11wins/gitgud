@@ -1,6 +1,7 @@
 import { auth } from "@/auth/token";
 import { settings } from "@/lib/settings";
 import { gql, rest } from "./client";
+import { gqlQuery } from "./operation";
 import { mergeRateLimits, type RateLimits, type RateLimitState } from "./rateLimit";
 
 /** Rate limits with hourly windows. Search resets every minute, so it has none worth starting. */
@@ -34,7 +35,7 @@ export function planWarmUp(resources: Partial<Record<string, LimitInfo>>, now: n
 }
 
 function warmUp(resource: Resource): Promise<unknown> {
-  return resource === "core" ? rest("/user") : gql("query WarmUp { viewer { login } }");
+  return resource === "core" ? rest("/user") : gql(gqlQuery("WarmUp", "", "viewer { login }"));
 }
 
 let readAt = 0;

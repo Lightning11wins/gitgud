@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { gql, gqlAll, type PageInfo } from "@/api/client";
+import { gqlMutation, gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { queryClient } from "@/api/queryClient";
 import { ACTOR_FIELDS, canTriage, type RepoPermission } from "@/api/types";
@@ -47,10 +48,10 @@ async function fetchBranches(owner: string, repo: string): Promise<Branches> {
   type Page = { repository: { defaultBranchRef: { name: string } | null; refs: { pageInfo: PageInfo; nodes: { name: string }[] } } };
   const names = await gqlAll(async (after) => {
     const data = await gql<Page>(
-      `query Branches($owner: String!, $repo: String!, $after: String) { repository(owner: $owner, name: $repo) {
+      gqlQuery("Branches", "$owner: String!, $repo: String!, $after: String", `repository(owner: $owner, name: $repo) {
         defaultBranchRef { name }
         refs(refPrefix: "refs/heads/", first: 100, after: $after, orderBy: { field: TAG_COMMIT_DATE, direction: DESC }) { pageInfo { hasNextPage endCursor } nodes { name } }
-      } }`,
+      }`),
       { owner, repo, after },
     );
     defaultBranch = data.repository.defaultBranchRef?.name ?? "";
@@ -83,14 +84,14 @@ async function fetchComparison(owner: string, repo: string, base: string, head: 
     } & Record<string, { text?: string } | null>;
   };
   const first = await gql<Data>(
-    `query Compare($owner: String!, $repo: String!, $base: String!, $head: String!, ${templateArgs}) { repository(owner: $owner, name: $repo) {
+    gqlQuery("Compare", `$owner: String!, $repo: String!, $base: String!, $head: String!, ${templateArgs}`, `repository(owner: $owner, name: $repo) {
       id viewerPermission
       baseRef: ref(qualifiedName: $base) { compare(headRef: $head) { aheadBy behindBy status commits(first: 100) {
         totalCount pageInfo { hasNextPage endCursor } nodes { ${COMMIT_FIELDS} }
       } } }
       pullRequests(headRefName: $head, baseRefName: $base, states: OPEN, first: 1) { nodes { number title } }
       ${templateFields}
-    } }`,
+    }`),
     { owner, repo, base, head, ...templateVars },
   );
   const r = first.repository;
@@ -99,11 +100,11 @@ async function fetchComparison(owner: string, repo: string, base: string, head: 
   if (cmp?.commits.pageInfo.hasNextPage) {
     const rest = await gqlAll(async (after) => {
       const data = await gql<{ repository: { baseRef: { compare: { commits: CommitPage } } } }>(
-        `query CompareCommits($owner: String!, $repo: String!, $base: String!, $head: String!, $after: String) { repository(owner: $owner, name: $repo) {
+        gqlQuery("CompareCommits", "$owner: String!, $repo: String!, $base: String!, $head: String!, $after: String", `repository(owner: $owner, name: $repo) {
           baseRef: ref(qualifiedName: $base) { compare(headRef: $head) { commits(first: 100, after: $after) {
             totalCount pageInfo { hasNextPage endCursor } nodes { ${COMMIT_FIELDS} }
           } } }
-        } }`,
+        }`),
         { owner, repo, base, head, after: after ?? cmp.commits.pageInfo.endCursor },
       );
       return data.repository.baseRef.compare.commits;
@@ -329,7 +330,7 @@ function NewPullForm({ owner, repo, base, head, data }: { owner: string; repo: s
     const t = title.trim();
     if (!t) throw new Error("Failed to create the pull request: the title is empty");
     const res = await gql<{ createPullRequest: { pullRequest: { id: string; number: number } } }>(
-      `mutation CreatePull($input: CreatePullRequestInput!) { createPullRequest(input: $input) { pullRequest { id number } } }`,
+      gqlMutation("CreatePull", "$input: CreatePullRequestInput!", "createPullRequest(input: $input) { pullRequest { id number } }"),
       { input: { repositoryId: data.repositoryId, baseRefName: base, headRefName: head, title: t, body, draft } },
     );
     const { id, number } = res.createPullRequest.pullRequest;

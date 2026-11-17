@@ -1,15 +1,16 @@
 // Runs the conversation/issue/sidebar GraphQL documents against the live schema with the gh CLI token.
 // Usage: node scripts/check-conversation-queries.ts
 import { execFileSync } from "node:child_process";
+import { gqlDocument, type Operation } from "../src/api/operation.ts";
 import * as q from "../src/features/conversation/queries.ts";
 import { sandbox } from "./sandbox.mjs";
 
 const SB = sandbox();
 
-function run(name: string, query: string, vars: Record<string, unknown>) {
+function run(name: string, op: Operation, vars: Record<string, unknown>) {
   let out: string;
   try {
-    out = execFileSync("gh", ["api", "graphql", "--input", "-"], { encoding: "utf8", input: JSON.stringify({ query, variables: vars }), stdio: ["pipe", "pipe", "pipe"] });
+    out = execFileSync("gh", ["api", "graphql", "--input", "-"], { encoding: "utf8", input: JSON.stringify({ query: gqlDocument(op), variables: vars }), stdio: ["pipe", "pipe", "pipe"] });
   } catch (e) {
     out = (e as { stdout?: string }).stdout ?? String(e);
   }

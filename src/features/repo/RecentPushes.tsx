@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { GitBranchIcon } from "@primer/octicons-react";
 import { gql, rest } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { auth } from "@/auth/token";
 import { useStore } from "@/lib/store";
@@ -48,10 +49,10 @@ async function fetchPrless(owner: string, name: string, branches: string[]): Pro
     .map((_, i) => `b${i}: ref(qualifiedName: $b${i}) { target { oid } associatedPullRequests(first: 5, orderBy: { field: CREATED_AT, direction: DESC }) { nodes { state headRefOid } } }`)
     .join("\n");
   const data = await gql<{ repository: { defaultBranchRef: { name: string } | null } & Record<string, BranchState> }>(
-    `query PrlessBranches($owner: String!, $name: String!, ${args}) { repository(owner: $owner, name: $name) {
+    gqlQuery("PrlessBranches", `$owner: String!, $name: String!, ${args}`, `repository(owner: $owner, name: $name) {
       defaultBranchRef { name }
       ${fields}
-    } }`,
+    }`),
     { owner, name, ...Object.fromEntries(branches.map((b, i) => [`b${i}`, `refs/heads/${b}`])) },
   );
   const defaultBranch = data.repository.defaultBranchRef?.name ?? "";

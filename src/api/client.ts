@@ -1,4 +1,5 @@
 import { auth, tokenRejected, type AuthState } from "@/auth/token";
+import { gqlDocument, type Operation } from "./operation";
 import { recordRateLimit, recordRequest } from "./rateLimit";
 
 export const API_BASE = "https://api.github.com";
@@ -77,39 +78,34 @@ export interface GqlError {
   path?: (string | number)[];
 }
 
-function operationName(query: string): string {
-  return /(?:query|mutation)\s+(\w+)/.exec(query)?.[1] ?? "anonymous";
-}
-
-function gqlFailure(query: string, errors: GqlError[]): GitHubError {
-  return new GitHubError(`Failed to run GraphQL ${operationName(query)}: ${errors.map((e) => e.message).join("; ")}`, 200, errors);
+function gqlFailure(op: Operation, errors: GqlError[]): GitHubError {
+  return new GitHubError(`Failed to run GraphQL ${op.name}: ${errors.map((e) => e.message).join("; ")}`, 200, errors);
 }
 
 /** Runs a GraphQL query or mutation and returns `data`, throwing on any error. */
-export async function gql<T>(query: string, variables: Record<string, unknown> = {}, opts: GqlOptions = {}): Promise<T> {
-  const { data, errors } = await gqlPartial<T>(query, variables, opts);
-  if (errors.length) throw gqlFailure(query, errors);
+export async function gql<T>(op: Operation, variables: Record<string, unknown> = {}, opts: GqlOptions = {}): Promise<T> {
+  const { data, errors } = await gqlPartial<T>(op, variables, opts);
+  if (errors.length) throw gqlFailure(op, errors);
   return data;
 }
 
 /** Like `gql`, but returns partial `data` with its field errors. Throws only when there is no data. */
-export async function gqlPartial<T>(query: string, variables: Record<string, unknown> = {}, opts: GqlOptions = {}): Promise<{ data: T; errors: GqlError[] }> {
-  const opName = operationName(query);
+export async function gqlPartial<T>(op: Operation, variables: Record<string, unknown> = {}, opts: GqlOptions = {}): Promise<{ data: T; errors: GqlError[] }> {
   opts.signal?.throwIfAborted();
   const session = auth.get();
-  recordRequest("graphql", opName);
+  recordRequest("graphql", op.name);
   const res = await fetch(`${API_BASE}/graphql`, {
     method: "POST",
     headers: { ...authHeaders(session), "Content-Type": "application/json", ...opts.headers },
-    body: JSON.stringify({ query, variables }),
+    body: JSON.stringify({ query: gqlDocument(op), variables }),
     signal: opts.signal,
   });
   recordRateLimit(res.headers);
   recordScopes(session, res.headers);
-  if (!res.ok) throw await failure(res, `run GraphQL ${opName}`, session);
+  if (!res.ok) throw await failure(res, `run GraphQL ${op.name}`, session);
   const body = (await res.json()) as { data?: T | null; errors?: GqlError[] };
   const errors = body.errors ?? [];
-  if (body.data == null && errors.length) throw gqlFailure(query, errors);
+  if (body.data == null && errors.length) throw gqlFailure(op, errors);
   return { data: body.data as T, errors };
 }
 

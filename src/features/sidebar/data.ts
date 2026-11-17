@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { gql, gqlAll, type PageInfo } from "@/api/client";
+import { gqlMutation, gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import type { SubjectKind } from "@/api/prefetch";
 import { ACTOR_FIELDS, type IssueState, type IssueStateReason, type IssueType, type Label, type Milestone, type User } from "@/api/types";
@@ -100,9 +101,9 @@ export function useRepoLabels(owner: string, repo: string, enabled: boolean) {
     queryFn: () =>
       gqlAll(async (after) => {
         const d = await gql<{ repository: { labels: { nodes: Label[]; pageInfo: PageInfo } } }>(
-          `query RepoLabels($owner: String!, $repo: String!, $after: String) {
+          gqlQuery("RepoLabels", "$owner: String!, $repo: String!, $after: String", `
             repository(owner: $owner, name: $repo) { labels(first: 100, after: $after, orderBy: { field: NAME, direction: ASC }) { pageInfo { hasNextPage endCursor } nodes { id name color description } } }
-          }`,
+          `),
           { owner, repo, after },
         );
         return d.repository.labels;
@@ -118,9 +119,9 @@ export function useAssignableUsers(owner: string, repo: string, enabled: boolean
     queryFn: () =>
       gqlAll(async (after) => {
         const d = await gql<{ repository: { assignableUsers: { nodes: User[]; pageInfo: PageInfo } } }>(
-          `query AssignableUsers($owner: String!, $repo: String!, $after: String) {
+          gqlQuery("AssignableUsers", "$owner: String!, $repo: String!, $after: String", `
             repository(owner: $owner, name: $repo) { assignableUsers(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id ${ACTOR_FIELDS} name } } }
-          }`,
+          `),
           { owner, repo, after },
         );
         return d.repository.assignableUsers;
@@ -136,11 +137,11 @@ export function useMilestones(owner: string, repo: string, enabled: boolean) {
     queryFn: () =>
       gqlAll(async (after) => {
         const d = await gql<{ repository: { milestones: { nodes: Milestone[]; pageInfo: PageInfo } } }>(
-          `query RepoMilestones($owner: String!, $repo: String!, $after: String) {
+          gqlQuery("RepoMilestones", "$owner: String!, $repo: String!, $after: String", `
             repository(owner: $owner, name: $repo) {
               milestones(first: 100, after: $after, states: OPEN, orderBy: { field: DUE_DATE, direction: ASC }) { pageInfo { hasNextPage endCursor } nodes { id number title dueOn state } }
             }
-          }`,
+          `),
           { owner, repo, after },
         );
         return d.repository.milestones;
@@ -156,9 +157,9 @@ export function useIssueTypes(owner: string, repo: string, enabled = true) {
     staleTime: LONG,
     queryFn: async () => {
       const d = await gql<{ repository: { issueTypes: { nodes: IssueType[] } | null } }>(
-        `query RepoIssueTypes($owner: String!, $repo: String!) {
+        gqlQuery("RepoIssueTypes", "$owner: String!, $repo: String!", `
           repository(owner: $owner, name: $repo) { issueTypes(first: 50) { nodes { id name color description } } }
-        }`,
+        `),
         { owner, repo },
       );
       return d.repository.issueTypes?.nodes ?? [];
@@ -188,7 +189,7 @@ export function useIssueFields(owner: string, repo: string, enabled = true) {
           owner: { pinnedIssueFields?: { nodes: Pins } };
         };
       }>(
-        `query RepoIssueFields($owner: String!, $repo: String!) {
+        gqlQuery("RepoIssueFields", "$owner: String!, $repo: String!", `
           repository(owner: $owner, name: $repo) {
             issueFields(first: 50) {
               nodes {
@@ -201,7 +202,7 @@ export function useIssueFields(owner: string, repo: string, enabled = true) {
             issueTypes(first: 50) { nodes { id pinnedFields { ${FIELD_ID} } } }
             owner { ... on Organization { pinnedIssueFields(first: 50) { nodes { ${FIELD_ID} } } } }
           }
-        }`,
+        `),
         { owner, repo },
       );
       const ids = (pins: Pins | null | undefined) => (pins ?? []).map((f) => f.id);
@@ -235,7 +236,7 @@ export interface IssueFieldInput {
 }
 
 export async function setIssueFieldValue(issueId: string, input: IssueFieldInput) {
-  await gql(`mutation SetIssueFieldValue($input: SetIssueFieldValueInput!) { setIssueFieldValue(input: $input) { issue { id } } }`, {
+  await gql(gqlMutation("SetIssueFieldValue", "$input: SetIssueFieldValueInput!", "setIssueFieldValue(input: $input) { issue { id } }"), {
     input: { issueId, issueFields: [input] },
   });
 }
@@ -249,9 +250,9 @@ export interface SubjectUpdate {
 
 export async function updateSubject(kind: SubjectKind, id: string, input: SubjectUpdate) {
   if (kind === "issue") {
-    await gql(`mutation UpdateIssueMeta($input: UpdateIssueInput!) { updateIssue(input: $input) { issue { id } } }`, { input: { id, ...input } });
+    await gql(gqlMutation("UpdateIssueMeta", "$input: UpdateIssueInput!", "updateIssue(input: $input) { issue { id } }"), { input: { id, ...input } });
   } else {
-    await gql(`mutation UpdatePullMeta($input: UpdatePullRequestInput!) { updatePullRequest(input: $input) { pullRequest { id } } }`, {
+    await gql(gqlMutation("UpdatePullMeta", "$input: UpdatePullRequestInput!", "updatePullRequest(input: $input) { pullRequest { id } }"), {
       input: { pullRequestId: id, ...input },
     });
   }
@@ -259,11 +260,11 @@ export async function updateSubject(kind: SubjectKind, id: string, input: Subjec
 
 export async function setLocked(id: string, lock: boolean, reason?: string) {
   if (lock)
-    await gql(`mutation LockLockable($id: ID!, $reason: LockReason) { lockLockable(input: { lockableId: $id, lockReason: $reason }) { clientMutationId } }`, {
+    await gql(gqlMutation("LockLockable", "$id: ID!, $reason: LockReason", "lockLockable(input: { lockableId: $id, lockReason: $reason }) { clientMutationId }"), {
       id,
       reason: reason ?? null,
     });
-  else await gql(`mutation UnlockLockable($id: ID!) { unlockLockable(input: { lockableId: $id }) { clientMutationId } }`, { id });
+  else await gql(gqlMutation("UnlockLockable", "$id: ID!", "unlockLockable(input: { lockableId: $id }) { clientMutationId }"), { id });
 }
 
 /** Resolves `#12`, `12`, `owner/repo#12`, or an issue URL to an issue in or near `owner/repo`. */
@@ -273,7 +274,7 @@ export async function findIssue(owner: string, repo: string, text: string): Prom
   if (!m) throw new Error(`Failed to parse "${t}": use an issue number, owner/repo#123, or an issue URL`);
   const [o, r, n] = [m[1] ?? owner, m[2] ?? repo, Number(m[3])];
   const d = await gql<{ repository: { issue: IssueRef | null } | null }>(
-    `query FindIssue($owner: String!, $repo: String!, $n: Int!) { repository(owner: $owner, name: $repo) { issue(number: $n) { ${ISSUE_REF_FIELDS} } } }`,
+    gqlQuery("FindIssue", "$owner: String!, $repo: String!, $n: Int!", `repository(owner: $owner, name: $repo) { issue(number: $n) { ${ISSUE_REF_FIELDS} } }`),
     { owner: o, repo: r, n },
   );
   if (!d.repository?.issue) throw new Error(`Failed to find issue ${o}/${r}#${n}`);
@@ -281,11 +282,11 @@ export async function findIssue(owner: string, repo: string, text: string): Prom
 }
 
 export async function addSubIssue(issueId: string, subIssueId: string) {
-  await gql(`mutation AddSubIssue($id: ID!, $sub: ID!) { addSubIssue(input: { issueId: $id, subIssueId: $sub }) { issue { id } } }`, { id: issueId, sub: subIssueId });
+  await gql(gqlMutation("AddSubIssue", "$id: ID!, $sub: ID!", "addSubIssue(input: { issueId: $id, subIssueId: $sub }) { issue { id } }"), { id: issueId, sub: subIssueId });
 }
 
 export async function removeSubIssue(issueId: string, subIssueId: string) {
-  await gql(`mutation RemoveSubIssue($id: ID!, $sub: ID!) { removeSubIssue(input: { issueId: $id, subIssueId: $sub }) { issue { id } } }`, {
+  await gql(gqlMutation("RemoveSubIssue", "$id: ID!, $sub: ID!", "removeSubIssue(input: { issueId: $id, subIssueId: $sub }) { issue { id } }"), {
     id: issueId,
     sub: subIssueId,
   });

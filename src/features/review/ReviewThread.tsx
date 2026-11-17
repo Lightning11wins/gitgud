@@ -2,6 +2,7 @@ import { ChevronDownIcon, ChevronRightIcon, KebabHorizontalIcon } from "@primer/
 import { memo, useCallback, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { gql } from "@/api/client";
+import { gqlMutation } from "@/api/operation";
 import { ACTOR_FIELDS, REVIEW_COMMENT_FIELDS, type ReactionGroup, type ReviewComment, type ReviewThread } from "@/api/types";
 import { Avatar } from "@/components/Avatar";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -32,25 +33,23 @@ export interface ReviewThreadViewProps {
   anchorPrefix?: string;
 }
 
-const REPLY = `
-  mutation ReplyToThread($threadId: ID!, $body: String!, $reviewId: ID) {
+const REPLY = gqlMutation("ReplyToThread", "$threadId: ID!, $body: String!, $reviewId: ID", `
     addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $threadId, pullRequestReviewId: $reviewId, body: $body }) {
       comment { ${REVIEW_COMMENT_FIELDS} }
     }
-  }`;
+  `);
 
-const UPDATE = `
-  mutation UpdateReviewComment($id: ID!, $body: String!) {
+const UPDATE = gqlMutation("UpdateReviewComment", "$id: ID!, $body: String!", `
     updatePullRequestReviewComment(input: { pullRequestReviewCommentId: $id, body: $body }) {
       pullRequestReviewComment { body bodyHTML lastEditedAt }
     }
-  }`;
+  `);
 
-const DELETE = `mutation DeleteReviewComment($id: ID!) { deletePullRequestReviewComment(input: { id: $id }) { clientMutationId } }`;
+const DELETE = gqlMutation("DeleteReviewComment", "$id: ID!", "deletePullRequestReviewComment(input: { id: $id }) { clientMutationId }");
 
 const RESOLVE_FIELDS = `thread { isResolved viewerCanResolve viewerCanUnresolve resolvedBy { ${ACTOR_FIELDS} } }`;
-const RESOLVE = `mutation ResolveThread($id: ID!) { resolveReviewThread(input: { threadId: $id }) { ${RESOLVE_FIELDS} } }`;
-const UNRESOLVE = `mutation UnresolveThread($id: ID!) { unresolveReviewThread(input: { threadId: $id }) { ${RESOLVE_FIELDS} } }`;
+const RESOLVE = gqlMutation("ResolveThread", "$id: ID!", `resolveReviewThread(input: { threadId: $id }) { ${RESOLVE_FIELDS} }`);
+const UNRESOLVE = gqlMutation("UnresolveThread", "$id: ID!", `unresolveReviewThread(input: { threadId: $id }) { ${RESOLVE_FIELDS} }`);
 
 type ResolveFields = Pick<ReviewThread, "isResolved" | "viewerCanResolve" | "viewerCanUnresolve" | "resolvedBy">;
 type ResolveData = { resolveReviewThread?: { thread: ResolveFields }; unresolveReviewThread?: { thread: ResolveFields } };

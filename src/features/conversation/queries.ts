@@ -1,4 +1,5 @@
 // GraphQL documents for the conversation timeline. Relative `.ts` imports let scripts/check-conversation-queries.ts load this file in Node.
+import { gqlQuery } from "../../api/operation.ts";
 import { ACTOR_FIELDS, REACTION_FIELDS } from "../../api/types.ts";
 
 const ISSUE_REF = `__typename number title url state stateReason repository { nameWithOwner }`;
@@ -191,8 +192,7 @@ export const PULL_ITEM_TYPES = [...BASE_PULL_ITEM_TYPES, ...PROJECT_ITEM_TYPES];
 export const ISSUE_ITEM_TYPES_NO_PROJECTS = BASE_ISSUE_ITEM_TYPES;
 export const PULL_ITEM_TYPES_NO_PROJECTS = BASE_PULL_ITEM_TYPES;
 
-const issueTimelineQuery = (projects: boolean) => `
-  query IssueTimeline($owner: String!, $repo: String!, $number: Int!, $after: String, $skip: Int, $withTotal: Boolean!, $types: [IssueTimelineItemsItemType!]) {
+const issueTimelineQuery = (projects: boolean) => gqlQuery("IssueTimeline", "$owner: String!, $repo: String!, $number: Int!, $after: String, $skip: Int, $withTotal: Boolean!, $types: [IssueTimelineItemsItemType!]", `
     repository(owner: $owner, name: $repo) {
       issue(number: $number) {
         timelineItems(first: 100, after: $after, skip: $skip, itemTypes: $types) { ${PAGE} nodes { ${COMMON_ITEMS} ${projects ? PROJECT_ITEMS : ""} } }
@@ -200,10 +200,9 @@ const issueTimelineQuery = (projects: boolean) => `
         ${movable("REFERENCED_EVENT")}
       }
     }
-  }`;
+  `);
 
-const pullTimelineQuery = (projects: boolean) => `
-  query PullTimeline($owner: String!, $repo: String!, $number: Int!, $after: String, $skip: Int, $withTotal: Boolean!, $types: [PullRequestTimelineItemsItemType!]) {
+const pullTimelineQuery = (projects: boolean) => gqlQuery("PullTimeline", "$owner: String!, $repo: String!, $number: Int!, $after: String, $skip: Int, $withTotal: Boolean!, $types: [PullRequestTimelineItemsItemType!]", `
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
         timelineItems(first: 100, after: $after, skip: $skip, itemTypes: $types) { ${PAGE} nodes { ${COMMON_ITEMS} ${projects ? PROJECT_ITEMS : ""} ${PULL_ITEMS} } }
@@ -211,16 +210,15 @@ const pullTimelineQuery = (projects: boolean) => `
         ${movable("PULL_REQUEST_COMMIT, PULL_REQUEST_COMMIT_COMMENT_THREAD, REFERENCED_EVENT")}
       }
     }
-  }`;
+  `);
 
 export const ISSUE_TIMELINE_QUERY = issueTimelineQuery(true);
 export const PULL_TIMELINE_QUERY = pullTimelineQuery(true);
 export const ISSUE_TIMELINE_QUERY_NO_PROJECTS = issueTimelineQuery(false);
 export const PULL_TIMELINE_QUERY_NO_PROJECTS = pullTimelineQuery(false);
 
-export const SUBJECT_STAMP_QUERY = `
-  query SubjectStamp($owner: String!, $repo: String!, $number: Int!) {
+export const SUBJECT_STAMP_QUERY = gqlQuery("SubjectStamp", "$owner: String!, $repo: String!, $number: Int!", `
     repository(owner: $owner, name: $repo) {
       issueOrPullRequest(number: $number) { ... on Issue { updatedAt } ... on PullRequest { updatedAt } }
     }
-  }`;
+  `);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { GitHubError, gql, gqlPartial } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { ISSUE_HEADER_FIELDS, PULL_HEADER_FIELDS, SUBJECT_HEADER_FIELDS, type SubjectHeader } from "@/api/types";
 import { persistedData, queryClient } from "@/api/queryClient";
@@ -66,8 +67,7 @@ const ROW_FIELDS = `
   comments { totalCount }
 `;
 
-export const LIST_QUERY = `
-query SearchList($q: String!, $first: Int!, $after: String) {
+export const LIST_QUERY = gqlQuery("SearchList", "$q: String!, $first: Int!, $after: String", `
   search(type: ISSUE_ADVANCED, query: $q, first: $first, after: $after) {
     issueCount
     pageInfo { hasNextPage endCursor }
@@ -82,11 +82,10 @@ query SearchList($q: String!, $first: Int!, $after: String) {
       }
     }
   }
-}`;
+`);
 
 /** The same search as `LIST_QUERY`, selecting only check runs. It runs alongside it with the same cursor. */
-export const CHECKS_QUERY = `
-query SearchChecks($q: String!, $first: Int!, $after: String) {
+export const CHECKS_QUERY = gqlQuery("SearchChecks", "$q: String!, $first: Int!, $after: String", `
   search(type: ISSUE_ADVANCED, query: $q, first: $first, after: $after) {
     pageInfo { hasNextPage endCursor }
     nodes {
@@ -102,7 +101,7 @@ query SearchChecks($q: String!, $first: Int!, $after: String) {
       }
     }
   }
-}`;
+`);
 
 const FIRST_PAGE = 50;
 const NEXT_PAGE = 100;

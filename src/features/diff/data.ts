@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { gql, gqlAll, mapLimit, rest, restAll, restRaw, type PageInfo } from "@/api/client";
+import { gqlMutation, gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { registerPathPrefetcher, speculate } from "@/api/prefetch";
 import { persistQueryData, probeThenLoad, queryClient } from "@/api/queryClient";
@@ -25,10 +26,9 @@ export interface PullFiles {
   files: DiffFile[];
 }
 
-const HEAD_QUERY = `
-  query PullDiffHead($owner: String!, $repo: String!, $number: Int!) {
+const HEAD_QUERY = gqlQuery("PullDiffHead", "$owner: String!, $repo: String!, $number: Int!", `
     repository(owner: $owner, name: $repo) { pullRequest(number: $number) { id headRefOid baseRefOid baseRefName } }
-  }`;
+  `);
 
 type HeadData = { repository: { pullRequest: { id: string; headRefOid: string; baseRefOid: string; baseRefName: string } } };
 
@@ -165,14 +165,13 @@ export function fetchContent(owner: string, repo: string, path: string, ref: str
 export type ViewedState = "VIEWED" | "UNVIEWED" | "DISMISSED";
 export type ViewedMap = Record<string, ViewedState>;
 
-const VIEWED_QUERY = `
-  query PullViewedFiles($owner: String!, $repo: String!, $number: Int!, $after: String) {
+const VIEWED_QUERY = gqlQuery("PullViewedFiles", "$owner: String!, $repo: String!, $number: Int!, $after: String", `
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
         files(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { path viewerViewedState } }
       }
     }
-  }`;
+  `);
 
 type ViewedData = { repository: { pullRequest: { files: { pageInfo: PageInfo; nodes: { path: string; viewerViewedState: ViewedState }[] } } } };
 
@@ -189,8 +188,8 @@ export function useViewedFiles(owner: string, repo: string, number: number, enab
   });
 }
 
-const MARK_VIEWED = `mutation MarkFileViewed($pullId: ID!, $path: String!) { markFileAsViewed(input: { pullRequestId: $pullId, path: $path }) { clientMutationId } }`;
-const UNMARK_VIEWED = `mutation UnmarkFileViewed($pullId: ID!, $path: String!) { unmarkFileAsViewed(input: { pullRequestId: $pullId, path: $path }) { clientMutationId } }`;
+const MARK_VIEWED = gqlMutation("MarkFileViewed", "$pullId: ID!, $path: String!", "markFileAsViewed(input: { pullRequestId: $pullId, path: $path }) { clientMutationId }");
+const UNMARK_VIEWED = gqlMutation("UnmarkFileViewed", "$pullId: ID!, $path: String!", "unmarkFileAsViewed(input: { pullRequestId: $pullId, path: $path }) { clientMutationId }");
 
 /** Marks files viewed or unviewed on GitHub, updating the cache first. */
 export function useSetViewed(owner: string, repo: string, number: number, pullId: string | undefined) {

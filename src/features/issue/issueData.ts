@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { GitHubError, gql, gqlPartial } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { registerPrefetcher } from "@/api/prefetch";
 import { queryClient } from "@/api/queryClient";
@@ -12,8 +13,7 @@ export type IssueMeta = SubjectMeta & IssueExtras;
 /** What `keys.issue` holds: the issue, or a marker when the number belongs to a PR. */
 export type IssueResult = IssueMeta | { __typename: "PullRequest"; number: number };
 
-const ISSUE_META_QUERY = `
-  query IssueMeta($owner: String!, $repo: String!, $number: Int!) {
+const ISSUE_META_QUERY = gqlQuery("IssueMeta", "$owner: String!, $repo: String!, $number: Int!", `
     repository(owner: $owner, name: $repo) {
       issueOrPullRequest(number: $number) {
         __typename
@@ -21,7 +21,7 @@ const ISSUE_META_QUERY = `
         ... on PullRequest { number }
       }
     }
-  }`;
+  `);
 
 export async function fetchIssueMeta(owner: string, repo: string, number: number): Promise<IssueResult> {
   const d = await gql<{ repository: { issueOrPullRequest: IssueResult | null } | null }>(ISSUE_META_QUERY, { owner, repo, number });
@@ -43,7 +43,7 @@ export async function fetchIssuesBatch(refs: { owner: string; repo: string; numb
   );
   const vars = Object.fromEntries(refs.flatMap((r, i) => [[`o${i}`, r.owner], [`r${i}`, r.repo], [`n${i}`, r.number]]));
   const { data, errors } = await gqlPartial<Record<string, { issueOrPullRequest: IssueResult | null } | null>>(
-    `query IssueMetaBatch(${params}) {\n${parts.join("\n")}\n}`,
+    gqlQuery("IssueMetaBatch", params, parts.join("\n")),
     vars,
   );
   const failed = new Set(errors.map((e) => e.path?.[0]));

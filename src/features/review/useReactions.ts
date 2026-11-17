@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import { gql } from "@/api/client";
+import { gqlMutation } from "@/api/operation";
 import { REACTION_FIELDS, type ReactionContent, type ReactionGroup } from "@/api/types";
 
-const ADD = `mutation AddReaction($id: ID!, $content: ReactionContent!) { addReaction(input: { subjectId: $id, content: $content }) { ${REACTION_FIELDS} } }`;
-const REMOVE = `mutation RemoveReaction($id: ID!, $content: ReactionContent!) { removeReaction(input: { subjectId: $id, content: $content }) { ${REACTION_FIELDS} } }`;
+const ADD = gqlMutation("AddReaction", "$id: ID!, $content: ReactionContent!", `addReaction(input: { subjectId: $id, content: $content }) { ${REACTION_FIELDS} }`);
+const REMOVE = gqlMutation("RemoveReaction", "$id: ID!, $content: ReactionContent!", `removeReaction(input: { subjectId: $id, content: $content }) { ${REACTION_FIELDS} }`);
 
 type AddData = { addReaction: { reactionGroups: ReactionGroup[] } };
 type RemoveData = { removeReaction: { reactionGroups: ReactionGroup[] } };

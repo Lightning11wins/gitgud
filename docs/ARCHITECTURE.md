@@ -8,7 +8,7 @@ See `REQUIREMENTS.md` for the product spec.
 
 ```
 src/
-  api/          client.ts (gql, gqlPartial, rest, restAll, gqlAll, mapLimit), queryClient.ts (cache), keys.ts, types.ts, rateLimit.ts, warmUp.ts
+  api/          client.ts (gql, gqlPartial, rest, restAll, gqlAll, mapLimit), operation.ts (gqlQuery, gqlMutation), queryClient.ts (cache), keys.ts, types.ts, rateLimit.ts, warmUp.ts
   auth/         token storage + login screen
   components/   shared UI: Layout, Avatar, Button styles, StateBadge, IssueLabel, RelativeTime, Markdown,
                 Popover, Dialog, SelectMenu, Spinner, ErrorBanner
@@ -33,6 +33,7 @@ server/serve.mjs  static server with CSP and compression
 - All server data goes through TanStack Query. `queryClient` persists every query to IndexedDB per query, so pages render instantly from cache, then revalidate on mount and on window focus. Data under 10 seconds old counts as fresh, so a page opened right after a prefetch doesn't refetch it.
 - Use the shared query keys in `api/keys.ts`. After a mutation, update the cache optimistically with `queryClient.setQueryData` where it's cheap, then `invalidateQueries` on the affected keys.
 - Prefer GraphQL (`gql`) for reads: one request fetches what REST needs several for. Use `gqlAll` to follow connections to the end. Never show a "load more" button; fetch everything.
+- Build GraphQL operations with `gqlQuery` and `gqlMutation` from `api/operation.ts`, which take the name, variable definitions, and top-level selections. `gql` writes the rest of the document, so anything every operation needs goes there.
 - REST (`rest`, `restAll`) is fine where GraphQL lacks something (PR files with patches, file contents, `/markdown`). `restAll` fetches pages in parallel.
 - For expensive queries, use `probeThenLoad` from `api/queryClient.ts`: a 1-point probe (e.g. `updatedAt`) skips the full reload when nothing changed.
 - `bodyHTML` / `body_html` is GitHub-rendered HTML. Render it only through `components/Markdown.tsx`, which sanitizes it with DOMPurify. Never use `dangerouslySetInnerHTML` elsewhere.

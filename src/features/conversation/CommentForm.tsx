@@ -1,6 +1,7 @@
 import { GitPullRequestClosedIcon, IssueClosedIcon, IssueReopenedIcon, LockIcon, SkipIcon, TriangleDownIcon } from "@primer/octicons-react";
 import { useState, type Ref } from "react";
 import { gql } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import type { SubjectKind } from "@/api/prefetch";
 import { canTriage, type SubjectMeta } from "@/api/types";
 import { auth } from "@/auth/token";
@@ -217,7 +218,7 @@ function DuplicateDialog({ owner, repo, self, onClose, onPick }: { owner: string
     setBusy(true);
     try {
       const d = await gql<{ repository: { issue: { id: string } | null } }>(
-        `query DuplicateTarget($owner: String!, $repo: String!, $n: Int!) { repository(owner: $owner, name: $repo) { issue(number: $n) { id } } }`,
+        gqlQuery("DuplicateTarget", "$owner: String!, $repo: String!, $n: Int!", "repository(owner: $owner, name: $repo) { issue(number: $n) { id } }"),
         { owner, repo, n },
       );
       if (!d.repository.issue) throw new Error(`Failed to find issue #${n} in ${owner}/${repo}`);

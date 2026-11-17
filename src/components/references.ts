@@ -1,4 +1,5 @@
 import { gqlPartial } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import { ISSUE_HEADER_FIELDS, PULL_HEADER_FIELDS, SUBJECT_HEADER_FIELDS, type SubjectHeader } from "@/api/types";
 
 export interface IssueRef {
@@ -50,7 +51,7 @@ async function fetchBatch(waiters: Waiter[]) {
   const vars = Object.fromEntries(waiters.flatMap(({ ref }, i) => [[`o${i}`, ref.owner], [`r${i}`, ref.repo], [`n${i}`, ref.number]]));
   try {
     const { data } = await gqlPartial<Record<string, { issueOrPullRequest: Reference | null } | null>>(
-      `query References(${params}) {\n${parts.join("\n")}\n}`,
+      gqlQuery("References", params, parts.join("\n")),
       vars,
     );
     waiters.forEach(({ resolve }, i) => {

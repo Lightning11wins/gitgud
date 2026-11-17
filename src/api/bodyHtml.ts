@@ -1,6 +1,7 @@
 import { gqlPartial } from "./client";
+import { gqlQuery } from "./operation";
 
-export const BODY_HTML_QUERY = `query BodyHtml($ids: [ID!]!) { nodes(ids: $ids) { ... on Comment { id bodyHTML } } }`;
+export const BODY_HTML_QUERY = gqlQuery("BodyHtml", "$ids: [ID!]!", "nodes(ids: $ids) { ... on Comment { id bodyHTML } }");
 
 /** GitHub signs attachment links for 5 minutes; reuse a fetch for less than that. */
 const REUSE_MS = 4 * 60_000;

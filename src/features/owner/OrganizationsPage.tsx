@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { gql, gqlAll, tokenScopes, type PageInfo } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { Avatar } from "@/components/Avatar";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -15,15 +16,14 @@ interface Organization {
   avatarUrl: string;
 }
 
-const ORGS_QUERY = `
-query ViewerOrganizations($after: String) {
+const ORGS_QUERY = gqlQuery("ViewerOrganizations", "$after: String", `
   viewer {
     organizations(first: 100, after: $after) {
       pageInfo { hasNextPage endCursor }
       nodes { login name description avatarUrl(size: 64) }
     }
   }
-}`;
+`);
 
 type OrgsResponse = { viewer: { organizations: { nodes: Organization[]; pageInfo: PageInfo } } };
 

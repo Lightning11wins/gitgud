@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { gql } from "@/api/client";
+import { gqlMutation, gqlQuery } from "@/api/operation";
 import { canTriage, type IssueType, type Label, type RepoPermission, type User } from "@/api/types";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { Spinner } from "@/components/Spinner";
@@ -34,8 +35,7 @@ interface NewIssueRepo {
   issueTemplates: Template[] | null;
 }
 
-const NEW_ISSUE_REPO_QUERY = `
-  query NewIssueRepo($owner: String!, $repo: String!) {
+const NEW_ISSUE_REPO_QUERY = gqlQuery("NewIssueRepo", "$owner: String!, $repo: String!", `
     repository(owner: $owner, name: $repo) {
       id nameWithOwner viewerPermission isBlankIssuesEnabled
       contactLinks { name about url }
@@ -46,7 +46,7 @@ const NEW_ISSUE_REPO_QUERY = `
         type { id name color description }
       }
     }
-  }`;
+  `);
 
 function useNewIssueRepo(owner: string, repo: string) {
   return useQuery({
@@ -194,7 +194,7 @@ function NewIssueForm({ owner, repo, data, template, params }: { owner: string; 
       issueTemplate: template?.name ?? null,
     };
     const d = await gql<{ createIssue: { issue: { number: number } } }>(
-      `mutation CreateIssue($input: CreateIssueInput!) { createIssue(input: $input) { issue { number } } }`,
+      gqlMutation("CreateIssue", "$input: CreateIssueInput!", "createIssue(input: $input) { issue { number } }"),
       { input },
     );
     await drafts.clear(`${base}:title`);

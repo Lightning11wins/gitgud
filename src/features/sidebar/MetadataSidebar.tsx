@@ -2,6 +2,7 @@ import { GearIcon, LinkIcon, LockIcon, UnlockIcon, XIcon } from "@primer/octicon
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { gql } from "@/api/client";
+import { gqlQuery } from "@/api/operation";
 import type { SubjectKind } from "@/api/prefetch";
 import { canTriage, canWrite, type IssueType, type Label, type Milestone, type SubjectMeta, type User } from "@/api/types";
 import { auth } from "@/auth/token";
@@ -74,7 +75,7 @@ export function MetadataSidebar({ subject, owner, repo, children }: MetadataSide
   const assignSelf = async () => {
     if (!viewer) return;
     try {
-      const { viewer: v } = await gql<{ viewer: { id: string } }>(`query ViewerId { viewer { id } }`);
+      const { viewer: v } = await gql<{ viewer: { id: string } }>(gqlQuery("ViewerId", "", "viewer { id }"));
       apply({ assigneeIds: [v.id] }, { assignees: { nodes: [{ id: v.id, login: viewer.login, avatarUrl: viewer.avatarUrl, url: viewer.url }] } });
     } catch (e) {
       setError(e);

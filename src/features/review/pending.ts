@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { gql, rest } from "@/api/client";
+import { gqlMutation, gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { queryClient } from "@/api/queryClient";
 import type { ReviewComment, ReviewThread } from "@/api/types";
@@ -23,15 +24,14 @@ export interface PendingState {
 export type ReviewEvent = "COMMENT" | "APPROVE" | "REQUEST_CHANGES";
 export type DiffSide = "LEFT" | "RIGHT";
 
-const PENDING_QUERY = `
-  query PendingReview($owner: String!, $repo: String!, $number: Int!) {
+const PENDING_QUERY = gqlQuery("PendingReview", "$owner: String!, $repo: String!, $number: Int!", `
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
         id headRefOid viewerDidAuthor
         reviews(states: PENDING, first: 20) { nodes { id body viewerDidAuthor comments { totalCount } } }
       }
     }
-  }`;
+  `);
 
 type PendingData = {
   repository: {
@@ -136,15 +136,13 @@ export async function addSingleComment(input: NewThreadInput): Promise<void> {
   await invalidateReview(owner, repo, number, ["reviewThreads", "timeline"]);
 }
 
-const ADD_REVIEW = `
-  mutation AddPendingReview($pullId: ID!, $commitOID: GitObjectID) {
+const ADD_REVIEW = gqlMutation("AddPendingReview", "$pullId: ID!, $commitOID: GitObjectID", `
     addPullRequestReview(input: { pullRequestId: $pullId, commitOID: $commitOID }) { pullRequestReview { id body comments { totalCount } } }
-  }`;
+  `);
 
-const ADD_THREAD = `
-  mutation AddReviewThread($input: AddPullRequestReviewThreadInput!) {
+const ADD_THREAD = gqlMutation("AddReviewThread", "$input: AddPullRequestReviewThreadInput!", `
     addPullRequestReviewThread(input: $input) { thread { id } }
-  }`;
+  `);
 
 // Pending review creations in flight, so concurrent comments share one review.
 const creating = new Map<string, Promise<string>>();
@@ -200,15 +198,13 @@ export interface SubmitReviewInput {
   pendingId?: string | null;
 }
 
-const SUBMIT_PENDING = `
-  mutation SubmitReview($id: ID!, $event: PullRequestReviewEvent!, $body: String) {
+const SUBMIT_PENDING = gqlMutation("SubmitReview", "$id: ID!, $event: PullRequestReviewEvent!, $body: String", `
     submitPullRequestReview(input: { pullRequestReviewId: $id, event: $event, body: $body }) { pullRequestReview { id } }
-  }`;
+  `);
 
-const ADD_SUBMITTED = `
-  mutation AddReview($pullId: ID!, $event: PullRequestReviewEvent!, $body: String) {
+const ADD_SUBMITTED = gqlMutation("AddReview", "$pullId: ID!, $event: PullRequestReviewEvent!, $body: String", `
     addPullRequestReview(input: { pullRequestId: $pullId, event: $event, body: $body }) { pullRequestReview { id } }
-  }`;
+  `);
 
 export async function submitReview({ owner, repo, number, pullId, event, body, pendingId }: SubmitReviewInput): Promise<void> {
   if (pendingId) await gql(SUBMIT_PENDING, { id: pendingId, event, body });
@@ -216,8 +212,7 @@ export async function submitReview({ owner, repo, number, pullId, event, body, p
   await settlePending(owner, repo, number, (c) => ({ ...c, state: "SUBMITTED" }));
 }
 
-const DELETE_REVIEW = `
-  mutation DiscardReview($id: ID!) { deletePullRequestReview(input: { pullRequestReviewId: $id }) { clientMutationId } }`;
+const DELETE_REVIEW = gqlMutation("DiscardReview", "$id: ID!", "deletePullRequestReview(input: { pullRequestReviewId: $id }) { clientMutationId }");
 
 /** Deletes the pending review and every comment in it. */
 export async function discardPendingReview(owner: string, repo: string, number: number, reviewId: string): Promise<void> {
