@@ -32,11 +32,13 @@ export function ChecksTab({ pull, owner, repo }: Props) {
       .map(([name, list]) => ({ name, list: sortChecks(list), summary: summarize(list) }))
       .sort((a, b) => order(a.summary.outcome) - order(b.summary.outcome) || a.name.localeCompare(b.name));
   }, [all]);
-  const ghLink = (
+  const checksLink = (label: string) => (
     <a className="checks-gh-link" href={`${pull.url}/checks`} target="_blank" rel="noopener noreferrer">
-      View checks on GitHub <LinkExternalIcon size={12} />
+      {label} <LinkExternalIcon size={12} />
     </a>
   );
+  // Fallback states link out because the checks can't be shown here.
+  const ghLink = checksLink("View checks on GitHub");
 
   if (pull.checksForbidden)
     return (
@@ -68,7 +70,8 @@ export function ChecksTab({ pull, owner, repo }: Props) {
         <strong>{overall.title}</strong>
         <span className="muted grow">{overall.detail} on <code>{pull.headRefOid.slice(0, 7)}</code></span>
         {more.isFetching && <Spinner label="Loading more checks" />}
-        {ghLink}
+        {/* Named for the actions GitHub offers that this tab lacks, so it doesn't read as a copy of the header's GitHub link. */}
+        {checksLink("Manage on GitHub")}
       </div>
       {more.error != null && <ErrorBanner error={more.error} />}
       {groups.map((g) => (
