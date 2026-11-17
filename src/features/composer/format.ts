@@ -37,6 +37,17 @@ export function link(value: string, start: number, end: number): Edit {
   return { start, end, text, selStart: sel ? urlAt : start + 1, selEnd: sel ? urlAt + 3 : start + 1 };
 }
 
+/** Links the selection to `pasted` when it's a URL and the selection is text that isn't one; null otherwise. */
+export function pasteLink(value: string, start: number, end: number, pasted: string): Edit | null {
+  const url = pasted.trim();
+  const sel = value.slice(start, end);
+  if (!sel || URL_RE.test(sel) || !URL_RE.test(url)) return null;
+  const text = `[${sel}](${url})`;
+  return { start, end, text, selStart: start + text.length, selEnd: start + text.length };
+}
+
+const URL_RE = /^https?:\/\/\S+$/;
+
 export function code(value: string, start: number, end: number): Edit {
   const sel = value.slice(start, end);
   if (!sel.includes("\n")) return wrap(value, start, end, "`");

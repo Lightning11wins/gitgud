@@ -25,7 +25,7 @@ import { Spinner } from "@/components/Spinner";
 import { StateIcon } from "@/components/StateBadge";
 import { drafts, useDraftError } from "@/lib/drafts";
 import { useMentionSuggestions, useRefSuggestions, type MentionCandidate, type RefCandidate } from "./autocomplete";
-import { code, findTrigger, insert, link, prefixLines, suggestion, wrap, type Edit, type Trigger } from "./format";
+import { code, findTrigger, insert, link, pasteLink, prefixLines, suggestion, wrap, type Edit, type Trigger } from "./format";
 import "./composer.css";
 import { tooltip } from "@/lib/tooltip";
 
@@ -268,6 +268,13 @@ export function Composer(props: ComposerProps) {
     if (hasImage(e.clipboardData?.files)) {
       e.preventDefault();
       setImageNotice(true);
+      return;
+    }
+    const el = ref.current;
+    const edit = el && pasteLink(el.value, el.selectionStart, el.selectionEnd, e.clipboardData.getData("text/plain"));
+    if (edit) {
+      e.preventDefault();
+      applyEdit(edit);
     }
   };
   const onDrop = (e: DragEvent) => {
