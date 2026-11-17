@@ -226,7 +226,14 @@
 .markdown-body .user-mention,
 .markdown-body .team-mention {
   font-weight: 600;
-  color: var(--fg);
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-radius: var(--radius);
+  padding: 0 4px;
+}
+.markdown-body :is(.user-mention, .team-mention):hover {
+  text-decoration: none;
+  background: var(--accent-muted);
 }
 .markdown-body g-emoji {
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
