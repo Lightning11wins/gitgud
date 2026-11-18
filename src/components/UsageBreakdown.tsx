@@ -125,7 +125,7 @@ function DaySummary({ entries, now }: { entries: UsageEntry[]; now: number }) {
   const hours = pointsByHour(entries, now);
   const graphql = sumPoints(entries.filter((e) => e.resource === "graphql"));
   const total = sumPoints(entries);
-  const max = Math.max(1, ...hours.map((h) => h.graphql + h.rest));
+  const max = Math.max(1, ...hours.map((h) => Math.max(h.graphql, h.rest)));
   const hourLabel = (t: number) => new Date(t).toLocaleTimeString([], { hour: "numeric" });
   return (
     <>
@@ -146,8 +146,8 @@ function DaySummary({ entries, now }: { entries: UsageEntry[]; now: number }) {
             const label = `${hourLabel(h.start)}: ${fmt(h.graphql)} GraphQL, ${fmt(h.rest)} REST points`;
             return (
               <div key={h.start} className="usage-hour" role="img" {...tooltip(label, "label")}>
-                {h.rest > 0 && <div className="usage-seg usage-rest" style={{ height: `${(h.rest / max) * 100}%` }} />}
-                {h.graphql > 0 && <div className="usage-seg usage-graphql" style={{ height: `${(h.graphql / max) * 100}%` }} />}
+                <div className="usage-bar usage-graphql" style={{ height: `${(h.graphql / max) * 100}%` }} />
+                <div className="usage-bar usage-rest" style={{ height: `${(h.rest / max) * 100}%` }} />
               </div>
             );
           })}
