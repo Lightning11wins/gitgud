@@ -30,6 +30,8 @@
   --done: #8250df;
   --done-emphasis: #8250df;
   --done-subtle: #fbefff;
+  /* Second chart series, beside --accent. */
+  --series-2: #eb6834;
   --neutral-emphasis: #59636e;
   --neutral-muted: #818b981f;
   --neutral-hover: #818b9833;
@@ -86,6 +88,7 @@
     --done: #ab7df8;
     --done-emphasis: #8957e5;
     --done-subtle: #ab7df826;
+    --series-2: #d95926;
     --neutral-emphasis: #656c76;
     --neutral-muted: #656c7633;
     --neutral-hover: #656c764d;
@@ -139,6 +142,7 @@
     --done: #ab7df8;
     --done-emphasis: #8957e5;
     --done-subtle: #ab7df826;
+    --series-2: #d95926;
     --neutral-emphasis: #656c76;
     --neutral-muted: #656c7633;
     --neutral-hover: #656c764d;

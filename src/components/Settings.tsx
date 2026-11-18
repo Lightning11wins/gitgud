@@ -9,6 +9,7 @@ import { useStore } from "@/lib/store";
 import { setTheme, themePref, type ThemePref } from "@/lib/theme";
 import { useTitle } from "@/lib/useTitle";
 import { ApiUsageBars } from "./ApiUsageBars";
+import { UsageBreakdown } from "./UsageBreakdown";
 import { tooltip } from "@/lib/tooltip";
 
 const REPO_TABS: { value: RepoTab; label: string }[] = [
@@ -110,6 +111,7 @@ export function Settings() {
           </span>
         </label>
       </section>
+      <UsageBreakdown />
       <section className="box" style={{ padding: 16 }}>
         <h3 style={{ marginTop: 0 }}>Account</h3>
         <p>

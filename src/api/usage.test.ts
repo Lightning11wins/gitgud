@@ -97,3 +97,32 @@ describe("client usage", () => {
     ]);
   });
 });
+
+describe("ranges", () => {
+  const entry = (minute: number, resource: "graphql" | "core", points: number) => ({ minute, resource, name: "Op", requests: 1, points, estimated: 0, free: 0 });
+
+  it("keeps entries in each limit's running window", async () => {
+    const { entriesInWindows } = await openTab();
+    const reset = now / 1000 + 20 * 60; // started 40 minutes ago
+    const limits = { graphql: { remaining: 4990, limit: 5000, reset }, core: { remaining: 10, limit: 5000, reset: now / 1000 - 1 } };
+    const inside = entry(now - 30 * 60_000, "graphql", 3);
+    const before = entry(now - 50 * 60_000, "graphql", 4);
+    const expired = entry(now - 5 * 60_000, "core", 1);
+    expect(entriesInWindows([inside, before, expired], limits, now)).toEqual([inside]);
+  });
+
+  it("adds up points by clock hour for the last 24 hours", async () => {
+    const { pointsByHour } = await openTab();
+    const hourStart = new Date(now);
+    hourStart.setMinutes(0, 0, 0);
+    const thisHour = hourStart.getTime();
+    const hours = pointsByHour(
+      [entry(thisHour + 60_000, "graphql", 3), entry(thisHour, "core", 1), entry(thisHour - 60_000, "graphql", 5), entry(thisHour - 24 * 3600_000, "graphql", 9)],
+      now,
+    );
+    expect(hours).toHaveLength(24);
+    expect(hours.at(-1)).toEqual({ start: thisHour, graphql: 3, rest: 1 });
+    expect(hours.at(-2)).toEqual({ start: thisHour - 3600_000, graphql: 5, rest: 0 });
+    expect(hours.reduce((n, h) => n + h.graphql + h.rest, 0)).toBe(9);
+  });
+});

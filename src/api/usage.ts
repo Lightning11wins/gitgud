@@ -1,4 +1,5 @@
 import { createStore } from "@/lib/store";
+import type { RateLimits } from "./rateLimit";
 
 /** A GitHub rate limit, as named by the `x-ratelimit-resource` header. */
 export type UsageResource = "core" | "graphql" | "search";
@@ -33,6 +34,8 @@ type Ledger = Record<string, Record<string, Spent>>;
 
 const PREFIX = "gitgud-usage:";
 const KEEP_MS = 24 * 60 * 60_000;
+/** GitHub rate limit windows last an hour from their first request. */
+const WINDOW_MS = 60 * 60_000;
 const SAVE_DELAY_MS = 1000;
 
 const tabId = Math.random().toString(36).slice(2, 10);
@@ -164,4 +167,30 @@ export function restOperationName(method: string, path: string): string {
     segments[++i] = param;
   }
   return `${method} ${segments.join("/")}`;
+}
+
+/** The entries in each rate limit's running window, by its start an hour before it resets. */
+export function entriesInWindows(entries: UsageEntry[], limits: RateLimits, now = Date.now()): UsageEntry[] {
+  return entries.filter((e) => {
+    const window = limits[e.resource];
+    return !!window && window.reset * 1000 > now && e.minute + 60_000 > window.reset * 1000 - WINDOW_MS;
+  });
+}
+
+/** Points in each of the last 24 clock hours, oldest first, split into GraphQL and REST. */
+export function pointsByHour(entries: UsageEntry[], now = Date.now()): { start: number; graphql: number; rest: number }[] {
+  const current = new Date(now);
+  current.setMinutes(0, 0, 0);
+  const hours = Array.from({ length: 24 }, (_, i) => {
+    const start = new Date(current);
+    start.setHours(current.getHours() - 23 + i);
+    return { start: start.getTime(), graphql: 0, rest: 0 };
+  });
+  for (const e of entries) {
+    const hour = hours.findLast((h) => h.start <= e.minute);
+    if (!hour) continue;
+    if (e.resource === "graphql") hour.graphql += e.points;
+    else hour.rest += e.points;
+  }
+  return hours;
 }
