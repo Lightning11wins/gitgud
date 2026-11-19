@@ -8,7 +8,7 @@ import { useNavigate } from "react-router";
 import { freshBodyHtml } from "@/api/bodyHtml";
 import { keys } from "@/api/keys";
 import { copyText } from "@/lib/clipboard";
-import { toAppPath } from "@/lib/githubUrl";
+import { githubAppPath } from "@/lib/githubUrl";
 import { attachmentUrl, isSignedMedia, signedExpiry } from "@/lib/signedMedia";
 import { useDark } from "@/lib/theme";
 import { mermaidHtml } from "@/lib/trustedTypes";
@@ -26,10 +26,13 @@ DOMPurify.addHook("uponSanitizeElement", (node, data) => {
 
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   if (node.tagName === "A" && node.getAttribute("href")) {
-    const permanent = attachmentUrl(node.getAttribute("href")!);
-    if (permanent) node.setAttribute("href", permanent);
+    const original = node.getAttribute("href")!;
+    // Pages GitGud shows open here on any click, even in a new tab; the header's GitHub link leaves.
+    const appPath = githubAppPath(original);
+    const href = appPath ?? attachmentUrl(original) ?? original;
+    node.setAttribute("href", href);
     node.setAttribute("rel", "noopener noreferrer");
-    if (!node.getAttribute("href")!.startsWith("#")) node.setAttribute("target", "_blank");
+    if (!appPath && !href.startsWith("#")) node.setAttribute("target", "_blank");
   }
   if (node.tagName === "IMG") {
     node.setAttribute("loading", "lazy");
@@ -257,12 +260,9 @@ export const Markdown = memo(function Markdown({ html, className, nodeId }: Mark
     if (copy) return copyBlock(copy);
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = (e.target as HTMLElement).closest("a");
-    const href = a?.getAttribute("href");
-    if (!href) return;
-    const path = toAppPath(href);
-    if (path && /^https?:\/\/(www\.)?github\.com\//.test(href)) {
+    if (a?.getAttribute("href")?.startsWith("/") && a.origin === location.origin) {
       e.preventDefault();
-      navigate(path);
+      navigate(a.pathname + a.search + a.hash);
     }
   };
   if (!String(clean).trim()) return <div className={`markdown-body muted ${className ?? ""}`}><em>No description provided.</em></div>;

@@ -11,9 +11,9 @@ export interface IssueRef {
 /** The issue or PR a reference shows. `api/subjects.ts` keeps it in sync with other cached copies. */
 export type Reference = SubjectHeader;
 
-/** The issue or PR a github.com URL points to, or null for any other URL. */
+/** The issue or PR an in-app path points to, or null for any other link. */
 export function parseReference(href: string): IssueRef | null {
-  const m = /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/(?:issues|pull)\/(\d+)$/.exec(href);
+  const m = /^\/([\w.-]+)\/([\w.-]+)\/(?:issues|pull)\/(\d+)$/.exec(href);
   return m ? { owner: m[1], repo: m[2], number: Number(m[3]) } : null;
 }
 
