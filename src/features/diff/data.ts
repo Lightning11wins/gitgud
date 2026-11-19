@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { gql, gqlAll, gqlPartial, mapLimit, rest, restAll, restRaw, type PageInfo } from "@/api/client";
+import { gql, gqlAll, gqlPartial, isNotFound, mapLimit, rest, restAll, restRaw, type PageInfo } from "@/api/client";
 import { gqlMutation, gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { registerPathPrefetcher, speculate } from "@/api/prefetch";
@@ -235,6 +235,23 @@ async function fetchTextBatch(waiters: TextWaiter[]) {
   } catch (e) {
     for (const { reject } of waiters) reject(e);
   }
+}
+
+/** The text of the repo's root `.editorconfig` on its default branch, or null when it has none. */
+export function useEditorConfig(owner: string, repo: string, enabled = true) {
+  return useQuery({
+    queryKey: ["editorconfig", owner, repo],
+    enabled,
+    staleTime: 1000 * 60 * 60,
+    queryFn: async () => {
+      try {
+        return await rest<string>(`/repos/${owner}/${repo}/contents/.editorconfig`, { accept: "application/vnd.github.raw", text: true });
+      } catch (e) {
+        if (isNotFound(e)) return null;
+        throw e;
+      }
+    },
+  });
 }
 
 export type ViewedState = "VIEWED" | "UNVIEWED" | "DISMISSED";

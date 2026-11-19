@@ -9,7 +9,7 @@ import {
   KebabHorizontalIcon,
   UnfoldIcon,
 } from "@primer/octicons-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ReviewThread } from "@/api/types";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -62,6 +62,8 @@ export interface FileDiffProps {
   ignoreWs: boolean;
   /** Files after `path` whose full texts to load along with its own, so scrolling to them needs no request. */
   textsAhead: (path: string) => readonly DiffFile[];
+  /** Columns a tab spans in this file's code, when the URL or the repo's `.editorconfig` sets it. */
+  tabSize?: number;
   onToggleCollapsed: (path: string) => void;
   onToggleViewed?: (path: string) => void;
 }
@@ -74,7 +76,7 @@ export const fileDomId = (path: string) => `diff-${path}`;
 
 /** A file in the split diff: sticky header plus lazily rendered body. */
 export const FileDiff = memo(function FileDiff(props: FileDiffProps) {
-  const { file, collapsed, pull, threads } = props;
+  const { file, collapsed, pull, threads, tabSize } = props;
   const [fileComment, setFileComment] = useState(false);
   // Once shown, the body stays mounted and is only hidden while collapsed, so toggling is cheap and keeps its state.
   const [opened, setOpened] = useState(!collapsed);
@@ -82,7 +84,7 @@ export const FileDiff = memo(function FileDiff(props: FileDiffProps) {
   const closeFileComment = useCallback(() => setFileComment(false), []);
   const comments = threads?.reduce((n, t) => n + t.comments.nodes.length, 0) ?? 0;
   return (
-    <section className={`df ${collapsed ? "collapsed" : ""}`} id={fileDomId(file.filename)} data-path={file.filename}>
+    <section className={`df ${collapsed ? "collapsed" : ""}`} id={fileDomId(file.filename)} data-path={file.filename} style={tabSize ? ({ "--tab-size": String(tabSize) } as CSSProperties) : undefined}>
       <FileHeader {...props} comments={comments} onComment={pull ? () => setFileComment(true) : undefined} />
       {opened && (
         <div className="df-body" style={collapsed ? undefined : { containIntrinsicSize: `auto ${estimateHeight(file)}px` }}>

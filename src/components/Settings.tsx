@@ -18,6 +18,8 @@ const REPO_TABS: { value: RepoTab; label: string }[] = [
   { value: "pulls", label: "Pull requests" },
 ];
 
+const TAB_SIZES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
 const WARM_UP_TIP = "GitGud automatically starts a new hourly window as soon as the previous window ends, costing one request on each limit.";
 const PREFETCH_TIP = "GitGud loads pages you're likely to open next, like links you hover, so they open instantly. It pauses while any limit has less than 20% left.";
 
@@ -60,6 +62,21 @@ export function Settings() {
             </label>
           ))}
         </div>
+      </section>
+      <section className="box" style={{ padding: 16, marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Tab size</h3>
+        <label className="row" style={{ gap: 6 }}>
+          <select className="input" value={prefs.tabSize} onChange={(e) => updateSettings({ tabSize: Number(e.target.value) })}>
+            {TAB_SIZES.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          <span>
+            spaces per tab in code. A repository's <code>.editorconfig</code> or a <code>?ts=</code> URL parameter overrides it in diffs.
+          </span>
+        </label>
       </section>
       <section className="box" style={{ padding: 16, marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Cache</h3>

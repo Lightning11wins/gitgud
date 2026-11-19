@@ -11,10 +11,12 @@ export interface Settings {
   /** Load pages the user is likely to open next, like hovered links, in the background. */
   prefetch: boolean;
   repoTab: RepoTab;
+  /** Columns a tab character spans in code, unless the page or repo sets its own. */
+  tabSize: number;
 }
 
 const KEY = "gitgud-settings";
-const DEFAULTS: Settings = { showApiMeter: true, warmUpRateLimits: true, prefetch: true, repoTab: "all" };
+const DEFAULTS: Settings = { showApiMeter: true, warmUpRateLimits: true, prefetch: true, repoTab: "all", tabSize: 4 };
 
 function read(): Settings {
   try {

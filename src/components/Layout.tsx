@@ -1,5 +1,5 @@
 import { CheckIcon, CommentIcon, GitPullRequestIcon, IssueOpenedIcon, LinkExternalIcon } from "@primer/octicons-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { rateLimits } from "@/api/rateLimit";
 import { auth, signOut } from "@/auth/token";
@@ -108,6 +108,8 @@ const FEEDBACK_REPO = import.meta.env.VITE_FEEDBACK_REPO || "Lightning11wins/git
 export function Layout() {
   const { pathname, search } = useLocation();
   const repo = useRepoFromPath();
+  const { tabSize } = useStore(settings);
+  useLayoutEffect(() => document.documentElement.style.setProperty("--tab-size", String(tabSize)), [tabSize]);
   const segments = pathname.split("/").filter(Boolean);
   // Names a crafted link could use to send API requests outside the repo they name.
   const badName = segments[0] !== "settings" && !segments.slice(0, 2).every(isValidName);

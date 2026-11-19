@@ -4,7 +4,8 @@ import { useSearchParams } from "react-router";
 import type { ReviewThread } from "@/api/types";
 import { Spinner } from "@/components/Spinner";
 import { useHotkey } from "@/lib/hotkeys";
-import type { DiffSource, ViewedMap } from "./data";
+import { parseEditorConfig, tabWidth } from "@/lib/editorconfig";
+import { useEditorConfig, type DiffSource, type ViewedMap } from "./data";
 import { FileDiff, ROW_H, fileDomId, type PullContext } from "./FileDiff";
 import { FileTree, buildTree, treeOrder } from "./FileTree";
 import { languageFor } from "./lang";
@@ -76,6 +77,10 @@ function stickyTop(): number {
 export function DiffView({ files, source, pull, threads, viewed, onSetViewed, viewedError, onDismissViewedError, fetching, notice }: DiffViewProps) {
   const [params, setParams] = useSearchParams();
   const ignoreWs = params.get("w") === "1";
+  const ts = Number(params.get("ts"));
+  const pageTabSize = Number.isInteger(ts) && ts > 0 ? ts : undefined;
+  const editorConfigText = useEditorConfig(source.owner, source.repo, pageTabSize === undefined).data;
+  const editorConfig = useMemo(() => (editorConfigText ? parseEditorConfig(editorConfigText) : undefined), [editorConfigText]);
   const root = useMemo(() => buildTree(files), [files]);
   const ordered = useMemo(() => treeOrder(root), [root]);
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
@@ -370,6 +375,7 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
               viewed={viewed ? viewed[f.filename] === "VIEWED" : undefined}
               ignoreWs={ignoreWs}
               textsAhead={textsAhead}
+              tabSize={pageTabSize ?? (editorConfig && tabWidth(editorConfig, f.filename))}
               onToggleCollapsed={onToggleCollapsed}
               onToggleViewed={viewed && onSetViewed ? onToggleViewed : undefined}
             />
