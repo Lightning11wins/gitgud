@@ -4,7 +4,7 @@ import { gqlMutation, gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { registerPathPrefetcher, speculate } from "@/api/prefetch";
 import { persistQueryData, probeThenLoad, queryClient } from "@/api/queryClient";
-import { trimFile, type DiffFile } from "./model";
+import { splitLines, trimFile, type DiffFile } from "./model";
 
 /** Where a diff comes from: refs for fetching file contents on demand. */
 export interface DiffSource {
@@ -160,6 +160,33 @@ export function fetchContent(owner: string, repo: string, path: string, ref: str
     gcTime: 1000 * 60 * 10,
     queryFn: () => rest<string>(`/repos/${owner}/${repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`, { accept: "application/vnd.github.raw", text: true }),
   });
+}
+
+/** Both sides of a file as lines, for highlighting; null where a side is absent or unavailable. */
+export interface FullTexts {
+  base: string[] | null;
+  head: string[] | null;
+}
+
+/** Query options for a file's full texts. Fetching them also starts on the files `ahead` returns, so they share the request. */
+export function fullTextsOptions(source: DiffSource, file: DiffFile, ahead: () => readonly DiffFile[] = () => []) {
+  return {
+    queryKey: ["full-texts", source.id, file.filename],
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 5,
+    persister: undefined,
+    queryFn: async (): Promise<FullTexts> => {
+      for (const f of ahead()) void queryClient.prefetchQuery(fullTextsOptions(source, f));
+      const oldPath = file.previous_filename ?? file.filename;
+      // Resolved first, so both sides join the same batched request.
+      const baseRef = file.status === "added" ? null : await source.base();
+      const [base, head] = await Promise.all([
+        baseRef === null ? null : fetchFileText(source.owner, source.repo, oldPath, baseRef),
+        file.status === "removed" ? null : fetchFileText(source.owner, source.repo, file.filename, source.head),
+      ]);
+      return { base: base === null ? null : splitLines(base), head: head === null ? null : splitLines(head) };
+    },
+  };
 }
 
 /** Most file texts fetched in one request. */

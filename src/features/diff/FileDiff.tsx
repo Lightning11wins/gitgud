@@ -16,7 +16,7 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 import { Spinner } from "@/components/Spinner";
 import { NewThreadForm } from "@/features/review/NewThreadForm";
 import { ReviewThreadView } from "@/features/review/ReviewThread";
-import { fetchContent, fetchFileText, type DiffSource } from "./data";
+import { fetchContent, fullTextsOptions, type DiffSource } from "./data";
 import { PRI_IDLE, PRI_VISIBLE, useTokens, type Tokens } from "./highlight";
 import { languageFor } from "./lang";
 import {
@@ -60,6 +60,8 @@ export interface FileDiffProps {
   /** Undefined when the diff has no viewed state (commits, compare). */
   viewed?: boolean;
   ignoreWs: boolean;
+  /** Files after `path` whose full texts to load along with its own, so scrolling to them needs no request. */
+  textsAhead: (path: string) => readonly DiffFile[];
   onToggleCollapsed: (path: string) => void;
   onToggleViewed?: (path: string) => void;
 }
@@ -84,7 +86,7 @@ export const FileDiff = memo(function FileDiff(props: FileDiffProps) {
       <FileHeader {...props} comments={comments} onComment={pull ? () => setFileComment(true) : undefined} />
       {opened && (
         <div className="df-body" style={collapsed ? undefined : { containIntrinsicSize: `auto ${estimateHeight(file)}px` }}>
-          <FileBody file={file} source={props.source} pull={pull} threads={threads} ignoreWs={props.ignoreWs} fileComment={fileComment} closeFileComment={closeFileComment} />
+          <FileBody file={file} source={props.source} pull={pull} threads={threads} ignoreWs={props.ignoreWs} textsAhead={props.textsAhead} fileComment={fileComment} closeFileComment={closeFileComment} />
         </div>
       )}
     </section>
@@ -198,12 +200,6 @@ interface Loaded {
   binary: boolean;
 }
 
-/** Both sides of a file, for highlighting; null where a side is absent or unavailable. */
-interface FullTexts {
-  base: string[] | null;
-  head: string[] | null;
-}
-
 /** Token lookup for one side of a file. */
 interface SideTok {
   tokens: Tokens;
@@ -224,11 +220,11 @@ function patchIndex(nums: Int32Array) {
   };
 }
 
-type FileBodyProps = Pick<FileDiffProps, "file" | "source" | "pull" | "threads" | "ignoreWs"> & { fileComment: boolean; closeFileComment: () => void };
+type FileBodyProps = Pick<FileDiffProps, "file" | "source" | "pull" | "threads" | "ignoreWs" | "textsAhead"> & { fileComment: boolean; closeFileComment: () => void };
 
 // Memoized so collapsing or marking the file viewed doesn't re-render its body.
 const FileBody = memo(function FileBody(props: FileBodyProps) {
-  const { file, source, pull, threads, ignoreWs, fileComment, closeFileComment } = props;
+  const { file, source, pull, threads, ignoreWs, textsAhead, fileComment, closeFileComment } = props;
   const hidden = hiddenReason(file);
   const needsFetch = file.patch === undefined && file.changes > 0;
   const [load, setLoad] = useState(!hidden && !needsFetch);
@@ -283,23 +279,7 @@ const FileBody = memo(function FileBody(props: FileBodyProps) {
   const lt = useTokens(leftSide?.nums.length ? `${source.id}:${file.filename}:L` : null, lang, () => leftSide!.text, pri);
   const rt = useTokens(rightSide?.nums.length ? `${source.id}:${file.filename}:R` : null, lang, () => rightSide!.text, pri);
   // Whole files, so lines inside a comment or string that opens outside the patch color right.
-  const full = useQuery({
-    queryKey: ["full-texts", source.id, file.filename],
-    enabled: highlight && near && !needsFetch && !!lang,
-    staleTime: Infinity,
-    gcTime: 1000 * 60 * 5,
-    persister: undefined,
-    queryFn: async (): Promise<FullTexts> => {
-      const oldPath = file.previous_filename ?? file.filename;
-      // Resolved first, so both sides join the same batched request.
-      const baseRef = file.status === "added" ? null : await source.base();
-      const [base, head] = await Promise.all([
-        baseRef === null ? null : fetchFileText(source.owner, source.repo, oldPath, baseRef),
-        file.status === "removed" ? null : fetchFileText(source.owner, source.repo, file.filename, source.head),
-      ]);
-      return { base: base === null ? null : splitLines(base), head: head === null ? null : splitLines(head) };
-    },
-  });
+  const full = useQuery({ ...fullTextsOptions(source, file, () => textsAhead(file.filename)), enabled: highlight && near && !needsFetch && !!lang });
   const baseFull = loaded.data?.base ?? full.data?.base;
   const headFull = headLines ?? full.data?.head;
   const fl = useTokens(highlight && baseFull ? `${source.id}:${file.filename}:fullL` : null, lang, () => baseFull!.join("\n"), pri);

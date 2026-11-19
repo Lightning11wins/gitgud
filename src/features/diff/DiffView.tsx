@@ -7,7 +7,8 @@ import { useHotkey } from "@/lib/hotkeys";
 import type { DiffSource, ViewedMap } from "./data";
 import { FileDiff, ROW_H, fileDomId, type PullContext } from "./FileDiff";
 import { FileTree, buildTree, treeOrder } from "./FileTree";
-import type { DiffFile } from "./model";
+import { languageFor } from "./lang";
+import { hiddenReason, type DiffFile } from "./model";
 import "./diff.css";
 import { tooltip } from "@/lib/tooltip";
 
@@ -27,6 +28,8 @@ export interface DiffViewProps {
 }
 
 const EMPTY: ReviewThread[] = [];
+/** Files whose full texts load along with the one scrolled to; with both sides each, about one batched request. */
+const TEXTS_AHEAD = 9;
 const TREE_WIDTH_KEY = "gitgud-tree-width";
 const TREE_SHOWN_KEY = "gitgud-tree-shown";
 /** Viewports narrower than this hide the file tree until the user shows it. */
@@ -86,6 +89,19 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
   const viewedRef = useRef(viewed);
   viewedRef.current = viewed;
   const isCollapsed = (path: string) => overrides[path] ?? viewed?.[path] === "VIEWED";
+
+  const latest = useRef({ ordered, isCollapsed });
+  latest.current = { ordered, isCollapsed };
+  // Stable, so files don't re-render when collapse state changes.
+  const textsAhead = useCallback((path: string) => {
+    const { ordered, isCollapsed } = latest.current;
+    const out: DiffFile[] = [];
+    for (let i = ordered.findIndex((f) => f.filename === path) + 1; i < ordered.length && out.length < TEXTS_AHEAD; i++) {
+      const f = ordered[i];
+      if (f.patch !== undefined && !hiddenReason(f) && !isCollapsed(f.filename) && languageFor(f.filename)) out.push(f);
+    }
+    return out;
+  }, []);
 
   // Per-file thread arrays keep their identity while their threads are unchanged, so only touched files re-render.
   const prevThreads = useRef(new Map<string, ReviewThread[]>());
@@ -353,6 +369,7 @@ export function DiffView({ files, source, pull, threads, viewed, onSetViewed, vi
               collapsed={isCollapsed(f.filename)}
               viewed={viewed ? viewed[f.filename] === "VIEWED" : undefined}
               ignoreWs={ignoreWs}
+              textsAhead={textsAhead}
               onToggleCollapsed={onToggleCollapsed}
               onToggleViewed={viewed && onSetViewed ? onToggleViewed : undefined}
             />
