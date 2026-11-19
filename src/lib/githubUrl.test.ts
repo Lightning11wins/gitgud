@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { updateSettings } from "./settings";
-import { isValidName, toAppPath } from "./githubUrl";
+import { githubAppPath, isValidName, toAppPath } from "./githubUrl";
 
 vi.stubGlobal("location", { origin: "http://localhost" });
 
@@ -25,6 +25,22 @@ describe("toAppPath", () => {
     expect(toAppPath("https://github.com/cli/cli%23/issues/1")).toBeNull();
     expect(toAppPath("https://github.com/cli/cli%3Fx%2F/pulls")).toBeNull();
     expect(toAppPath("/cli%2F..%2F..%2Fuser/x/issues")).toBeNull();
+  });
+});
+
+describe("githubAppPath", () => {
+  beforeEach(() => updateSettings({ repoTab: "all" }));
+
+  it("maps github.com pages GitGud shows", () => {
+    expect(githubAppPath("https://github.com/LightSys/centrallix/issues/265")).toBe("/LightSys/centrallix/issues/265");
+    expect(githubAppPath("https://github.com/cli/cli/pull/42/files#diff-abc")).toBe("/cli/cli/pull/42/files#diff-abc");
+    expect(githubAppPath("https://github.com/octocat")).toBe("/octocat");
+  });
+
+  it("rejects other pages and relative links", () => {
+    for (const url of ["https://github.com/cli/cli/blob/main/README.md", "https://github.com/orgs/cli/teams/core", "https://example.com/cli/cli/issues/42", "cli/cli", "/cli/cli/issues/1"]) {
+      expect(githubAppPath(url)).toBeNull();
+    }
   });
 });
 

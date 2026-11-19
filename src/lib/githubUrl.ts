@@ -53,6 +53,11 @@ export function toAppPath(input: string): string | null {
   return path + url.search + url.hash;
 }
 
+/** The in-app path for a github.com URL whose page GitGud shows, or null for any other link. */
+export function githubAppPath(url: string): string | null {
+  return /^https?:\/\/(www\.)?github\.com\//.test(url) ? toAppPath(url) : null;
+}
+
 /** The github.com URL for an in-app path. */
 export function toGitHubUrl(appPath: string): string {
   return `https://github.com${appPath}`;
