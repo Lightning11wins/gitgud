@@ -1,11 +1,13 @@
 import { PencilIcon } from "@primer/octicons-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { RelativeTime } from "@/components/RelativeTime";
 import { StateBadge } from "@/components/StateBadge";
 import { TitleText } from "@/components/TitleText";
 import { ReviewSubmitButton } from "@/features/review/ReviewSubmit";
 import { patchPull, refreshPull, updateTitle, type PullMeta } from "./api";
+import { dependencyNumbers, useDependencyBase } from "./dependencies";
 import { BranchName, CopyButton, plural } from "./util";
 import { tooltip } from "@/lib/tooltip";
 
@@ -47,6 +49,7 @@ export function PullHeader({ pull, owner, repo }: Props) {
               )}
             </h1>
             <div className="pull-title-actions">
+              {pull.state === "OPEN" && <DependencyDiffButton pull={pull} owner={owner} repo={repo} />}
               {pull.state === "OPEN" && <ReviewSubmitButton owner={owner} repo={repo} number={pull.number} pullId={pull.id} />}
             </div>
           </div>
@@ -69,11 +72,42 @@ export function PullHeader({ pull, owner, repo }: Props) {
                 <BranchSummary pull={pull} owner={owner} repo={repo} compact />
               </div>
             </div>
+            {pull.state === "OPEN" && <DependencyDiffButton pull={pull} owner={owner} repo={repo} />}
             {pull.state === "OPEN" && <ReviewSubmitButton owner={owner} repo={repo} number={pull.number} pullId={pull.id} />}
           </div>
         </div>
       )}
     </>
+  );
+}
+
+/** Default branch names: a PR into one shows its unmerged dependencies' changes in its diff. */
+const DEPENDENT_BASES = new Set(["main", "master"]);
+
+/** Links to the PR's changes compared with the branch of the unmerged PR it says it "Depends on". */
+function DependencyDiffButton({ pull, owner, repo }: Props) {
+  const numbers = useMemo(() => (DEPENDENT_BASES.has(pull.baseRefName) ? dependencyNumbers(pull.body) : []), [pull.baseRefName, pull.body]);
+  const { data, error } = useDependencyBase(owner, repo, pull.baseRefName, numbers);
+  if (!numbers.length || data === null) return null;
+  const label = "Without dependencies";
+  const dep = data && "pull" in data ? data.pull : undefined;
+  let problem: string | undefined;
+  if (error) problem = error instanceof Error ? error.message : String(error);
+  else if (!data) problem = "Loading dependencies";
+  else if ("problem" in data) problem = data.problem;
+  else if (pull.isCrossRepository) problem = "This pull request's branch is on a fork";
+  else if (!pull.headRef) problem = "This pull request's branch was deleted";
+  if (problem || !dep) {
+    return (
+      <button className="btn sm" disabled {...tooltip(problem)}>
+        {label}
+      </button>
+    );
+  }
+  return (
+    <Link className="btn sm" to={`/${owner}/${repo}/compare/${dep.headRefName}...${pull.headRefName}`} {...tooltip(`Compare with #${dep.number}'s branch, ${dep.headRefName}`)}>
+      {label}
+    </Link>
   );
 }
 
