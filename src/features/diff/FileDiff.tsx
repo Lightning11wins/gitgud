@@ -16,7 +16,7 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 import { Spinner } from "@/components/Spinner";
 import { NewThreadForm } from "@/features/review/NewThreadForm";
 import { ReviewThreadView } from "@/features/review/ReviewThread";
-import { fetchContent, type DiffSource } from "./data";
+import { fetchContent, fetchFileText, type DiffSource } from "./data";
 import { PRI_IDLE, PRI_VISIBLE, useTokens, type Tokens } from "./highlight";
 import { languageFor } from "./lang";
 import {
@@ -193,8 +193,15 @@ interface Selection {
 
 interface Loaded {
   hunks: Hunk[];
+  base?: string[];
   head?: string[];
   binary: boolean;
+}
+
+/** Both sides of a file, for highlighting; null where a side is absent or unavailable. */
+interface FullTexts {
+  base: string[] | null;
+  head: string[] | null;
 }
 
 /** Token lookup for one side of a file. */
@@ -251,7 +258,12 @@ const FileBody = memo(function FileBody(props: FileBodyProps) {
         file.status === "removed" ? "" : fetchContent(source.owner, source.repo, file.filename, source.head),
       ]);
       if (isBinaryText(oldText) || isBinaryText(newText)) return { hunks: [], binary: true };
-      return { hunks: diffContents(oldText, newText), head: file.status === "removed" ? undefined : splitLines(newText), binary: false };
+      return {
+        hunks: diffContents(oldText, newText),
+        base: file.status === "added" ? undefined : splitLines(oldText),
+        head: file.status === "removed" ? undefined : splitLines(newText),
+        binary: false,
+      };
     },
   });
 
@@ -270,12 +282,36 @@ const FileBody = memo(function FileBody(props: FileBodyProps) {
   const rightSide = useMemo(() => (highlight ? sideLines(patchHunks, "R") : null), [highlight, patchHunks]);
   const lt = useTokens(leftSide?.nums.length ? `${source.id}:${file.filename}:L` : null, lang, () => leftSide!.text, pri);
   const rt = useTokens(rightSide?.nums.length ? `${source.id}:${file.filename}:R` : null, lang, () => rightSide!.text, pri);
-  const ft = useTokens(highlight && headLines ? `${source.id}:${file.filename}:full` : null, lang, () => headLines!.join("\n"), pri);
-  const ltok = useMemo<SideTok | null>(() => (lt && leftSide ? { tokens: lt, idx: patchIndex(leftSide.nums) } : null), [lt, leftSide]);
+  // Whole files, so lines inside a comment or string that opens outside the patch color right.
+  const full = useQuery({
+    queryKey: ["full-texts", source.id, file.filename],
+    enabled: highlight && near && !needsFetch && !!lang,
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 5,
+    persister: undefined,
+    queryFn: async (): Promise<FullTexts> => {
+      const oldPath = file.previous_filename ?? file.filename;
+      // Resolved first, so both sides join the same batched request.
+      const baseRef = file.status === "added" ? null : await source.base();
+      const [base, head] = await Promise.all([
+        baseRef === null ? null : fetchFileText(source.owner, source.repo, oldPath, baseRef),
+        file.status === "removed" ? null : fetchFileText(source.owner, source.repo, file.filename, source.head),
+      ]);
+      return { base: base === null ? null : splitLines(base), head: head === null ? null : splitLines(head) };
+    },
+  });
+  const baseFull = loaded.data?.base ?? full.data?.base;
+  const headFull = headLines ?? full.data?.head;
+  const fl = useTokens(highlight && baseFull ? `${source.id}:${file.filename}:fullL` : null, lang, () => baseFull!.join("\n"), pri);
+  const fr = useTokens(highlight && headFull ? `${source.id}:${file.filename}:fullR` : null, lang, () => headFull!.join("\n"), pri);
+  const ltok = useMemo<SideTok | null>(() => {
+    if (fl) return { tokens: fl, idx: (n) => n - 1 };
+    return lt && leftSide ? { tokens: lt, idx: patchIndex(leftSide.nums) } : null;
+  }, [fl, lt, leftSide]);
   const rtok = useMemo<SideTok | null>(() => {
-    if (ft) return { tokens: ft, idx: (n) => n - 1 };
+    if (fr) return { tokens: fr, idx: (n) => n - 1 };
     return rt && rightSide ? { tokens: rt, idx: patchIndex(rightSide.nums) } : null;
-  }, [ft, rt, rightSide]);
+  }, [fr, rt, rightSide]);
 
   const { lmap, rmap, unplaced, fileThreads } = useMemo(() => placeThreads(threads, rows), [threads, rows]);
   // Added and deleted files have lines on one side only and show it as one full-width column.

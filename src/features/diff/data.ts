@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { gql, gqlAll, mapLimit, rest, restAll, restRaw, type PageInfo } from "@/api/client";
+import { gql, gqlAll, gqlPartial, mapLimit, rest, restAll, restRaw, type PageInfo } from "@/api/client";
 import { gqlMutation, gqlQuery } from "@/api/operation";
 import { keys } from "@/api/keys";
 import { registerPathPrefetcher, speculate } from "@/api/prefetch";
@@ -160,6 +160,54 @@ export function fetchContent(owner: string, repo: string, path: string, ref: str
     gcTime: 1000 * 60 * 10,
     queryFn: () => rest<string>(`/repos/${owner}/${repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`, { accept: "application/vnd.github.raw", text: true }),
   });
+}
+
+/** Most file texts fetched in one request. */
+const TEXT_BATCH_SIZE = 20;
+
+type TextWaiter = { owner: string; repo: string; expression: string; resolve: (t: string | null) => void; reject: (e: unknown) => void };
+let textQueue: TextWaiter[] = [];
+
+/**
+ * A file's text at `ref`, fetched once and cached, or null when it's missing, binary, or
+ * truncated by GitHub. Calls made in the same task share one request.
+ */
+export function fetchFileText(owner: string, repo: string, path: string, ref: string): Promise<string | null> {
+  return queryClient.fetchQuery({
+    queryKey: ["file-text", owner, repo, ref, path],
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 10,
+    // The persister restores each query in its own task, which would split the batch.
+    persister: undefined,
+    queryFn: () =>
+      new Promise<string | null>((resolve, reject) => {
+        textQueue.push({ owner, repo, expression: `${ref}:${path}`, resolve, reject });
+        if (textQueue.length === 1) setTimeout(flushTexts);
+      }),
+  });
+}
+
+function flushTexts() {
+  const waiters = textQueue;
+  textQueue = [];
+  for (let i = 0; i < waiters.length; i += TEXT_BATCH_SIZE) fetchTextBatch(waiters.slice(i, i + TEXT_BATCH_SIZE));
+}
+
+type BlobData = { object: { text: string | null; isTruncated: boolean } | null } | null;
+
+async function fetchTextBatch(waiters: TextWaiter[]) {
+  const params = waiters.map((_, i) => `$o${i}: String!, $r${i}: String!, $e${i}: String!`).join(", ");
+  const parts = waiters.map((_, i) => `f${i}: repository(owner: $o${i}, name: $r${i}) { object(expression: $e${i}) { ... on Blob { text isTruncated } } }`);
+  const vars = Object.fromEntries(waiters.flatMap((w, i) => [[`o${i}`, w.owner], [`r${i}`, w.repo], [`e${i}`, w.expression]]));
+  try {
+    const { data } = await gqlPartial<Record<string, BlobData>>(gqlQuery("FileTexts", params, parts.join("\n")), vars);
+    waiters.forEach(({ resolve }, i) => {
+      const blob = data[`f${i}`]?.object;
+      resolve(blob && !blob.isTruncated ? (blob.text ?? null) : null);
+    });
+  } catch (e) {
+    for (const { reject } of waiters) reject(e);
+  }
 }
 
 export type ViewedState = "VIEWED" | "UNVIEWED" | "DISMISSED";
