@@ -191,9 +191,14 @@ export const REVIEW_COMMENT_FIELDS = `
   replyTo { id }
 `;
 
+/**
+ * Review thread fields with the thread's first 10 comments; fetch longer threads' rest separately.
+ * GitHub prices a query by the nodes its `first:` limits allow, and this limit multiplies each
+ * comment's reactors, so a page of 100 threads costs 11 points here and 101 at `first: 100`.
+ */
 export const REVIEW_THREAD_FIELDS = `
   id path line originalLine startLine originalStartLine diffSide startDiffSide
   isResolved isOutdated isCollapsed subjectType viewerCanResolve viewerCanUnresolve viewerCanReply
   resolvedBy { ${ACTOR_FIELDS} }
-  comments(first: 100) { totalCount nodes { ${REVIEW_COMMENT_FIELDS} } }
+  comments(first: 10) { totalCount nodes { ${REVIEW_COMMENT_FIELDS} } }
 `;
